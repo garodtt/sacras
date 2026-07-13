@@ -1,0 +1,1041 @@
+/* =====================================================================
+   Sacramento RPG — sistema visual (Fase 7, 13/07)
+   Referência: Ficha_Editável_-_Sacramento_RPG.pdf (cartaz de faroeste/
+   "procurado", papel envelhecido, caixas pretas sólidas em Atributos/
+   Itens/Armas/Nível de Fidelidade, números sempre em vermelho).
+   Fontes: Rye (título, Google Fonts) + Vollkorn (corpo, Google Fonts) +
+   sans do sistema (inputs/botões fora da ficha, legibilidade no dia a
+   dia). Ver docs/ARQUITETURA.md, seção "Fase 7".
+===================================================================== */
+
+:root {
+  --cor-fundo: #ecdfc1;
+  --cor-papel: #f8f1dc;
+  --cor-tinta: #221a10;
+  --cor-tinta-suave: #5a4a35;
+  --cor-sangue: #9c2b1a;
+  --cor-couro: #7c5330;
+  --cor-poeira: #b98a3d;
+  --cor-borda: #cbb98e;
+
+  --fonte-titulo: 'Rye', 'Copperplate', serif;
+  --fonte-corpo: 'Vollkorn', Georgia, serif;
+  --fonte-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--cor-fundo);
+  background-image:
+    radial-gradient(ellipse at center, transparent 45%, rgba(34, 22, 10, 0.16) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.13, 0 0 0 0 0.1, 0 0 0 0 0.06, 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-attachment: local, local;
+  color: var(--cor-tinta);
+  font-family: var(--fonte-ui);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--fonte-titulo);
+  font-weight: normal;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  color: var(--cor-tinta);
+  margin: 0 0 0.5rem;
+}
+
+a {
+  color: var(--cor-sangue);
+  text-decoration-color: var(--cor-borda);
+}
+
+a:hover {
+  color: var(--cor-couro);
+}
+
+button {
+  font-family: var(--fonte-ui);
+  border: none;
+  border-radius: 4px;
+  background: var(--cor-tinta);
+  color: var(--cor-papel);
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--cor-couro);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+input, select, textarea {
+  font-family: var(--fonte-ui);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--cor-poeira);
+  outline-offset: 1px;
+}
+
+.erro {
+  color: var(--cor-sangue);
+}
+
+.detalhe-secundario {
+  color: var(--cor-tinta-suave);
+  font-size: 0.85rem;
+}
+
+/* ---------------------------------------------------------------
+   Telas de autenticação (Login/Cadastro/Redefinir senha).
+------------------------------------------------------------------ */
+.tela-auth {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.card-auth {
+  width: 100%;
+  max-width: 380px;
+  background: var(--cor-papel);
+  border: 1px solid var(--cor-borda);
+  border-radius: 8px;
+  padding: 2rem;
+}
+
+.card-auth h1 {
+  margin-top: 0;
+  font-size: 1.8rem;
+}
+
+.card-auth form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.card-auth label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.card-auth input {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: 4px;
+  font-size: 1rem;
+  background: #fff;
+}
+
+.card-auth fieldset {
+  border: 1px solid var(--cor-borda);
+  border-radius: 4px;
+  padding: 0.6rem 0.8rem;
+}
+
+.opcao-radio {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.4rem !important;
+  display: flex;
+  margin: 0.3rem 0;
+}
+
+.card-auth button {
+  padding: 0.6rem;
+}
+
+.card-auth .erro {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.card-auth p {
+  font-size: 0.9rem;
+}
+
+/* ---------------------------------------------------------------
+   Painel / Campanha / Admin.
+------------------------------------------------------------------ */
+.painel {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.painel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.painel section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.lista-cards {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.lista-cards li {
+  background: var(--cor-papel);
+  border: 1px solid var(--cor-borda);
+  border-radius: 6px;
+  padding: 0.7rem 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.lista-cards li p {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--cor-tinta-suave);
+  flex-basis: 100%;
+}
+
+.form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+}
+
+.form-inline label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.form-inline input,
+.form-inline select,
+.form-inline textarea {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: 4px;
+  font-size: 0.95rem;
+  background: #fff;
+}
+
+.form-inline button {
+  height: fit-content;
+}
+
+.tabela-admin {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabela-admin th,
+.tabela-admin td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--cor-borda);
+  font-size: 0.9rem;
+}
+
+/* ---------------------------------------------------------------
+   Ficha de personagem — Atributos ganham a caixa preta sólida da
+   ficha original (bloco-atributos-preto, aplicado em Personagem.jsx).
+------------------------------------------------------------------ */
+.ficha {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.ficha-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ficha-nome {
+  flex: 1 1 320px;
+}
+
+.ficha-nome input {
+  font-family: var(--fonte-titulo);
+  font-size: 2rem;
+  padding: 0.3rem 0.4rem;
+  border: none;
+  border-bottom: 2px solid var(--cor-tinta);
+  border-radius: 0;
+  width: 100%;
+  background: transparent;
+  color: var(--cor-tinta);
+}
+
+.ficha-nome input:not(:disabled):hover,
+.ficha-nome input:not(:disabled):focus {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.aviso-somente-leitura {
+  background: var(--cor-papel);
+  border: 1px solid var(--cor-borda);
+  border-left: 4px solid var(--cor-couro);
+  border-radius: 4px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  color: var(--cor-tinta-suave);
+}
+
+.ficha section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px dashed var(--cor-borda);
+}
+
+.ficha h2 {
+  font-size: 1.6rem;
+  margin-bottom: 0.3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.ficha details {
+  margin-top: 0.6rem;
+  font-family: var(--fonte-corpo);
+  font-size: 0.9rem;
+  color: var(--cor-tinta-suave);
+}
+
+.ficha details summary {
+  cursor: pointer;
+  color: var(--cor-tinta);
+  font-weight: 600;
+}
+
+.grid-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-top: 0.8rem;
+}
+
+/* Caixa preta sólida da ficha original — só a seção de Atributos.
+   Ver classe aplicada em src/routes/Personagem.jsx. */
+.bloco-atributos-preto {
+  background: var(--cor-tinta);
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 0.8rem;
+}
+
+.bloco-atributos-preto .campo-editavel > span {
+  color: var(--cor-papel);
+}
+
+.bloco-atributos-preto .campo-dica {
+  color: var(--cor-papel);
+  opacity: 0.82;
+}
+
+.bloco-atributos-preto .campo-editavel input {
+  background: var(--cor-papel);
+  border-color: var(--cor-papel);
+}
+
+.campo-editavel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.campo-editavel > span {
+  font-weight: 600;
+}
+
+.campo-editavel input,
+.campo-editavel textarea {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: 4px;
+  font-size: 1.05rem;
+  font-family: var(--fonte-corpo);
+  font-weight: 700;
+  color: var(--cor-sangue);
+  background: #fff;
+}
+
+.campo-editavel textarea {
+  font-weight: 400;
+  color: var(--cor-tinta);
+}
+
+.campo-editavel input:disabled,
+.campo-editavel textarea:disabled {
+  background: rgba(255, 255, 255, 0.4);
+  color: var(--cor-tinta-suave);
+}
+
+.campo-dica {
+  color: var(--cor-tinta-suave);
+  font-size: 0.78rem;
+}
+
+.campo-espaco-max {
+  max-width: 200px;
+  margin-bottom: 0.8rem;
+}
+
+.antecedente-bloco {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.antecedente-bloco strong {
+  font-family: var(--fonte-titulo);
+  font-size: 1.1rem;
+  font-weight: normal;
+}
+
+.antecedente-formula {
+  font-size: 0.8rem;
+  color: var(--cor-tinta-suave);
+}
+
+.trilha-circulos {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.trilha-pips {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.pip {
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 50%;
+  border: 2px solid var(--cor-tinta);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.pip:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.trilha-pips--vida .pip.pip--cheio {
+  background: var(--cor-tinta);
+}
+
+.trilha-pips--dor .pip {
+  border-color: var(--cor-sangue);
+}
+
+.trilha-pips--dor .pip.pip--cheio {
+  background: var(--cor-sangue);
+}
+
+.trilha-pips--neutro .pip.pip--cheio {
+  background: var(--cor-couro);
+  border-color: var(--cor-couro);
+}
+
+.trilha-legenda {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--cor-tinta-suave);
+  min-width: 3ch;
+}
+
+.grid-circulos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  margin-top: 0.8rem;
+}
+
+.grid-circulos h4 {
+  margin: 0 0 0.4rem;
+  font-size: 1.2rem;
+}
+
+.grid-circulos .campo-editavel {
+  margin-top: 0.5rem;
+  max-width: 160px;
+}
+
+.tabela-efeitos-dor {
+  margin-top: 1rem;
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--fonte-corpo);
+  font-size: 0.88rem;
+}
+
+.tabela-efeitos-dor th,
+.tabela-efeitos-dor td {
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.tabela-efeitos-dor tr.efeito-ativo {
+  background: rgba(156, 43, 26, 0.12);
+  font-weight: 700;
+}
+
+.bloco-tabela {
+  margin-top: 0.8rem;
+}
+
+.tabela-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabela-ficha {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabela-ficha thead th {
+  text-align: left;
+  font-family: var(--fonte-titulo);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  color: var(--cor-papel);
+  background: var(--cor-tinta);
+  padding: 0.5rem 0.6rem;
+}
+
+.tabela-ficha thead th:first-child {
+  border-radius: 4px 0 0 0;
+}
+
+.tabela-ficha thead th:last-child {
+  border-radius: 0 4px 0 0;
+}
+
+.tabela-ficha td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.tabela-ficha input,
+.tabela-ficha select {
+  width: 100%;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.95rem;
+  color: var(--cor-tinta);
+}
+
+.tabela-ficha input:not(:disabled):hover,
+.tabela-ficha input:not(:disabled):focus,
+.tabela-ficha select:hover,
+.tabela-ficha select:focus {
+  border-color: var(--cor-borda);
+  background: #fff;
+}
+
+.tabela-ficha input:disabled {
+  color: var(--cor-tinta-suave);
+}
+
+.botao-remover {
+  background: transparent !important;
+  color: var(--cor-sangue) !important;
+  border: 1px solid var(--cor-sangue) !important;
+  padding: 0.3rem 0.6rem !important;
+  font-size: 0.8rem !important;
+}
+
+.botao-remover:hover:not(:disabled) {
+  background: var(--cor-sangue) !important;
+  color: var(--cor-papel) !important;
+}
+
+.acoes-tabela {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+
+.bloco-montaria {
+  margin-top: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Nível de Fidelidade — a segunda caixa preta sólida da ficha original. */
+.nivel-fidelidade {
+  background: var(--cor-tinta);
+  color: var(--cor-papel);
+  border-radius: 6px;
+  padding: 1rem 1.2rem;
+}
+
+.nivel-fidelidade h4 {
+  color: var(--cor-papel);
+  font-size: 1.3rem;
+  margin-bottom: 0.7rem;
+}
+
+.nivel-fidelidade ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.nivel-fidelidade li {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-family: var(--fonte-corpo);
+  font-size: 0.88rem;
+  color: rgba(248, 241, 220, 0.55);
+}
+
+.nivel-fidelidade li.nivel-ativo {
+  color: var(--cor-papel);
+}
+
+.pip-numerado {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  border: 2px solid rgba(248, 241, 220, 0.4);
+  background: transparent;
+  color: var(--cor-papel);
+  cursor: pointer;
+  font-family: var(--fonte-corpo);
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.nivel-ativo .pip-numerado {
+  border-color: var(--cor-sangue);
+  background: var(--cor-sangue);
+  color: var(--cor-papel);
+}
+
+/* ---------------------------------------------------------------
+   Vida/Dor — Máximo (stepper) e Atual (+/- dos lados).
+------------------------------------------------------------------ */
+.linha-circulos-ajuste {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.botao-ajuste {
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.badge-caido {
+  display: inline-block;
+  margin-left: 0.6rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 4px;
+  background: var(--cor-sangue);
+  color: var(--cor-papel);
+  font-family: var(--fonte-ui);
+  font-size: 0.75rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+p.badge-caido {
+  margin: 0.4rem 0;
+  display: inline-block;
+}
+
+.campo-stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.6rem;
+}
+
+.campo-stepper > span {
+  font-weight: 600;
+}
+
+.campo-stepper-controles {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.campo-stepper-controles button {
+  width: 2.2rem;
+  height: 2.2rem;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.campo-stepper-controles strong {
+  min-width: 2ch;
+  text-align: center;
+  font-size: 1.1rem;
+  color: var(--cor-sangue);
+}
+
+.campo-stepper--leitura strong {
+  font-size: 1.1rem;
+  color: var(--cor-sangue);
+}
+
+/* Popup de Efeito de Dor */
+.botao-efeito-dor {
+  margin: 0.6rem 0;
+}
+
+.popup-fundo {
+  position: fixed;
+  inset: 0;
+  background: rgba(34, 26, 16, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 100;
+}
+
+.popup-caixa {
+  background: var(--cor-papel);
+  border: 1px solid var(--cor-borda);
+  border-radius: 6px;
+  padding: 1.2rem;
+  max-width: 480px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.popup-caixa h3 {
+  margin-top: 0;
+  font-size: 1.4rem;
+}
+
+/* Habilidades */
+.lista-habilidades {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.6rem 0;
+}
+
+.lista-habilidades li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--cor-borda);
+  font-family: var(--fonte-corpo);
+}
+
+.habilidade-linha {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.habilidade-linha span {
+  font-weight: 700;
+}
+
+.badge-jogador {
+  font-family: var(--fonte-ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--cor-papel);
+  background: var(--cor-couro);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+}
+
+.adicionar-habilidade {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+/* Munição (reserva) */
+.municao-pool {
+  margin-bottom: 1rem;
+}
+
+.municao-celula {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+
+.municao-atual,
+.municao-max {
+  width: 3.2rem;
+  padding: 0.3rem;
+  text-align: center;
+}
+
+/* Montaria — presença e carga */
+.campo-presente {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.6rem 0;
+  font-size: 0.9rem;
+}
+
+.config-carga-montaria {
+  margin: 1rem 0;
+  padding: 0.7rem 0.9rem;
+  background: var(--cor-papel);
+  border: 1px solid var(--cor-borda);
+  border-radius: 4px;
+}
+
+.config-carga-montaria p {
+  font-family: var(--fonte-corpo);
+}
+
+.config-carga-montaria label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.opcoes-carga {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* ---------------------------------------------------------------
+   Rastreador de Combate (Mestre, 13/07).
+------------------------------------------------------------------ */
+.lista-combate {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+}
+
+.lista-combate > li {
+  background: var(--cor-papel);
+  border: 1px solid var(--cor-borda);
+  border-radius: 6px;
+  padding: 0.7rem 0.9rem;
+}
+
+.lista-combate > li.combatente-caido {
+  border-color: var(--cor-sangue);
+}
+
+.combatente-cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.combatente-cabecalho strong {
+  font-family: var(--fonte-titulo);
+  font-size: 1.2rem;
+  font-weight: normal;
+}
+
+.badge-tipo {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  color: var(--cor-papel);
+}
+
+.badge-tipo--npc {
+  background: var(--cor-couro);
+}
+
+.badge-tipo--jogador {
+  background: var(--cor-tinta);
+}
+
+.combatente-status {
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.status-linha {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.status-valor {
+  color: var(--cor-sangue);
+}
+
+.botao-ajuste-pequeno {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 0.85rem;
+}
+
+.ajuste-maximos {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.ajuste-maximos summary {
+  cursor: pointer;
+  color: var(--cor-couro);
+}
+
+.ajuste-maximos .grid-campos {
+  margin-top: 0.6rem;
+}
+
+/* Rastreador de Combate — tabelas de referência (13/07) */
+.link-referencia {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--cor-couro);
+  text-decoration: underline dotted;
+  cursor: pointer;
+  font-size: inherit;
+}
+
+.link-referencia:hover {
+  background: transparent;
+  color: var(--cor-sangue);
+}
+
+.status-linha .link-referencia {
+  font-weight: 600;
+  color: var(--cor-tinta);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--cor-couro);
+}
+
+.popup-caixa--larga {
+  max-width: 640px;
+}
+
+.popup-caixa--larga h4 {
+  margin-top: 1.2rem;
+  font-size: 1.05rem;
+}
+
+/* ---------------------------------------------------------------
+   Celular — pensado pra ser usado à mesa. Cabeçalhos menores (Rye
+   fica largo), grids em 1 coluna, tabelas viram scroll horizontal
+   em vez de espremer colunas.
+------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .ficha {
+    padding: 1.25rem 0.75rem 3rem;
+  }
+
+  .ficha-nome input {
+    font-size: 1.5rem;
+  }
+
+  .ficha h2 {
+    font-size: 1.3rem;
+  }
+
+  .bloco-atributos-preto,
+  .nivel-fidelidade,
+  .config-carga-montaria {
+    padding: 0.8rem;
+  }
+
+  .grid-campos {
+    grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+    gap: 0.7rem;
+  }
+
+  .grid-circulos {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .tabela-ficha {
+    min-width: 480px;
+  }
+
+  .tabela-efeitos-dor {
+    min-width: 420px;
+  }
+
+  .popup-caixa {
+    padding: 1rem;
+  }
+}

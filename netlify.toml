@@ -1,0 +1,10 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Necessário para o React Router funcionar em rotas diretas
+# (ex: acessar /sessao/123 direto pela URL, sem passar pela home)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
