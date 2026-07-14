@@ -40,7 +40,7 @@ export default function EfeitoDorPopup({ efeitoAtual, onMarcar, editavel }) {
           <div className="popup-caixa" onClick={(e) => e.stopPropagation()}>
             <h3>Efeito de Dor</h3>
             <p className="detalhe-secundario">Role 1d6 na mesa e marque o resultado.</p>
-            <table className="tabela-efeitos-dor">
+            <table className="tabela-efeitos-dor tabela-responsiva">
               <thead>
                 <tr>
                   <th>#</th>
@@ -56,9 +56,9 @@ export default function EfeitoDorPopup({ efeitoAtual, onMarcar, editavel }) {
                     onClick={() => editavel && marcar(e.n)}
                     style={{ cursor: editavel ? 'pointer' : 'default' }}
                   >
-                    <td>{e.n}</td>
-                    <td>{e.nome}</td>
-                    <td>{e.efeito}</td>
+                    <td data-label="#" className="celula-numero">{e.n}</td>
+                    <td data-label="Efeito">{e.nome}</td>
+                    <td data-label="Consequência">{e.efeito}</td>
                   </tr>
                 ))}
               </tbody>

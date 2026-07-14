@@ -99,7 +99,7 @@ export default function TabelaItens({ itens, onMudar, editavel, limiteEspaco, pe
     <div className="bloco-tabela">
       {erro && <p className="erro">{erro}</p>}
       <div className="tabela-scroll">
-        <table className="tabela-ficha">
+        <table className="tabela-ficha tabela-responsiva">
           <thead>
             <tr>
               <th>Nome</th>
@@ -112,14 +112,14 @@ export default function TabelaItens({ itens, onMudar, editavel, limiteEspaco, pe
           <tbody>
             {itens.map((item) => (
               <tr key={item.id}>
-                <td>
+                <td data-label="Nome">
                   <input
                     defaultValue={item.nome}
                     disabled={!editavel}
                     onBlur={(e) => e.target.value !== item.nome && salvarCampo(item, 'nome', e.target.value)}
                   />
                 </td>
-                <td>
+                <td data-label="Peso (un.)">
                   <input
                     key={`peso-${item.id}-${item.espaco}-${tentativas[item.id] || 0}`}
                     type="number"
@@ -133,7 +133,7 @@ export default function TabelaItens({ itens, onMudar, editavel, limiteEspaco, pe
                     }}
                   />
                 </td>
-                <td>
+                <td data-label="Qtd.">
                   <input
                     key={`qtd-${item.id}-${item.quantidade}-${tentativas[item.id] || 0}`}
                     type="number"
@@ -147,9 +147,9 @@ export default function TabelaItens({ itens, onMudar, editavel, limiteEspaco, pe
                     }}
                   />
                 </td>
-                <td className="detalhe-secundario">{pesoTotal(item)}</td>
+                <td data-label="Total" className="detalhe-secundario">{pesoTotal(item)}</td>
                 {editavel && (
-                  <td>
+                  <td data-label="">
                     <button type="button" className="botao-remover" onClick={() => remover(item)}>
                       Remover
                     </button>

@@ -46,7 +46,15 @@ const NIVEIS_FIDELIDADE = [
 // + carro (+20) ou carroça (+30). O popup de Efeito de Dor (dado
 // físico) não se aplica aqui — é sobre ações de combate do personagem,
 // não faz sentido pra montaria.
-export default function Montaria({ personagemId, montaria, onMudar, editavel }) {
+//
+// `secao` (13/07, ficha em abas): 'stats' mostra nome/presente/potência/
+// resistência/vida/dor/fidelidade/carga; 'inventario' mostra só os
+// sub-locais de item. Personagem.jsx renderiza esta peça DUAS vezes
+// (uma por aba) — cada instância busca `itensMontaria` de novo ao
+// montar (é remontada quando a aba troca), então sempre fica
+// atualizado; o preço é buscar de novo a cada troca de aba, aceitável
+// pro tamanho de dado aqui.
+export default function Montaria({ personagemId, montaria, onMudar, editavel, secao = 'stats' }) {
   const [criando, setCriando] = useState(false);
   const [nomeNova, setNomeNova] = useState('');
   const [erro, setErro] = useState('');
@@ -197,6 +205,9 @@ export default function Montaria({ personagemId, montaria, onMudar, editavel }) 
   }
 
   if (!montaria) {
+    if (secao === 'inventario') {
+      return <p className="detalhe-secundario">Você ainda não tem montaria — crie uma na aba "Montaria".</p>;
+    }
     return (
       <div className="bloco-montaria">
         {erro && <p className="erro">{erro}</p>}
@@ -220,6 +231,40 @@ export default function Montaria({ personagemId, montaria, onMudar, editavel }) 
   const caido = montaria.circulos_vida_atual <= 0;
   const capacidades = capacidadesPorLocalMontaria({ tem_bolsa: montaria.tem_bolsa, tipo_carga: montaria.tipo_carga });
   const espacoTotal = Object.values(capacidades).reduce((soma, v) => soma + v, 0);
+
+  if (secao === 'inventario') {
+    return (
+      <div className="bloco-montaria">
+        {erro && <p className="erro">{erro}</p>}
+        <p className="detalhe-secundario">
+          Separado por sub-local — se largar a bolsa (ou o carro/carroça), dá pra ver exatamente o que tinha nela
+          antes de excluir só aquele grupo.
+        </p>
+        {carregandoItens ? (
+          <p className="detalhe-secundario">Carregando itens...</p>
+        ) : (
+          Object.entries(capacidades).map(([local, limite]) => {
+            const itensDoLocal = itensMontaria.filter((i) => i.local_montaria === local);
+            return (
+              <div key={local} className="sub-inventario-montaria">
+                <h5>{NOME_LOCAL[local]}</h5>
+                <TabelaItens
+                  itens={itensDoLocal}
+                  onMudar={(novaLista) =>
+                    setItensMontaria((atual) => [...atual.filter((i) => i.local_montaria !== local), ...novaLista])
+                  }
+                  editavel={editavel}
+                  limiteEspaco={limite}
+                  onAdicionar={() => criarItemMontaria(montaria.id, itensDoLocal.length, local)}
+                  onExcluirTodos={() => removerItensMontariaPorLocal(montaria.id, local)}
+                />
+              </div>
+            );
+          })
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="bloco-montaria">
@@ -376,34 +421,6 @@ export default function Montaria({ personagemId, montaria, onMudar, editavel }) 
           </label>
         </div>
       </div>
-
-      <h4>Inventário da montaria</h4>
-      <p className="detalhe-secundario">
-        Separado por sub-local — se largar a bolsa (ou o carro/carroça), dá pra ver exatamente o que tinha nela antes
-        de excluir só aquele grupo.
-      </p>
-      {carregandoItens ? (
-        <p className="detalhe-secundario">Carregando itens...</p>
-      ) : (
-        Object.entries(capacidades).map(([local, limite]) => {
-          const itensDoLocal = itensMontaria.filter((i) => i.local_montaria === local);
-          return (
-            <div key={local} className="sub-inventario-montaria">
-              <h5>{NOME_LOCAL[local]}</h5>
-              <TabelaItens
-                itens={itensDoLocal}
-                onMudar={(novaLista) =>
-                  setItensMontaria((atual) => [...atual.filter((i) => i.local_montaria !== local), ...novaLista])
-                }
-                editavel={editavel}
-                limiteEspaco={limite}
-                onAdicionar={() => criarItemMontaria(montaria.id, itensDoLocal.length, local)}
-                onExcluirTodos={() => removerItensMontariaPorLocal(montaria.id, local)}
-              />
-            </div>
-          );
-        })
-      )}
 
       {editavel && (
         <button type="button" className="botao-remover" onClick={handleRemover}>

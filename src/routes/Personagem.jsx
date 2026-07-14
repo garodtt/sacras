@@ -22,6 +22,8 @@ import MunicaoPool from '../components/personagem/MunicaoPool.jsx';
 import Habilidades from '../components/personagem/Habilidades.jsx';
 import EfeitoDorPopup from '../components/personagem/EfeitoDorPopup.jsx';
 import Montaria from '../components/personagem/Montaria.jsx';
+import MenuLateral from '../components/layout/MenuLateral.jsx';
+import BotaoHamburguer from '../components/layout/BotaoHamburguer.jsx';
 import {
   aplicarDano,
   calcularStatsDerivados,
@@ -41,6 +43,26 @@ const ANTECEDENTES = [
   { campo: 'ant_roubo', label: 'Roubo' },
   { campo: 'ant_suor', label: 'Suor' },
   { campo: 'ant_violencia', label: 'Violência' },
+];
+
+// Abas da ficha (13/07 — reestruturação pro celular). Antes era tudo
+// numa página só, rolando bastante — ruim de usar no celular. Agora só
+// uma aba renderiza por vez, trocada pelo menu de 3 barrinhas (☰) local
+// (reaproveita o mesmo MenuLateral do Painel, só que aqui os itens
+// trocam de aba em vez de navegar). Agrupamento pedido:
+//   geral    -> Nome, Atributos, Antecedentes, Habilidades, Dinheiro
+//   combate  -> Combate, Círculos de Vida/Dor, Armas
+//               (Vida/Dor não foi citada explicitamente no pedido, mas
+//               é a leitura mais direta — é tudo "levar dano", junto
+//               com Combate e Armas)
+//   inventario -> Itens do personagem + Inventário da Montaria
+//   montaria -> stats da Montaria (nome, potência/resistência, vida/dor
+//               dela, fidelidade, config de carga)
+const ABAS = [
+  { id: 'geral', label: 'Nome, Atributos e Antecedentes' },
+  { id: 'combate', label: 'Combate e Armas' },
+  { id: 'inventario', label: 'Inventário' },
+  { id: 'montaria', label: 'Montaria' },
 ];
 
 // Editor completo do personagem (Fases 5, 6 e regras de 13/07):
@@ -78,6 +100,8 @@ export default function Personagem() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [mensagemDor, setMensagemDor] = useState('');
+  const [abaAtiva, setAbaAtiva] = useState('geral');
+  const [menuAberto, setMenuAberto] = useState(false);
 
   useEffect(() => {
     carregar();
@@ -251,7 +275,6 @@ export default function Personagem() {
   }
 
   // Recarrega uma arma a partir do pool de munição certo (leve/pesada,
-  // Recarrega uma arma a partir do pool de munição certo (leve/pesada,
   // conforme arma.meio_transporte) — mexe em duas tabelas (weapons e
   // personagens) então mora aqui, não dentro de TabelaArmas.
   // `quantidade` (opcional): default enche até o máximo (Recarregar);
@@ -299,21 +322,20 @@ export default function Personagem() {
   });
   const limiteRestanteParaMunicao = personagem.espaco_max - pesoItensAtual;
 
+  const itensMenuAbas = ABAS.map((a) => ({
+    label: a.label,
+    ativo: a.id === abaAtiva,
+    onClick: () => setAbaAtiva(a.id),
+  }));
+
   return (
     <main className="ficha">
-      <p><Link to="/painel">&larr; Voltar</Link></p>
-
-      <header className="ficha-header">
-        <div className="ficha-nome">
-          <CampoEditavel
-            label="Nome"
-            tipo="text"
-            valor={personagem.nome}
-            editavel={canEdit}
-            onSalvar={(v) => salvarCampo('nome', v)}
-          />
-        </div>
+      <header className="ficha-topo">
+        <BotaoHamburguer onClick={() => setMenuAberto(true)} label="Abrir seções da ficha" />
+        <p className="ficha-voltar"><Link to="/painel/personagens">&larr; Voltar</Link></p>
       </header>
+
+      <MenuLateral aberto={menuAberto} onFechar={() => setMenuAberto(false)} titulo="Seções da ficha" itens={itensMenuAbas} />
 
       {erro && <p className="erro">{erro}</p>}
       {!canEdit && (
@@ -322,180 +344,223 @@ export default function Personagem() {
         </p>
       )}
 
-      <details>
-        <summary>Condições iniciais (referência)</summary>
-        <p>
-          6 Círculos de Vida, 6 Círculos de Dor, 1 Ação de Combate, 1 Movimento,
-          4 Pontos de Antecedente, 4 Pontos de Atributo, Defesa 5.
-        </p>
-      </details>
-
-      <section>
-        <h2>Atributos</h2>
-        <p className="detalhe-secundario">
-          Pontos usados: {pontosAtributo} / 4 (guia de criação — não travado aqui)
-        </p>
-        <div className="grid-campos bloco-atributos-preto">
-          <CampoEditavel
-            label="Físico" valor={personagem.atributo_fisico} min={0} editavel={canEdit}
-            onSalvar={salvarFisico}
-            dica="+1 Círculo de Vida máx. para cada ponto aqui."
-          />
-          <CampoEditavel
-            label="Velocidade" valor={personagem.atributo_velocidade} min={0} editavel={canEdit}
-            onSalvar={salvarVelocidade}
-            dica="+1 Movimento para cada ponto aqui."
-          />
-          <CampoEditavel
-            label="Intelecto" valor={personagem.atributo_intelecto} min={0} editavel={canEdit}
-            onSalvar={(v) => salvarCampo('atributo_intelecto', v)}
-            dica="+1 no orçamento de Antecedentes para cada ponto aqui."
-          />
-          <CampoEditavel
-            label="Coragem" valor={personagem.atributo_coragem} min={0} editavel={canEdit}
-            onSalvar={salvarCoragem}
-            dica="+1 Ação de Combate para cada ponto aqui."
-          />
-        </div>
-      </section>
-
-      <section>
-        <h2>Antecedentes</h2>
-        <p className="detalhe-secundario">
-          Pontos usados: {pontosAntecedentes} / {budgetAntecedentes} (4 + Intelecto — guia, não travado)
-        </p>
-        <div className="grid-campos">
-          {ANTECEDENTES.map((a) => (
-            <div key={a.campo} className="antecedente-bloco">
-              <strong>{a.label}</strong>
-              <span className="antecedente-formula">1d6 + {personagem[a.campo]}</span>
-              <TrilhaCirculos
-                max={5}
-                valor={personagem[a.campo]}
+      {abaAtiva === 'geral' && (
+        <>
+          <header className="ficha-header">
+            <div className="ficha-nome">
+              <CampoEditavel
+                label="Nome"
+                tipo="text"
+                valor={personagem.nome}
                 editavel={canEdit}
-                variante="neutro"
-                onSelecionar={(v) => salvarCampo(a.campo, v)}
+                onSalvar={(v) => salvarCampo('nome', v)}
               />
             </div>
-          ))}
-        </div>
-      </section>
+          </header>
 
-      <section>
-        <h2>Combate</h2>
-        <p className="detalhe-secundario">Movimentos e Ações de Combate são derivados dos Atributos acima.</p>
-        <div className="grid-campos">
-          <CampoEditavel label="Movimentos" valor={personagem.movimentos} editavel={false} onSalvar={() => {}} />
-          <CampoEditavel label="Ações de Combate" valor={personagem.acoes_combate} editavel={false} onSalvar={() => {}} />
-          <CampoEditavel label="Iniciativa" valor={personagem.iniciativa} editavel={canEdit}
-            onSalvar={(v) => salvarCampo('iniciativa', v)} />
-          <CampoEditavel label="Defesa" valor={personagem.defesa} min={0} editavel={canEdit}
-            onSalvar={(v) => salvarCampo('defesa', v)} />
-        </div>
-      </section>
+          <details>
+            <summary>Condições iniciais (referência)</summary>
+            <p>
+              6 Círculos de Vida, 6 Círculos de Dor, 1 Ação de Combate, 1 Movimento,
+              4 Pontos de Antecedente, 4 Pontos de Atributo, Defesa 5.
+            </p>
+          </details>
 
-      <section>
-        <h2>
-          Círculos de Vida e Dor
-          {caido && <span className="badge-caido">Caído</span>}
-        </h2>
-        <div className="grid-circulos">
-          <div>
-            <h4>Vida</h4>
-            <CampoStepper label="Máximo de Vida" valor={personagem.circulos_vida_max} min={1} editavel={canEdit} onSalvar={ajustarMaxVida} />
-            <LinhaCirculosAjustavel
-              max={personagem.circulos_vida_max}
-              valor={personagem.circulos_vida_atual}
+          <section>
+            <h2>Atributos</h2>
+            <p className="detalhe-secundario">
+              Pontos usados: {pontosAtributo} / 4 (guia de criação — não travado aqui)
+            </p>
+            <div className="grid-campos bloco-atributos-preto">
+              <CampoEditavel
+                label="Físico" valor={personagem.atributo_fisico} min={0} editavel={canEdit}
+                onSalvar={salvarFisico}
+                dica="+1 Círculo de Vida máx. para cada ponto aqui."
+              />
+              <CampoEditavel
+                label="Velocidade" valor={personagem.atributo_velocidade} min={0} editavel={canEdit}
+                onSalvar={salvarVelocidade}
+                dica="+1 Movimento para cada ponto aqui."
+              />
+              <CampoEditavel
+                label="Intelecto" valor={personagem.atributo_intelecto} min={0} editavel={canEdit}
+                onSalvar={(v) => salvarCampo('atributo_intelecto', v)}
+                dica="+1 no orçamento de Antecedentes para cada ponto aqui."
+              />
+              <CampoEditavel
+                label="Coragem" valor={personagem.atributo_coragem} min={0} editavel={canEdit}
+                onSalvar={salvarCoragem}
+                dica="+1 Ação de Combate para cada ponto aqui."
+              />
+            </div>
+          </section>
+
+          <section>
+            <h2>Antecedentes</h2>
+            <p className="detalhe-secundario">
+              Pontos usados: {pontosAntecedentes} / {budgetAntecedentes} (4 + Intelecto — guia, não travado)
+            </p>
+            <div className="grid-campos">
+              {ANTECEDENTES.map((a) => (
+                <div key={a.campo} className="antecedente-bloco">
+                  <strong>{a.label}</strong>
+                  <span className="antecedente-formula">1d6 + {personagem[a.campo]}</span>
+                  <TrilhaCirculos
+                    max={5}
+                    valor={personagem[a.campo]}
+                    editavel={canEdit}
+                    variante="neutro"
+                    onSelecionar={(v) => salvarCampo(a.campo, v)}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h2>Habilidades</h2>
+            <Habilidades personagemId={personagem.id} habilidades={habilidades} onMudar={setHabilidades} editavel={canEdit} />
+          </section>
+
+          <section>
+            <h2>Dinheiro</h2>
+            <div className="grid-campos">
+              <CampoEditavel label="Dinheiro" valor={personagem.dinheiro} min={0} editavel={canEdit}
+                onSalvar={(v) => salvarCampo('dinheiro', v)} />
+              <CampoEditavel label="Valor da recompensa" valor={personagem.valor_recompensa} min={0} editavel={canEdit}
+                onSalvar={(v) => salvarCampo('valor_recompensa', v)} />
+            </div>
+          </section>
+        </>
+      )}
+
+      {abaAtiva === 'combate' && (
+        <>
+          <section>
+            <h2>Combate</h2>
+            <p className="detalhe-secundario">Movimentos e Ações de Combate são derivados dos Atributos.</p>
+            <div className="grid-campos">
+              <CampoEditavel label="Movimentos" valor={personagem.movimentos} editavel={false} onSalvar={() => {}} />
+              <CampoEditavel label="Ações de Combate" valor={personagem.acoes_combate} editavel={false} onSalvar={() => {}} />
+              <CampoEditavel label="Iniciativa" valor={personagem.iniciativa} editavel={canEdit}
+                onSalvar={(v) => salvarCampo('iniciativa', v)} />
+              <CampoEditavel label="Defesa" valor={personagem.defesa} min={0} editavel={canEdit}
+                onSalvar={(v) => salvarCampo('defesa', v)} />
+            </div>
+          </section>
+
+          <section>
+            <h2>
+              Círculos de Vida e Dor
+              {caido && <span className="badge-caido">Caído</span>}
+            </h2>
+            <div className="grid-circulos">
+              <div>
+                <h4>Vida</h4>
+                <CampoStepper label="Máximo de Vida" valor={personagem.circulos_vida_max} min={1} editavel={canEdit} onSalvar={ajustarMaxVida} />
+                <LinhaCirculosAjustavel
+                  max={personagem.circulos_vida_max}
+                  valor={personagem.circulos_vida_atual}
+                  editavel={canEdit}
+                  variante="vida"
+                  legenda={`${personagem.circulos_vida_atual}/${personagem.circulos_vida_max}`}
+                  onAjustar={ajustarVidaAtual}
+                  onSelecionarCirculo={(v) => salvarCampo('circulos_vida_atual', v)}
+                />
+              </div>
+              <div>
+                <h4>Dor</h4>
+                <CampoStepper label="Máximo de Dor" valor={personagem.circulos_dor_max} min={1} editavel={canEdit} onSalvar={ajustarMaxDor} />
+                <LinhaCirculosAjustavel
+                  max={personagem.circulos_dor_max}
+                  valor={personagem.circulos_dor_atual}
+                  editavel={canEdit}
+                  variante="dor"
+                  legenda={`${personagem.circulos_dor_atual}/${personagem.circulos_dor_max}`}
+                  onAjustar={ajustarDorAtual}
+                  onSelecionarCirculo={(v) => salvarCampo('circulos_dor_atual', v)}
+                />
+                {mensagemDor && <small className="campo-dica">{mensagemDor}</small>}
+              </div>
+            </div>
+
+            <EfeitoDorPopup efeitoAtual={personagem.efeito_dor_atual} onMarcar={handleMarcarEfeitoDor} editavel={canEdit} />
+          </section>
+
+          <section>
+            <h2>Armas</h2>
+            <MunicaoPool
+              capacidade={capacidadeMunicao}
+              atualLeve={personagem.municao_leve_atual}
+              atualPesada={personagem.municao_pesada_atual}
+              limiteRestante={limiteRestanteParaMunicao}
+              onSalvar={salvarCampo}
               editavel={canEdit}
-              variante="vida"
-              legenda={`${personagem.circulos_vida_atual}/${personagem.circulos_vida_max}`}
-              onAjustar={ajustarVidaAtual}
-              onSelecionarCirculo={(v) => salvarCampo('circulos_vida_atual', v)}
             />
-          </div>
-          <div>
-            <h4>Dor</h4>
-            <CampoStepper label="Máximo de Dor" valor={personagem.circulos_dor_max} min={1} editavel={canEdit} onSalvar={ajustarMaxDor} />
-            <LinhaCirculosAjustavel
-              max={personagem.circulos_dor_max}
-              valor={personagem.circulos_dor_atual}
+            <TabelaArmas
+              personagemId={personagem.id}
+              armas={armas}
+              onMudar={setArmas}
               editavel={canEdit}
-              variante="dor"
-              legenda={`${personagem.circulos_dor_atual}/${personagem.circulos_dor_max}`}
-              onAjustar={ajustarDorAtual}
-              onSelecionarCirculo={(v) => salvarCampo('circulos_dor_atual', v)}
+              onRecarregar={handleRecarregarArma}
+              poolLeve={personagem.municao_leve_atual}
+              poolPesada={personagem.municao_pesada_atual}
             />
-            {mensagemDor && <small className="campo-dica">{mensagemDor}</small>}
-          </div>
-        </div>
+          </section>
+        </>
+      )}
 
-        <EfeitoDorPopup efeitoAtual={personagem.efeito_dor_atual} onMarcar={handleMarcarEfeitoDor} editavel={canEdit} />
-      </section>
+      {abaAtiva === 'inventario' && (
+        <>
+          <section>
+            <h2>Itens</h2>
+            {canEdit && (
+              <div className="campo-espaco-max">
+                <CampoEditavel label="Peso máximo" valor={personagem.espaco_max} min={0} editavel={canEdit}
+                  onSalvar={(v) => salvarCampo('espaco_max', v)} />
+              </div>
+            )}
+            {pesoMunicaoExcedente > 0 && (
+              <p className="detalhe-secundario">
+                {pesoMunicaoExcedente.toFixed(2)} de carga já contando com munição excedente (ver aba Combate).
+              </p>
+            )}
+            <TabelaItens
+              itens={itens}
+              onMudar={setItens}
+              editavel={canEdit}
+              limiteEspaco={personagem.espaco_max}
+              pesoAdicional={pesoMunicaoExcedente}
+              onAdicionar={() => criarItem(personagem.id, itens.length)}
+              onExcluirTodos={() => removerTodosItensPersonagem(personagem.id)}
+            />
+          </section>
 
-      <section>
-        <h2>Habilidades</h2>
-        <Habilidades personagemId={personagem.id} habilidades={habilidades} onMudar={setHabilidades} editavel={canEdit} />
-      </section>
+          <section>
+            <h2>Inventário da Montaria</h2>
+            <Montaria
+              personagemId={personagem.id}
+              montaria={montaria}
+              onMudar={setMontaria}
+              editavel={canEdit}
+              secao="inventario"
+            />
+          </section>
+        </>
+      )}
 
-      <section>
-        <h2>Itens</h2>
-        {canEdit && (
-          <div className="campo-espaco-max">
-            <CampoEditavel label="Peso máximo" valor={personagem.espaco_max} min={0} editavel={canEdit}
-              onSalvar={(v) => salvarCampo('espaco_max', v)} />
-          </div>
-        )}
-        {pesoMunicaoExcedente > 0 && (
-          <p className="detalhe-secundario">
-            {pesoMunicaoExcedente.toFixed(2)} de carga já contando com munição excedente (ver Armas, abaixo).
-          </p>
-        )}
-        <TabelaItens
-          itens={itens}
-          onMudar={setItens}
-          editavel={canEdit}
-          limiteEspaco={personagem.espaco_max}
-          pesoAdicional={pesoMunicaoExcedente}
-          onAdicionar={() => criarItem(personagem.id, itens.length)}
-          onExcluirTodos={() => removerTodosItensPersonagem(personagem.id)}
-        />
-      </section>
-
-      <section>
-        <h2>Armas</h2>
-        <MunicaoPool
-          capacidade={capacidadeMunicao}
-          atualLeve={personagem.municao_leve_atual}
-          atualPesada={personagem.municao_pesada_atual}
-          limiteRestante={limiteRestanteParaMunicao}
-          onSalvar={salvarCampo}
-          editavel={canEdit}
-        />
-        <TabelaArmas
-          personagemId={personagem.id}
-          armas={armas}
-          onMudar={setArmas}
-          editavel={canEdit}
-          onRecarregar={handleRecarregarArma}
-          poolLeve={personagem.municao_leve_atual}
-          poolPesada={personagem.municao_pesada_atual}
-        />
-      </section>
-
-      <section>
-        <h2>Dinheiro</h2>
-        <div className="grid-campos">
-          <CampoEditavel label="Dinheiro" valor={personagem.dinheiro} min={0} editavel={canEdit}
-            onSalvar={(v) => salvarCampo('dinheiro', v)} />
-          <CampoEditavel label="Valor da recompensa" valor={personagem.valor_recompensa} min={0} editavel={canEdit}
-            onSalvar={(v) => salvarCampo('valor_recompensa', v)} />
-        </div>
-      </section>
-
-      <section>
-        <h2>Montaria</h2>
-        <Montaria personagemId={personagem.id} montaria={montaria} onMudar={setMontaria} editavel={canEdit} />
-      </section>
+      {abaAtiva === 'montaria' && (
+        <section>
+          <h2>Montaria</h2>
+          <Montaria
+            personagemId={personagem.id}
+            montaria={montaria}
+            onMudar={setMontaria}
+            editavel={canEdit}
+            secao="stats"
+          />
+        </section>
+      )}
     </main>
   );
 }

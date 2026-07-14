@@ -771,6 +771,26 @@ p.badge-caido {
   font-size: 1.4rem;
 }
 
+.popup-acoes {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.popup-acoes button {
+  flex: 1;
+}
+
+.botao-secundario {
+  background: transparent !important;
+  border: 1px solid var(--cor-borda) !important;
+  color: var(--cor-tinta) !important;
+}
+
+.botao-secundario:hover {
+  background: var(--cor-fundo) !important;
+}
+
 /* Habilidades */
 .lista-habilidades {
   list-style: none;
@@ -899,6 +919,160 @@ p.badge-caido {
 .sub-inventario-montaria h5 {
   font-size: 1.05rem;
   margin-bottom: 0.3rem;
+}
+
+/* ---------------------------------------------------------------
+   Navegação em HUD (13/07) — menu lateral, hamburguer, casca do
+   Painel e cabeçalho de abas da ficha. Pensado pro celular: uma tela
+   de cada vez, navegação pelo menu em vez de tudo espalhado.
+------------------------------------------------------------------ */
+
+.botao-hamburguer {
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--cor-borda);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  flex-shrink: 0;
+}
+
+.botao-hamburguer:hover {
+  background: var(--cor-papel);
+}
+
+.botao-hamburguer span {
+  display: block;
+  width: 1.2rem;
+  height: 2px;
+  background: var(--cor-tinta);
+}
+
+.menu-lateral-fundo {
+  position: fixed;
+  inset: 0;
+  background: rgba(34, 26, 16, 0.55);
+  z-index: 200;
+}
+
+.menu-lateral {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(280px, 82vw);
+  background: var(--cor-tinta);
+  color: var(--cor-papel);
+  padding: 1rem;
+  overflow-y: auto;
+  box-shadow: 4px 0 18px rgba(0, 0, 0, 0.35);
+}
+
+.menu-lateral-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.8rem;
+  margin-bottom: 0.6rem;
+  border-bottom: 1px solid rgba(248, 241, 220, 0.25);
+}
+
+.menu-lateral-cabecalho strong {
+  font-family: var(--fonte-titulo);
+  font-size: 1.3rem;
+}
+
+.menu-lateral-fechar {
+  background: transparent;
+  border: none;
+  color: var(--cor-papel);
+  font-size: 1.1rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.menu-lateral ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.menu-lateral li a,
+.menu-lateral li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--cor-papel);
+  border: none;
+  padding: 0.7rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+
+.menu-lateral li a:hover,
+.menu-lateral li button:hover {
+  background: rgba(248, 241, 220, 0.12);
+  color: var(--cor-papel);
+}
+
+.menu-lateral li.menu-lateral-ativo a,
+.menu-lateral li.menu-lateral-ativo button {
+  background: var(--cor-sangue);
+  font-weight: 700;
+}
+
+/* Casca do Painel (tela inicial / Seus Personagens / Minhas Campanhas) */
+.painel-shell-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px dashed var(--cor-borda);
+}
+
+.painel-shell-header h1 {
+  flex: 1;
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.botao-sair {
+  background: transparent;
+  border: 1px solid var(--cor-borda);
+  color: var(--cor-tinta);
+  padding: 0.4rem 0.8rem;
+}
+
+.painel-shell-conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.boas-vindas {
+  font-family: var(--fonte-titulo);
+  font-size: 1.3rem;
+}
+
+/* Cabeçalho de abas dentro da ficha */
+.ficha-topo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ficha-voltar {
+  margin: 0;
 }
 
 /* ---------------------------------------------------------------
@@ -1071,5 +1245,91 @@ p.badge-caido {
 
   .popup-caixa {
     padding: 1rem;
+  }
+
+  /* Tabelas responsivas (13/07) — em vez de forçar scroll horizontal
+     (que ficava ruim: "arrastar de lado" pra ler uma linha), cada linha
+     vira um cartão empilhado, com o nome da coluna como rótulo ao lado
+     do valor. Precisa de `data-label="Nome da coluna"` em cada <td> —
+     é isso que o ::before usa. */
+  .tabela-responsiva {
+    min-width: 0 !important;
+  }
+
+  .tabela-scroll {
+    overflow-x: visible;
+  }
+
+  .tabela-responsiva thead {
+    display: none;
+  }
+
+  .tabela-responsiva,
+  .tabela-responsiva tbody,
+  .tabela-responsiva tr,
+  .tabela-responsiva td {
+    display: block;
+    width: 100%;
+  }
+
+  .tabela-responsiva tr {
+    margin-bottom: 0.7rem;
+    border: 1px solid var(--cor-borda);
+    border-radius: 6px;
+    padding: 0.4rem 0.7rem;
+    background: var(--cor-papel);
+  }
+
+  .tabela-responsiva tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .tabela-responsiva td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px dotted var(--cor-borda);
+  }
+
+  .tabela-responsiva td:last-child {
+    border-bottom: none;
+  }
+
+  .tabela-responsiva td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: 0.75rem;
+    color: var(--cor-tinta-suave);
+    flex-shrink: 0;
+  }
+
+  .tabela-responsiva td[data-label=''] {
+    justify-content: center;
+    padding-top: 0.6rem;
+  }
+
+  .tabela-responsiva td[data-label='']::before {
+    content: none;
+  }
+
+  .tabela-responsiva td.celula-numero {
+    justify-content: flex-start;
+    gap: 0.7rem;
+  }
+
+  .tabela-responsiva td.celula-numero::before {
+    content: attr(data-label) ':';
+  }
+
+  .tabela-responsiva td input,
+  .tabela-responsiva td select {
+    max-width: 58%;
+  }
+
+  .tabela-responsiva .municao-celula {
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 }

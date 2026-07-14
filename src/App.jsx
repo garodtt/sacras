@@ -7,6 +7,8 @@ import Cadastro from './routes/Cadastro.jsx';
 import EsqueciSenha from './routes/EsqueciSenha.jsx';
 import RedefinirSenha from './routes/RedefinirSenha.jsx';
 import Painel from './routes/Painel.jsx';
+import PainelPersonagens from './routes/PainelPersonagens.jsx';
+import PainelCampanhas from './routes/PainelCampanhas.jsx';
 import CampanhaDetalhe from './routes/CampanhaDetalhe.jsx';
 import Combate from './routes/Combate.jsx';
 import Personagem from './routes/Personagem.jsx';
@@ -30,6 +32,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Painel />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/painel/personagens"
+            element={
+              <ProtectedRoute>
+                <PainelPersonagens />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/painel/campanhas"
+            element={
+              <ProtectedRoute>
+                <PainelCampanhas />
               </ProtectedRoute>
             }
           />

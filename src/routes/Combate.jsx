@@ -376,7 +376,7 @@ export default function Combate() {
         aberto={mostrarTabelaIniciativa}
         onFechar={() => setMostrarTabelaIniciativa(false)}
       >
-        <table className="tabela-efeitos-dor">
+        <table className="tabela-efeitos-dor tabela-responsiva">
           <thead>
             <tr>
               <th>Carta</th>
@@ -386,15 +386,15 @@ export default function Combate() {
           <tbody>
             {CARTAS_INICIATIVA.map((c) => (
               <tr key={c.carta}>
-                <td>{c.carta}</td>
-                <td>{c.bonus}</td>
+                <td data-label="Carta" className="celula-numero">{c.carta}</td>
+                <td data-label="Bônus">{c.bonus}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
         <h4>1d6 — Acerto crítico</h4>
-        <table className="tabela-efeitos-dor">
+        <table className="tabela-efeitos-dor tabela-responsiva">
           <thead>
             <tr>
               <th>#</th>
@@ -404,8 +404,8 @@ export default function Combate() {
           <tbody>
             {ACERTOS_CRITICOS.map((e) => (
               <tr key={e.n}>
-                <td>{e.n}</td>
-                <td>
+                <td data-label="#" className="celula-numero">{e.n}</td>
+                <td data-label="Efeito">
                   <strong>{e.nome}:</strong> {e.efeito}
                 </td>
               </tr>
@@ -414,7 +414,7 @@ export default function Combate() {
         </table>
 
         <h4>1d6 — Falha crítica</h4>
-        <table className="tabela-efeitos-dor">
+        <table className="tabela-efeitos-dor tabela-responsiva">
           <thead>
             <tr>
               <th>#</th>
@@ -424,8 +424,8 @@ export default function Combate() {
           <tbody>
             {FALHAS_CRITICAS.map((e) => (
               <tr key={e.n}>
-                <td>{e.n}</td>
-                <td>{e.efeito}</td>
+                <td data-label="#" className="celula-numero">{e.n}</td>
+                <td data-label="Efeito">{e.efeito}</td>
               </tr>
             ))}
           </tbody>
@@ -434,7 +434,7 @@ export default function Combate() {
 
       <PopupReferencia titulo="Efeitos de Dor" aberto={mostrarTabelaDor} onFechar={() => setMostrarTabelaDor(false)}>
         <p className="detalhe-secundario">Efeito de acordo com os Círculos de Dor já marcados.</p>
-        <table className="tabela-efeitos-dor">
+        <table className="tabela-efeitos-dor tabela-responsiva">
           <thead>
             <tr>
               <th>#</th>
@@ -445,9 +445,9 @@ export default function Combate() {
           <tbody>
             {EFEITOS_DOR.map((e) => (
               <tr key={e.n}>
-                <td>{e.n}</td>
-                <td>{e.nome}</td>
-                <td>{e.efeito}</td>
+                <td data-label="#" className="celula-numero">{e.n}</td>
+                <td data-label="Efeito">{e.nome}</td>
+                <td data-label="Consequência">{e.efeito}</td>
               </tr>
             ))}
           </tbody>

@@ -77,7 +77,7 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
     <div className="bloco-tabela">
       {erro && <p className="erro">{erro}</p>}
       <div className="tabela-scroll">
-        <table className="tabela-ficha tabela-armas">
+        <table className="tabela-ficha tabela-armas tabela-responsiva">
           <thead>
             <tr>
               <th>Nome</th>
@@ -102,14 +102,14 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
 
               return (
                 <tr key={arma.id}>
-                  <td>
+                  <td data-label="Nome">
                     <input
                       defaultValue={arma.nome}
                       disabled={!editavel}
                       onBlur={(e) => e.target.value !== arma.nome && salvarCampo(arma, 'nome', e.target.value)}
                     />
                   </td>
-                  <td>
+                  <td data-label="Peso">
                     <input
                       type="number"
                       min="0"
@@ -122,7 +122,7 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
                       }}
                     />
                   </td>
-                  <td>
+                  <td data-label="Dano">
                     <input
                       defaultValue={arma.dano}
                       placeholder="ex.: 1d6+2"
@@ -130,7 +130,7 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
                       onBlur={(e) => e.target.value !== arma.dano && salvarCampo(arma, 'dano', e.target.value)}
                     />
                   </td>
-                  <td>
+                  <td data-label="Tipo">
                     <select
                       value={arma.tipo_dano || ''}
                       disabled={!editavel}
@@ -141,7 +141,7 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
                       <option value="vida">Vida</option>
                     </select>
                   </td>
-                  <td>
+                  <td data-label="Transporte">
                     <select
                       value={arma.meio_transporte || ''}
                       disabled={!editavel}
@@ -153,7 +153,7 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
                       <option value="bainha">Bainha</option>
                     </select>
                   </td>
-                  <td>
+                  <td data-label="Mun. máx.">
                     {temMunicao ? (
                       <input
                         type="number"
@@ -170,7 +170,7 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
                       <span className="detalhe-secundario">—</span>
                     )}
                   </td>
-                  <td className="municao-celula">
+                  <td data-label="Mun. atual" className="municao-celula">
                     {temMunicao ? (
                       <>
                         <button
@@ -209,7 +209,7 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
                     )}
                   </td>
                   {editavel && (
-                    <td>
+                    <td data-label="">
                       <button type="button" className="botao-remover" onClick={() => remover(arma)}>
                         Remover
                       </button>
