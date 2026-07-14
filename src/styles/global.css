@@ -39,7 +39,7 @@ body {
   font-family: var(--fonte-ui);
 }
 
-h1, h2, h3, h4 {
+h1, h2, h3, h4, h5 {
   font-family: var(--fonte-titulo);
   font-weight: normal;
   letter-spacing: 0.02em;
@@ -651,6 +651,11 @@ button:focus-visible {
   font-weight: 700;
   font-size: 0.9rem;
   flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nivel-ativo .pip-numerado {
@@ -821,7 +826,7 @@ p.badge-caido {
 .municao-celula {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.35rem;
   white-space: nowrap;
 }
 
@@ -830,6 +835,23 @@ p.badge-caido {
   width: 3.2rem;
   padding: 0.3rem;
   text-align: center;
+}
+
+.municao-celula .status-valor {
+  min-width: 3.2ch;
+  text-align: center;
+}
+
+.botao-recarregar {
+  height: 2rem;
+  padding: 0 0.6rem !important;
+  font-size: 0.78rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tabela-armas {
+  min-width: 640px;
 }
 
 /* Montaria — presença e carga */
@@ -865,6 +887,18 @@ p.badge-caido {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.sub-inventario-montaria {
+  margin-top: 1rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px dashed var(--cor-borda);
+  border-radius: 6px;
+}
+
+.sub-inventario-montaria h5 {
+  font-size: 1.05rem;
+  margin-bottom: 0.3rem;
 }
 
 /* ---------------------------------------------------------------

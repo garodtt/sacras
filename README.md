@@ -78,6 +78,7 @@ tinha um projeto da v1, é mais simples criar outro do zero):
    4. `supabase/migrations/0004_seed_habilidades_catalogo.sql` — **nova (13/07)**, popula o catálogo com as 30 habilidades do livro
    5. `supabase/migrations/0005_combate_entradas.sql` — **nova (13/07)**, rastreador de combate do Mestre
    6. `supabase/migrations/0006_rls_performance_fix.sql` — **nova (13/07), importante**: corrige lentidão — as funções de RLS chamavam `auth.uid()` sem empacotar numa subquery (`(select auth.uid())`), fazendo o Postgres reavaliar isso a mais do que precisava
+   7. `supabase/migrations/0007_armas_montaria_recompensa.sql` — **nova (13/07)**: revisão de armas (meio de transporte, tipo de dano), inventário da montaria por sub-local, dinheiro/recompensa
 
 **4. Configure as variáveis de ambiente:**
 ```bash
@@ -186,7 +187,8 @@ sacramento-rpg/
 │       ├── 0003_atributos_inventario_habilidades.sql   # regras de 13/07 (ver docs/ARQUITETURA.md)
 │       ├── 0004_seed_habilidades_catalogo.sql   # as 30 habilidades do livro (combate + profissão)
 │       ├── 0005_combate_entradas.sql   # rastreador de combate do Mestre (13/07)
-│       └── 0006_rls_performance_fix.sql   # corrige lentidão do RLS (auth.uid() sem (select ...))
+│       ├── 0006_rls_performance_fix.sql   # corrige lentidão do RLS (auth.uid() sem (select ...))
+│       └── 0007_armas_montaria_recompensa.sql   # meio_transporte/tipo_dano, local_montaria, valor_recompensa
 └── src/
     ├── main.jsx
     ├── App.jsx                 # rotas (react-router-dom)

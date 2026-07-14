@@ -291,10 +291,10 @@ export function listarItensMontaria(mountId) {
     .order('ordem', { ascending: true });
 }
 
-export function criarItemMontaria(mountId, ordem) {
+export function criarItemMontaria(mountId, ordem, localMontaria) {
   return supabase
     .from('items')
-    .insert({ mount_id: mountId, ordem })
+    .insert({ mount_id: mountId, ordem, local_montaria: localMontaria })
     .select()
     .single();
 }
@@ -307,6 +307,12 @@ export function removerTodosItensPersonagem(personagemId) {
 
 export function removerTodosItensMontaria(mountId) {
   return supabase.from('items').delete().eq('mount_id', mountId);
+}
+
+// Excluir só os itens de UM sub-local da montaria (ex.: "larguei a
+// bolsa" — some só o que tava nela, cavalo/carro/carroça continuam).
+export function removerItensMontariaPorLocal(mountId, localMontaria) {
+  return supabase.from('items').delete().eq('mount_id', mountId).eq('local_montaria', localMontaria);
 }
 
 // ---------------------------------------------------------------------

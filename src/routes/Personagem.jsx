@@ -27,7 +27,8 @@ import {
   calcularStatsDerivados,
   ajustarComMaximo,
   ajustarValorSimples,
-  calcularCapacidadeMunicao,
+  calcularCapacidadeMunicaoDeArmas,
+  calcularPesoMunicaoExcedente,
   aplicarRecarga,
 } from '../lib/regras.js';
 
@@ -56,8 +57,12 @@ const ANTECEDENTES = [
 //   não mais calculado a partir dos círculos.
 // - Habilidades vêm de um catálogo compartilhado + criação própria.
 // - Itens têm peso × quantidade, trava de carga de verdade (antes só
-//   era um aviso), e podem virar munição de reserva (coldre/bandoleira).
-// - Armas têm categoria (leve/pesada) e recarregam do pool certo.
+//   era um aviso). Coldre/bandoleira saiu do item — agora é
+//   meio_transporte da arma (13/07).
+// - Armas têm meio_transporte (coldre/bandoleira/bainha, com limites) e
+//   tipo_dano (Dor/Vida); recarregam do pool certo. Munição excedente
+//   (o que passa da capacidade do coldre/bandoleira) conta como peso.
+// - Dinheiro e valor de recompensa são campos simples, sem regra.
 //
 // Só o dono (ou o Admin) edita; RLS (personagens_update) já bloqueia no
 // banco, aqui só refletimos isso desabilitando os campos.
@@ -246,16 +251,20 @@ export default function Personagem() {
   }
 
   // Recarrega uma arma a partir do pool de munição certo (leve/pesada,
-  // conforme arma.categoria) — mexe em duas tabelas (weapons e
+  // Recarrega uma arma a partir do pool de munição certo (leve/pesada,
+  // conforme arma.meio_transporte) — mexe em duas tabelas (weapons e
   // personagens) então mora aqui, não dentro de TabelaArmas.
-  async function handleRecarregarArma(arma) {
-    const campoPool = arma.categoria === 'leve' ? 'municao_leve_atual' : 'municao_pesada_atual';
+  // `quantidade` (opcional): default enche até o máximo (Recarregar);
+  // passe 1 pra um "+1" parcial (uma bala avulsa).
+  async function handleRecarregarArma(arma, quantidade) {
+    const campoPool = arma.meio_transporte === 'coldre' ? 'municao_leve_atual' : 'municao_pesada_atual';
     const poolAtual = personagem[campoPool] ?? 0;
 
     const resultado = aplicarRecarga({
       municaoAtual: arma.municao_atual ?? 0,
       municaoMax: arma.municao_max ?? 0,
       poolAtual,
+      ...(quantidade !== undefined && { quantidade }),
     });
 
     const [resArma, resPersonagem] = await Promise.all([
@@ -280,7 +289,15 @@ export default function Personagem() {
   const budgetAntecedentes = 4 + personagem.atributo_intelecto;
   const pontosAntecedentes = ANTECEDENTES.reduce((soma, a) => soma + personagem[a.campo], 0);
   const caido = personagem.circulos_vida_atual <= 0;
-  const capacidadeMunicao = calcularCapacidadeMunicao(itens);
+  const capacidadeMunicao = calcularCapacidadeMunicaoDeArmas(armas);
+  const pesoItensAtual = itens.reduce((soma, i) => soma + Number(i.espaco ?? 0) * Number(i.quantidade ?? 1), 0);
+  const pesoMunicaoExcedente = calcularPesoMunicaoExcedente({
+    municaoLeveAtual: personagem.municao_leve_atual,
+    capacidadeLeve: capacidadeMunicao.leve,
+    municaoPesadaAtual: personagem.municao_pesada_atual,
+    capacidadePesada: capacidadeMunicao.pesada,
+  });
+  const limiteRestanteParaMunicao = personagem.espaco_max - pesoItensAtual;
 
   return (
     <main className="ficha">
@@ -428,12 +445,17 @@ export default function Personagem() {
               onSalvar={(v) => salvarCampo('espaco_max', v)} />
           </div>
         )}
+        {pesoMunicaoExcedente > 0 && (
+          <p className="detalhe-secundario">
+            {pesoMunicaoExcedente.toFixed(2)} de carga já contando com munição excedente (ver Armas, abaixo).
+          </p>
+        )}
         <TabelaItens
           itens={itens}
           onMudar={setItens}
           editavel={canEdit}
           limiteEspaco={personagem.espaco_max}
-          permiteCarregador
+          pesoAdicional={pesoMunicaoExcedente}
           onAdicionar={() => criarItem(personagem.id, itens.length)}
           onExcluirTodos={() => removerTodosItensPersonagem(personagem.id)}
         />
@@ -445,6 +467,7 @@ export default function Personagem() {
           capacidade={capacidadeMunicao}
           atualLeve={personagem.municao_leve_atual}
           atualPesada={personagem.municao_pesada_atual}
+          limiteRestante={limiteRestanteParaMunicao}
           onSalvar={salvarCampo}
           editavel={canEdit}
         />
@@ -454,7 +477,19 @@ export default function Personagem() {
           onMudar={setArmas}
           editavel={canEdit}
           onRecarregar={handleRecarregarArma}
+          poolLeve={personagem.municao_leve_atual}
+          poolPesada={personagem.municao_pesada_atual}
         />
+      </section>
+
+      <section>
+        <h2>Dinheiro</h2>
+        <div className="grid-campos">
+          <CampoEditavel label="Dinheiro" valor={personagem.dinheiro} min={0} editavel={canEdit}
+            onSalvar={(v) => salvarCampo('dinheiro', v)} />
+          <CampoEditavel label="Valor da recompensa" valor={personagem.valor_recompensa} min={0} editavel={canEdit}
+            onSalvar={(v) => salvarCampo('valor_recompensa', v)} />
+        </div>
       </section>
 
       <section>

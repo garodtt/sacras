@@ -95,30 +95,94 @@ export function calcularEspacoMontaria({ tem_bolsa, tipo_carga }) {
   return espaco;
 }
 
+// Igual calcularEspacoMontaria, mas detalhado por sub-local — cada um
+// com seu próprio limite (não é mais um pool só). Só entram os
+// sub-locais que a montaria realmente tem equipado (13/07: "é
+// importante contar o peso dos itens separados, porque existe a opção
+// de eu largar a bolsa e quero saber exatamente o que tinha nela").
+export function capacidadesPorLocalMontaria({ tem_bolsa, tipo_carga }) {
+  const capacidades = { cavalo: ESPACO_MONTARIA_PADRAO };
+  if (tem_bolsa) capacidades.bolsa = ESPACO_BOLSA;
+  if (tipo_carga === 'carro') capacidades.carro = ESPACO_CARRO;
+  if (tipo_carga === 'carroca') capacidades.carroca = ESPACO_CARROCA;
+  return capacidades;
+}
+
 // ---------------------------------------------------------------------
-// Munição — capacidade de cada pool de reserva vem dos itens do tipo
-// certo (coldre = leve, bandoleira = pesada), multiplicando pela
-// quantidade (2 coldres = 72 balas leves de capacidade).
+// Munição (13/07 — revisado). Cada ARMA tem um `meio_transporte`
+// (coldre/bandoleira/bainha) — isso decide de qual pool ela recarrega
+// E quanta capacidade de reserva aquilo dá (1 arma no coldre = +36
+// balas leves de capacidade; 1 na bandoleira = +24 pesadas; bainha é
+// arma branca, sem munição). Não são mais itens separados — a arma já
+// "traz" o coldre/bandoleira junto.
+//
+// Limites (validados aqui, aplicados na hora de escolher o meio de
+// transporte de uma arma): no máximo 2 em bandoleira, no máximo 4
+// somando coldre+bandoleira, no máximo 1 em bainha.
 // ---------------------------------------------------------------------
 const BALAS_POR_COLDRE = 36;
 const BALAS_POR_BANDOLEIRA = 24;
+const PESO_BALA_LEVE = 0.08;
+const PESO_BALA_PESADA = 0.25;
 
-export function calcularCapacidadeMunicao(itens) {
+export const LIMITE_BANDOLEIRA = 2;
+export const LIMITE_COLDRE_MAIS_BANDOLEIRA = 4;
+export const LIMITE_BAINHA = 1;
+
+export function calcularCapacidadeMunicaoDeArmas(armas) {
   let leve = 0;
   let pesada = 0;
-  for (const item of itens) {
-    if (item.tipo_carregador === 'coldre') leve += BALAS_POR_COLDRE * (item.quantidade || 1);
-    if (item.tipo_carregador === 'bandoleira') pesada += BALAS_POR_BANDOLEIRA * (item.quantidade || 1);
+  for (const arma of armas) {
+    if (arma.meio_transporte === 'coldre') leve += BALAS_POR_COLDRE;
+    if (arma.meio_transporte === 'bandoleira') pesada += BALAS_POR_BANDOLEIRA;
   }
   return { leve, pesada };
 }
 
+// Confere se dá pra atribuir `novoMeio` a uma arma sem estourar os
+// limites, olhando as OUTRAS armas (exclui a que está sendo editada).
+// Devolve null se pode, ou uma mensagem de erro se não pode.
+export function validarMeioTransporte(armas, armaId, novoMeio) {
+  if (!novoMeio) return null;
+
+  const outras = armas.filter((a) => a.id !== armaId);
+  const coldres = outras.filter((a) => a.meio_transporte === 'coldre').length;
+  const bandoleiras = outras.filter((a) => a.meio_transporte === 'bandoleira').length;
+  const bainhas = outras.filter((a) => a.meio_transporte === 'bainha').length;
+
+  if (novoMeio === 'bainha' && bainhas + 1 > LIMITE_BAINHA) {
+    return `Bainha cheia — só cabe ${LIMITE_BAINHA} arma.`;
+  }
+  if (novoMeio === 'bandoleira' && bandoleiras + 1 > LIMITE_BANDOLEIRA) {
+    return `Bandoleira cheia — só cabem até ${LIMITE_BANDOLEIRA} armas.`;
+  }
+  if (
+    (novoMeio === 'coldre' || novoMeio === 'bandoleira') &&
+    coldres + bandoleiras + 1 > LIMITE_COLDRE_MAIS_BANDOLEIRA
+  ) {
+    return `Cheio — só cabem até ${LIMITE_COLDRE_MAIS_BANDOLEIRA} armas somando coldre + bandoleira.`;
+  }
+  return null;
+}
+
+// Peso da munição = só o que EXCEDE a capacidade do coldre/bandoleira
+// conta no inventário (o que cabe neles não pesa nada a mais — já é
+// "parte" da arma). Ex.: 2 coldres = 72 de capacidade; se o campo de
+// munição leve tiver 73, só 1 bala pesa (73 − 72 = 1 × 0,08).
+export function calcularPesoMunicaoExcedente({ municaoLeveAtual, capacidadeLeve, municaoPesadaAtual, capacidadePesada }) {
+  const excedenteLeve = Math.max(0, municaoLeveAtual - capacidadeLeve);
+  const excedentePesada = Math.max(0, municaoPesadaAtual - capacidadePesada);
+  return excedenteLeve * PESO_BALA_LEVE + excedentePesada * PESO_BALA_PESADA;
+}
+
 // Recarrega uma arma a partir do pool de reserva (leve ou pesada,
-// conforme weapons.categoria). Só pega o que existir no pool — se
-// faltar bala pra encher, carrega parcial e o pool zera (ex. arma
-// cabe 6, pool tem 4: arma fica com 4, pool fica 0).
-export function aplicarRecarga({ municaoAtual, municaoMax, poolAtual }) {
+// conforme weapons.meio_transporte). `quantidade` é quanto tentar pôr
+// de uma vez — default Infinity, ou seja "encher até o máximo" (botão
+// Recarregar); passe 1 pra um "+1" parcial (bala avulsa, sem precisar
+// encher tudo). Sempre travado no que couber na arma E no que existir
+// no pool — o menor dos dois vence.
+export function aplicarRecarga({ municaoAtual, municaoMax, poolAtual, quantidade = Infinity }) {
   const faltam = Math.max(0, municaoMax - municaoAtual);
-  const pegar = Math.min(faltam, poolAtual);
+  const pegar = Math.min(quantidade, faltam, poolAtual);
   return { municaoAtual: municaoAtual + pegar, poolAtual: poolAtual - pegar };
 }

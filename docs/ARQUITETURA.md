@@ -97,8 +97,9 @@ elenco completo), é 1 policy pra ajustar.
 | Iniciativa / Defesa | `iniciativa`, `defesa` | seguem manuais |
 | Círculos de Vida / Dor | `circulos_vida_*`, `circulos_dor_*`, `efeito_dor_atual` | mecânica na seção 5; efeito marcado na mão (popup) |
 | Habilidades | tabelas `habilidades_catalogo` + `personagem_habilidades` | 13/07: deixou de ser texto livre, ver subseção "Regras adicionais" |
-| Itens (nome, peso, quantidade) | tabela `items` (`personagem_id` OU `mount_id`) | + `tipo_carregador` (coldre/bandoleira); coluna ainda se chama `espaco` no banco, tela mostra "Peso" |
-| Armas (nome, peso, dano) | tabela `weapons` (`personagem_id`) | + `categoria` (leve/pesada) e `municao_atual/max`, agora em uso |
+| Itens (nome, peso, quantidade) | tabela `items` (`personagem_id` OU `mount_id`) | + `local_montaria` (cavalo/bolsa/carro/carroça, só quando é da montaria); coluna ainda se chama `espaco` no banco, tela mostra "Peso" |
+| Armas (nome, peso, dano) | tabela `weapons` (`personagem_id`) | + `meio_transporte` (coldre/bandoleira/bainha, 13/07), `tipo_dano` (Dor/Vida) e `municao_atual/max`, todos em uso |
+| Dinheiro / Valor de recompensa | `dinheiro`, `valor_recompensa` | dinheiro existe desde a Fase 1; recompensa é novo (13/07); nenhum dos dois tem regra |
 | Montaria (potência, resistência, vida, dor, fidelidade) | tabela `mounts` (`personagem_id`) | 1 por personagem; + `tem_bolsa`/`tipo_carga`/`presente` (carga própria, 13/07) |
 
 
@@ -512,6 +513,33 @@ de quebra de resistência numa segunda implementação.
   cresce entre combates — achei que fazia falta).
 - Rota `/campanha/:id/combate`, link só aparece pra quem gerencia a
   campanha (`CampanhaDetalhe.jsx`).
+- **Correção (13/07)**: Vida e Dor só tinham botão de −1 (copiado literal
+  do código de referência, que era só sobre dano). Como dá pra
+  recuperar os dois na mesa (poção, cura de habilidade, etc.),
+  acrescentei o +1 pros dois — usando o mesmo `ajustarVida`/`ajustarDor`
+  que já existiam (a função já aceitava delta positivo, só faltava o
+  botão). "Caído" é derivado (`vida_atual <= 0`), então nada mais
+  precisou mudar: subir a Vida de novo já tira do estado sozinho.
+- **Tabelas de referência (13/07)**: "Iniciativa {n}" e "Dor" (em cada
+  combatente) viraram botões que abrem um popup — `PopupReferencia.jsx`
+  (`components/combate/`), um shell genérico reaproveitado pelos dois.
+  O de Iniciativa mostra 3 tabelas do livro (bônus por carta A/K/Q/J,
+  acerto crítico 1d6, falha crítica 1d6); o de Dor reaproveita
+  `EFEITOS_DOR` (exportado de `EfeitoDorPopup.jsx`, sem duplicar dado).
+  São só consulta — não marcam nada no combatente (diferente do popup
+  de Dor da ficha do personagem, que marca `efeito_dor_atual`); se
+  fizer falta guardar "esse NPC está Atordoado agora", dá pra
+  acrescentar depois.
+  **Assumido, sinalizando por segurança**: nas duas imagens que você
+  mandou, o ícone da carta J e o ícone da linha "Mortal" (acerto
+  crítico) parecem visualmente iguais — o estilo caveira (Vida). Pra
+  carta J isso bate com o padrão da tabela (+1 num atributo/recurso por
+  carta), então usei "+1 de Vida" direto. Já pra "Mortal", presumi que
+  o ícone real ali é o de punho (Dor) e não caveira — "acerto crítico"
+  só faz sentido como dano a mais no inimigo, não vida a mais pra quem
+  ataca, então escrevi "+2 de Dor no ataque" em vez de seguir a leitura
+  visual literal. Se eu li errado (em qualquer uma das duas linhas), é
+  só apontar e eu corrijo.
 
 ### Correção de performance do RLS (13/07)
 
@@ -556,6 +584,51 @@ https://supabase.com/docs/guides/troubleshooting/rls-performance-and-best-practi
   também tem um linter automático pra exatamente esse problema —
   dashboard → Advisors → Performance → `auth_rls_initplan` — vale
   rodar depois da migration pra confirmar que não sobrou nada.
+
+### Revisão de armas, montaria e campos novos (13/07)
+
+**Armas — mudou de conceito**: coldre/bandoleira deixou de ser um item
+avulso (Fase 6) e virou `weapons.meio_transporte` — cada arma de fogo
+já "traz" o coldre ou a bandoleira junto (1 arma no coldre = +36 de
+capacidade leve; 1 na bandoleira = +24 pesada). `bainha` é a terceira
+opção, pra arma branca (faca), sem munição. Limites validados no app
+(`src/lib/regras.js`, `validarMeioTransporte`): bandoleira ≤ 2,
+coldre + bandoleira ≤ 4, bainha ≤ 1 — bate com os exemplos que você
+deu (2+2, 4+0, 3+1, sempre somando 4). `categoria` (leve/pesada) saiu,
+`meio_transporte` já cobre a mesma função. `tipo_dano` (Dor/Vida) é só
+referência — não aciona nada sozinho na tela, é o jogador que decide
+onde aplicar (ficha ou Rastreador de Combate) na hora de narrar.
+
+**Peso da arma nunca contou** — nem antes nem agora `weapons.espaco`
+entra em conta nenhuma de carga; o campo existe só por fidelidade à
+ficha impressa (que tem uma coluna "Espaço" pras armas). Só a munição
+**excedente** conta peso agora.
+
+**Munição — capacidade vs. excedente**: até a capacidade do coldre/
+bandoleira (36/24 por arma), a munição não pesa nada — já "vem" com a
+arma. Passar disso, o excedente pesa (0,08 leve / 0,25 pesada) e entra
+na mesma trava de carga dos Itens. Isso significa que o limite de Itens
+e o de Munição são **interdependentes**: `Personagem.jsx` calcula os
+dois lados (peso já usado por Itens, excedente já usado por Munição) e
+passa pra cada tela só o que sobra pro outro lado — editar um dos dois
+pode fazer o outro ter menos espaço disponível na hora.
+
+**Montaria — inventário por sub-local**: antes (Fase 6) era um pool só
+(10 + bolsa + carro/carroça somados). Agora cada sub-local (Cavalo,
+Bolsa, Carro, Carroça) tem seu próprio limite e sua própria lista de
+itens (`items.local_montaria`) — só aparecem os sub-locais que a
+montaria realmente tem equipado. "Excluir todos" agora pode ser feito
+por sub-local (largar só a bolsa, sem mexer no resto).
+
+**Nível de Fidelidade**: o número dentro do círculo estava sem
+`display:flex`/`padding:0` — herdava o padding do botão genérico
+(0.5rem 1rem), que descentraliza texto num círculo de tamanho fixo.
+Corrigido.
+
+**Dinheiro e Valor de recompensa**: `dinheiro` já existia desde a Fase
+1 (fora da tela até agora); `valor_recompensa` é campo novo. Os dois
+são só números soltos, sem regra — nova seção "Dinheiro" na ficha,
+sem cálculo nenhum ligado a eles ainda.
 
 ## 7. Fluxo de autenticação
 

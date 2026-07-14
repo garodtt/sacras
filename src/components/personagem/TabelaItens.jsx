@@ -4,36 +4,44 @@ import { atualizarItem, removerItem } from '../../lib/dados.js';
 // Tabela de inventário — reaproveitada pro personagem E pra montaria
 // (mesma tabela `items` no banco, dono diferente). Quem chama decide
 // como criar/excluir-todos (onAdicionar/onExcluirTodos, já vêm prontos
-// pra o dono certo) — este componente só lista, edita e valida peso.
+// pra o dono/sub-local certo) — este componente só lista, edita e
+// valida peso.
 //
-// Regras de 13/07: peso da linha = peso unitário × quantidade; total não
-// pode passar de `limiteEspaco` (trava de verdade, diferente da Fase 5
-// que só mostrava um aviso). `permiteCarregador` liga a coluna de
-// coldre/bandoleira — só faz sentido no inventário do personagem.
-export default function TabelaItens({
-  itens,
-  onMudar,
-  editavel,
-  limiteEspaco,
-  onAdicionar,
-  onExcluirTodos,
-  permiteCarregador = true,
-}) {
+// 13/07: `pesoAdicional` é peso de OUTRA fonte que soma no "usado" sem
+// ser um item de verdade (ex.: munição excedente, no personagem) —
+// antes isso diminuía o limiteEspaco (deixava confuso, tipo "0/9.92");
+// agora limiteEspaco é sempre o máximo de verdade, e o "usado" já vem
+// somado com esse peso extra (0.08/10, por exemplo).
+//
+// Também corrige um bug de UX: quando uma mudança de peso/quantidade é
+// rejeitada (passaria do limite), o <input> ficava mostrando o valor
+// digitado mesmo sem ter salvado nada — parecia que só apareceu um
+// aviso, mas na real tinha travado. `tentativas` força o input a
+// remontar (voltar pro valor de verdade) toda vez que uma tentativa é
+// rejeitada, mesmo se o valor salvo não mudou.
+export default function TabelaItens({ itens, onMudar, editavel, limiteEspaco, pesoAdicional = 0, onAdicionar, onExcluirTodos }) {
   const [adicionando, setAdicionando] = useState(false);
   const [erro, setErro] = useState('');
+  const [tentativas, setTentativas] = useState({});
 
   const pesoTotal = (item) => Number(item.espaco ?? 0) * Number(item.quantidade ?? 1);
-  const espacoUsado = itens.reduce((soma, i) => soma + pesoTotal(i), 0);
+  const pesoItens = itens.reduce((soma, i) => soma + pesoTotal(i), 0);
+  const espacoUsado = pesoItens + pesoAdicional;
+
+  function rejeitar(item, mensagem) {
+    setErro(mensagem);
+    setTentativas((t) => ({ ...t, [item.id]: (t[item.id] || 0) + 1 }));
+  }
 
   // Confere se dá pra aplicar uma mudança de peso/quantidade num item
-  // sem estourar o limite — soma todo mundo, trocando só a linha em
-  // questão pelos valores novos.
+  // sem estourar o limite — soma todo mundo (+ pesoAdicional), trocando
+  // só a linha em questão pelos valores novos.
   function cabeNoLimite(itemId, pesoNovo, quantidadeNova) {
-    const total = itens.reduce((soma, i) => {
+    const totalItens = itens.reduce((soma, i) => {
       if (i.id === itemId) return soma + pesoNovo * quantidadeNova;
       return soma + pesoTotal(i);
     }, 0);
-    return total <= limiteEspaco;
+    return totalItens + pesoAdicional <= limiteEspaco;
   }
 
   async function adicionar() {
@@ -63,7 +71,7 @@ export default function TabelaItens({
   function salvarPeso(item, novoPeso) {
     const quantidade = Number(item.quantidade ?? 1);
     if (!cabeNoLimite(item.id, novoPeso, quantidade)) {
-      setErro(`Não cabe: passaria de ${limiteEspaco} de carga.`);
+      rejeitar(item, `Não cabe: "${item.nome || 'item'}" passaria de ${limiteEspaco} de carga. Cheio.`);
       return;
     }
     setErro('');
@@ -73,7 +81,7 @@ export default function TabelaItens({
   function salvarQuantidade(item, novaQuantidade) {
     const peso = Number(item.espaco ?? 0);
     if (!cabeNoLimite(item.id, peso, novaQuantidade)) {
-      setErro(`Não cabe: passaria de ${limiteEspaco} de carga.`);
+      rejeitar(item, `Não cabe: "${item.nome || 'item'}" passaria de ${limiteEspaco} de carga. Cheio.`);
       return;
     }
     setErro('');
@@ -98,7 +106,6 @@ export default function TabelaItens({
               <th>Peso (un.)</th>
               <th>Qtd.</th>
               <th>Total</th>
-              {permiteCarregador && <th>Carregador</th>}
               {editavel && <th></th>}
             </tr>
           </thead>
@@ -114,6 +121,7 @@ export default function TabelaItens({
                 </td>
                 <td>
                   <input
+                    key={`peso-${item.id}-${item.espaco}-${tentativas[item.id] || 0}`}
                     type="number"
                     min="0"
                     step="0.5"
@@ -127,6 +135,7 @@ export default function TabelaItens({
                 </td>
                 <td>
                   <input
+                    key={`qtd-${item.id}-${item.quantidade}-${tentativas[item.id] || 0}`}
                     type="number"
                     min="1"
                     step="1"
@@ -139,19 +148,6 @@ export default function TabelaItens({
                   />
                 </td>
                 <td className="detalhe-secundario">{pesoTotal(item)}</td>
-                {permiteCarregador && (
-                  <td>
-                    <select
-                      defaultValue={item.tipo_carregador || ''}
-                      disabled={!editavel}
-                      onChange={(e) => salvarCampo(item, 'tipo_carregador', e.target.value || null)}
-                    >
-                      <option value="">—</option>
-                      <option value="coldre">Coldre (+36 leve)</option>
-                      <option value="bandoleira">Bandoleira (+24 pesada)</option>
-                    </select>
-                  </td>
-                )}
                 {editavel && (
                   <td>
                     <button type="button" className="botao-remover" onClick={() => remover(item)}>
@@ -163,7 +159,7 @@ export default function TabelaItens({
             ))}
             {itens.length === 0 && (
               <tr>
-                <td colSpan={editavel ? 6 : 5} className="detalhe-secundario">
+                <td colSpan={editavel ? 5 : 4} className="detalhe-secundario">
                   Nenhum item ainda.
                 </td>
               </tr>
@@ -172,7 +168,7 @@ export default function TabelaItens({
         </table>
       </div>
       <p className="detalhe-secundario">
-        Carga usada: {espacoUsado} / {limiteEspaco}
+        Carga usada: {espacoUsado.toFixed(2).replace(/\.00$/, '')} / {limiteEspaco}
       </p>
       {editavel && (
         <div className="acoes-tabela">
