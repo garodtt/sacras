@@ -90,6 +90,7 @@ export default function PainelShell({ children }) {
         <h1>
           <EstrelaXerife />
           Sacramento RPG
+          <EstrelaXerife />
         </h1>
       </header>
 
