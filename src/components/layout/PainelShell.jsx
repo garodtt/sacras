@@ -120,7 +120,7 @@ export default function PainelShell({ children }) {
           <div className="popup-caixa" onClick={(e) => e.stopPropagation()}>
             <h3>Criar campanha</h3>
             {erroCampanha && <p className="erro">{erroCampanha}</p>}
-            <form id="form-criar-campanha" onSubmit={handleCriarCampanha} className="form-inline">
+            <form id="form-criar-campanha" onSubmit={handleCriarCampanha} className="form-inline form-empilhado">
               <label>
                 Nome da campanha
                 <input value={nomeCampanha} onChange={(e) => setNomeCampanha(e.target.value)} required autoFocus />

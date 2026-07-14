@@ -247,6 +247,24 @@ button:focus-visible {
   height: fit-content;
 }
 
+/* Modificador — empilha os campos em vez de lado a lado. Usado onde
+   os campos têm alturas bem diferentes (ex.: um input de texto curto
+   ao lado de um textarea) — lado a lado, o alinhamento por baixo
+   (align-items: flex-end) do .form-inline deixa isso "torto". */
+.form-empilhado {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.form-empilhado label {
+  width: 100%;
+}
+
+.form-empilhado textarea {
+  width: 100%;
+  resize: vertical;
+}
+
 .tabela-admin {
   width: 100%;
   border-collapse: collapse;
