@@ -481,6 +481,10 @@ export default function Personagem() {
                 onSalvar={(v) => salvarCampo('iniciativa', v)} />
               <CampoEditavel label="Defesa" valor={personagem.defesa} min={0} editavel={canEdit}
                 onSalvar={(v) => salvarCampo('defesa', v)} />
+              <CampoEditavel label="Assistências" valor={personagem.assistencias} min={0} editavel={canEdit}
+                onSalvar={(v) => salvarCampo('assistencias', v)} />
+              <CampoEditavel label="Mortes" valor={personagem.mortes} min={0} editavel={canEdit}
+                onSalvar={(v) => salvarCampo('mortes', v)} />
             </div>
           </section>
 
