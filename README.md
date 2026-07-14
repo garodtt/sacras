@@ -1,1363 +1,289 @@
-/* =====================================================================
-   Sacramento RPG — sistema visual (Fase 7, 13/07)
-   Referência: Ficha_Editável_-_Sacramento_RPG.pdf (cartaz de faroeste/
-   "procurado", papel envelhecido, caixas pretas sólidas em Atributos/
-   Itens/Armas/Nível de Fidelidade, números sempre em vermelho).
-   Fontes: Rye (título, Google Fonts) + Vollkorn (corpo, Google Fonts) +
-   sans do sistema (inputs/botões fora da ficha, legibilidade no dia a
-   dia). Ver docs/ARQUITETURA.md, seção "Fase 7".
-===================================================================== */
-
-:root {
-  --cor-fundo: #ecdfc1;
-  --cor-papel: #f8f1dc;
-  --cor-tinta: #221a10;
-  --cor-tinta-suave: #5a4a35;
-  --cor-sangue: #9c2b1a;
-  --cor-couro: #7c5330;
-  --cor-poeira: #b98a3d;
-  --cor-borda: #cbb98e;
-
-  --fonte-titulo: 'Rye', 'Copperplate', serif;
-  --fonte-corpo: 'Vollkorn', Georgia, serif;
-  --fonte-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  background-color: var(--cor-fundo);
-  background-image:
-    radial-gradient(ellipse at center, transparent 45%, rgba(34, 22, 10, 0.16) 100%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.13, 0 0 0 0 0.1, 0 0 0 0 0.06, 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-attachment: local, local;
-  color: var(--cor-tinta);
-  font-family: var(--fonte-ui);
-}
-
-h1, h2, h3, h4, h5 {
-  font-family: var(--fonte-titulo);
-  font-weight: normal;
-  letter-spacing: 0.02em;
-  line-height: 1.15;
-  color: var(--cor-tinta);
-  margin: 0 0 0.5rem;
-}
-
-a {
-  color: var(--cor-sangue);
-  text-decoration-color: var(--cor-borda);
-}
-
-a:hover {
-  color: var(--cor-couro);
-}
-
-button {
-  font-family: var(--fonte-ui);
-  border: none;
-  border-radius: 4px;
-  background: var(--cor-tinta);
-  color: var(--cor-papel);
-  padding: 0.5rem 1rem;
-  font-size: 0.95rem;
-  cursor: pointer;
-}
-
-button:hover:not(:disabled) {
-  background: var(--cor-couro);
-}
-
-button:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-input, select, textarea {
-  font-family: var(--fonte-ui);
-}
-
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-button:focus-visible {
-  outline: 2px solid var(--cor-poeira);
-  outline-offset: 1px;
-}
-
-.erro {
-  color: var(--cor-sangue);
-}
-
-.detalhe-secundario {
-  color: var(--cor-tinta-suave);
-  font-size: 0.85rem;
-}
-
-/* ---------------------------------------------------------------
-   Telas de autenticação (Login/Cadastro/Redefinir senha).
------------------------------------------------------------------- */
-.tela-auth {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1rem;
-}
-
-.card-auth {
-  width: 100%;
-  max-width: 380px;
-  background: var(--cor-papel);
-  border: 1px solid var(--cor-borda);
-  border-radius: 8px;
-  padding: 2rem;
-}
-
-.card-auth h1 {
-  margin-top: 0;
-  font-size: 1.8rem;
-}
-
-.card-auth form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.card-auth label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  font-size: 0.9rem;
-}
-
-.card-auth input {
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--cor-borda);
-  border-radius: 4px;
-  font-size: 1rem;
-  background: #fff;
-}
-
-.card-auth fieldset {
-  border: 1px solid var(--cor-borda);
-  border-radius: 4px;
-  padding: 0.6rem 0.8rem;
-}
-
-.opcao-radio {
-  flex-direction: row !important;
-  align-items: center;
-  gap: 0.4rem !important;
-  display: flex;
-  margin: 0.3rem 0;
-}
-
-.card-auth button {
-  padding: 0.6rem;
-}
-
-.card-auth .erro {
-  font-size: 0.9rem;
-  margin: 0;
-}
-
-.card-auth p {
-  font-size: 0.9rem;
-}
-
-/* ---------------------------------------------------------------
-   Painel / Campanha / Admin.
------------------------------------------------------------------- */
-.painel {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-.painel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.painel section {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--cor-borda);
-}
-
-.lista-cards {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.lista-cards li {
-  background: var(--cor-papel);
-  border: 1px solid var(--cor-borda);
-  border-radius: 6px;
-  padding: 0.7rem 0.9rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.lista-cards li p {
-  margin: 0.2rem 0 0;
-  font-size: 0.85rem;
-  color: var(--cor-tinta-suave);
-  flex-basis: 100%;
-}
-
-.form-inline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.8rem;
-  margin-top: 0.8rem;
-}
-
-.form-inline label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-
-.form-inline input,
-.form-inline select,
-.form-inline textarea {
-  padding: 0.4rem 0.5rem;
-  border: 1px solid var(--cor-borda);
-  border-radius: 4px;
-  font-size: 0.95rem;
-  background: #fff;
-}
-
-.form-inline button {
-  height: fit-content;
-}
-
-/* Modificador — empilha os campos em vez de lado a lado. Usado onde
-   os campos têm alturas bem diferentes (ex.: um input de texto curto
-   ao lado de um textarea) — lado a lado, o alinhamento por baixo
-   (align-items: flex-end) do .form-inline deixa isso "torto". */
-.form-empilhado {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.form-empilhado label {
-  width: 100%;
-}
-
-.form-empilhado textarea {
-  width: 100%;
-  resize: vertical;
-}
-
-.tabela-admin {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.tabela-admin th,
-.tabela-admin td {
-  text-align: left;
-  padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--cor-borda);
-  font-size: 0.9rem;
-}
-
-/* ---------------------------------------------------------------
-   Ficha de personagem — Atributos ganham a caixa preta sólida da
-   ficha original (bloco-atributos-preto, aplicado em Personagem.jsx).
------------------------------------------------------------------- */
-.ficha {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 2rem 1rem 4rem;
-}
-
-.ficha-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.ficha-nome {
-  flex: 1 1 320px;
-}
-
-.ficha-nome input {
-  font-family: var(--fonte-titulo);
-  font-size: 2rem;
-  padding: 0.3rem 0.4rem;
-  border: none;
-  border-bottom: 2px solid var(--cor-tinta);
-  border-radius: 0;
-  width: 100%;
-  background: transparent;
-  color: var(--cor-tinta);
-}
-
-.ficha-nome input:not(:disabled):hover,
-.ficha-nome input:not(:disabled):focus {
-  background: rgba(255, 255, 255, 0.35);
-}
-
-.aviso-somente-leitura {
-  background: var(--cor-papel);
-  border: 1px solid var(--cor-borda);
-  border-left: 4px solid var(--cor-couro);
-  border-radius: 4px;
-  padding: 0.6rem 0.9rem;
-  font-size: 0.85rem;
-  color: var(--cor-tinta-suave);
-}
-
-.aviso-mestre {
-  background: var(--cor-papel);
-  border: 1px solid var(--cor-borda);
-  border-left: 4px solid var(--cor-poeira);
-  border-radius: 4px;
-  padding: 0.6rem 0.9rem;
-  font-size: 0.85rem;
-  color: var(--cor-tinta-suave);
-}
-
-.ficha section {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 2px dashed var(--cor-borda);
-}
-
-.ficha h2 {
-  font-size: 1.6rem;
-  margin-bottom: 0.3rem;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.ficha details {
-  margin-top: 0.6rem;
-  font-family: var(--fonte-corpo);
-  font-size: 0.9rem;
-  color: var(--cor-tinta-suave);
-}
-
-.ficha details summary {
-  cursor: pointer;
-  color: var(--cor-tinta);
-  font-weight: 600;
-}
-
-.grid-campos {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
-  margin-top: 0.8rem;
-}
-
-/* Caixa preta sólida da ficha original — só a seção de Atributos.
-   Ver classe aplicada em src/routes/Personagem.jsx. */
-.bloco-atributos-preto {
-  background: var(--cor-tinta);
-  border-radius: 6px;
-  padding: 1rem;
-  margin-top: 0.8rem;
-}
-
-.bloco-atributos-preto .campo-editavel > span {
-  color: var(--cor-papel);
-}
-
-.bloco-atributos-preto .campo-dica {
-  color: var(--cor-papel);
-  opacity: 0.82;
-}
-
-.bloco-atributos-preto .campo-editavel input {
-  background: var(--cor-papel);
-  border-color: var(--cor-papel);
-}
-
-.campo-editavel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-
-.campo-editavel > span {
-  font-weight: 600;
-}
-
-.campo-editavel input,
-.campo-editavel textarea {
-  padding: 0.45rem 0.55rem;
-  border: 1px solid var(--cor-borda);
-  border-radius: 4px;
-  font-size: 1.05rem;
-  font-family: var(--fonte-corpo);
-  font-weight: 700;
-  color: var(--cor-sangue);
-  background: #fff;
-}
-
-.campo-editavel textarea {
-  font-weight: 400;
-  color: var(--cor-tinta);
-}
-
-.campo-editavel input:disabled,
-.campo-editavel textarea:disabled {
-  background: rgba(255, 255, 255, 0.4);
-  color: var(--cor-tinta-suave);
-}
-
-.campo-dica {
-  color: var(--cor-tinta-suave);
-  font-size: 0.78rem;
-}
-
-.campo-espaco-max {
-  max-width: 200px;
-  margin-bottom: 0.8rem;
-}
-
-.antecedente-bloco {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.antecedente-bloco strong {
-  font-family: var(--fonte-titulo);
-  font-size: 1.1rem;
-  font-weight: normal;
-}
-
-.antecedente-formula {
-  font-size: 0.8rem;
-  color: var(--cor-tinta-suave);
-}
-
-.trilha-circulos {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.trilha-pips {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-
-.pip {
-  width: 1.85rem;
-  height: 1.85rem;
-  border-radius: 50%;
-  border: 2px solid var(--cor-tinta);
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-}
-
-.pip:disabled {
-  cursor: default;
-  opacity: 0.7;
-}
-
-.trilha-pips--vida .pip.pip--cheio {
-  background: var(--cor-tinta);
-}
-
-.trilha-pips--dor .pip {
-  border-color: var(--cor-sangue);
-}
-
-.trilha-pips--dor .pip.pip--cheio {
-  background: var(--cor-sangue);
-}
-
-.trilha-pips--neutro .pip.pip--cheio {
-  background: var(--cor-couro);
-  border-color: var(--cor-couro);
-}
-
-.trilha-legenda {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--cor-tinta-suave);
-  min-width: 3ch;
-}
-
-.grid-circulos {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
-  margin-top: 0.8rem;
-}
-
-.grid-circulos h4 {
-  margin: 0 0 0.4rem;
-  font-size: 1.2rem;
-}
-
-.grid-circulos .campo-editavel {
-  margin-top: 0.5rem;
-  max-width: 160px;
-}
-
-.tabela-efeitos-dor {
-  margin-top: 1rem;
-  width: 100%;
-  border-collapse: collapse;
-  font-family: var(--fonte-corpo);
-  font-size: 0.88rem;
-}
-
-.tabela-efeitos-dor th,
-.tabela-efeitos-dor td {
-  text-align: left;
-  padding: 0.45rem 0.5rem;
-  border-bottom: 1px solid var(--cor-borda);
-}
-
-.tabela-efeitos-dor tr.efeito-ativo {
-  background: rgba(156, 43, 26, 0.12);
-  font-weight: 700;
-}
-
-.bloco-tabela {
-  margin-top: 0.8rem;
-}
-
-.tabela-scroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.tabela-ficha {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.tabela-ficha thead th {
-  text-align: left;
-  font-family: var(--fonte-titulo);
-  font-size: 1rem;
-  letter-spacing: 0.02em;
-  color: var(--cor-papel);
-  background: var(--cor-tinta);
-  padding: 0.5rem 0.6rem;
-}
-
-.tabela-ficha thead th:first-child {
-  border-radius: 4px 0 0 0;
-}
-
-.tabela-ficha thead th:last-child {
-  border-radius: 0 4px 0 0;
-}
-
-.tabela-ficha td {
-  padding: 0.3rem 0.5rem;
-  border-bottom: 1px solid var(--cor-borda);
-}
-
-.tabela-ficha input,
-.tabela-ficha select {
-  width: 100%;
-  padding: 0.35rem 0.4rem;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  font-size: 0.95rem;
-  color: var(--cor-tinta);
-}
-
-.tabela-ficha input:not(:disabled):hover,
-.tabela-ficha input:not(:disabled):focus,
-.tabela-ficha select:hover,
-.tabela-ficha select:focus {
-  border-color: var(--cor-borda);
-  background: #fff;
-}
-
-.tabela-ficha input:disabled {
-  color: var(--cor-tinta-suave);
-}
-
-.botao-remover {
-  background: transparent !important;
-  color: var(--cor-sangue) !important;
-  border: 1px solid var(--cor-sangue) !important;
-  padding: 0.3rem 0.6rem !important;
-  font-size: 0.8rem !important;
-}
-
-.botao-remover:hover:not(:disabled) {
-  background: var(--cor-sangue) !important;
-  color: var(--cor-papel) !important;
-}
-
-.acoes-tabela {
-  display: flex;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-  margin-top: 0.6rem;
-}
-
-.bloco-montaria {
-  margin-top: 0.8rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-/* Nível de Fidelidade — a segunda caixa preta sólida da ficha original. */
-.nivel-fidelidade {
-  background: var(--cor-tinta);
-  color: var(--cor-papel);
-  border-radius: 6px;
-  padding: 1rem 1.2rem;
-}
-
-.nivel-fidelidade h4 {
-  color: var(--cor-papel);
-  font-size: 1.3rem;
-  margin-bottom: 0.7rem;
-}
-
-.nivel-fidelidade ul {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  margin: 0;
-}
-
-.nivel-fidelidade li {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  font-family: var(--fonte-corpo);
-  font-size: 0.88rem;
-  color: rgba(248, 241, 220, 0.55);
-}
-
-.nivel-fidelidade li.nivel-ativo {
-  color: var(--cor-papel);
-}
-
-.pip-numerado {
-  width: 1.9rem;
-  height: 1.9rem;
-  border-radius: 50%;
-  border: 2px solid rgba(248, 241, 220, 0.4);
-  background: transparent;
-  color: var(--cor-papel);
-  cursor: pointer;
-  font-family: var(--fonte-corpo);
-  font-weight: 700;
-  font-size: 0.9rem;
-  flex-shrink: 0;
-  padding: 0;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nivel-ativo .pip-numerado {
-  border-color: var(--cor-sangue);
-  background: var(--cor-sangue);
-  color: var(--cor-papel);
-}
-
-/* ---------------------------------------------------------------
-   Vida/Dor — Máximo (stepper) e Atual (+/- dos lados).
------------------------------------------------------------------- */
-.linha-circulos-ajuste {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-}
-
-.botao-ajuste {
-  flex-shrink: 0;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 50%;
-  font-size: 1.3rem;
-  line-height: 1;
-  padding: 0;
-}
-
-.badge-caido {
-  display: inline-block;
-  margin-left: 0.6rem;
-  padding: 0.15rem 0.6rem;
-  border-radius: 4px;
-  background: var(--cor-sangue);
-  color: var(--cor-papel);
-  font-family: var(--fonte-ui);
-  font-size: 0.75rem;
-  font-weight: 700;
-  vertical-align: middle;
-}
-
-p.badge-caido {
-  margin: 0.4rem 0;
-  display: inline-block;
-}
-
-.campo-stepper {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  margin-bottom: 0.6rem;
-}
-
-.campo-stepper > span {
-  font-weight: 600;
-}
-
-.campo-stepper-controles {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.campo-stepper-controles button {
-  width: 2.2rem;
-  height: 2.2rem;
-  padding: 0;
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-.campo-stepper-controles strong {
-  min-width: 2ch;
-  text-align: center;
-  font-size: 1.1rem;
-  color: var(--cor-sangue);
-}
-
-.campo-stepper--leitura strong {
-  font-size: 1.1rem;
-  color: var(--cor-sangue);
-}
-
-/* Popup de Efeito de Dor */
-.botao-efeito-dor {
-  margin: 0.6rem 0;
-}
-
-.popup-fundo {
-  position: fixed;
-  inset: 0;
-  background: rgba(34, 26, 16, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  z-index: 100;
-}
-
-.popup-caixa {
-  background: var(--cor-papel);
-  border: 1px solid var(--cor-borda);
-  border-radius: 6px;
-  padding: 1.2rem;
-  max-width: 480px;
-  width: 100%;
-  max-height: 85vh;
-  overflow-y: auto;
-}
-
-.popup-caixa h3 {
-  margin-top: 0;
-  font-size: 1.4rem;
-}
-
-.popup-acoes {
-  display: flex;
-  gap: 0.6rem;
-  margin-top: 0.8rem;
-}
-
-.popup-acoes button {
-  flex: 1;
-}
-
-.botao-secundario {
-  background: transparent !important;
-  border: 1px solid var(--cor-borda) !important;
-  color: var(--cor-tinta) !important;
-}
-
-.botao-secundario:hover {
-  background: var(--cor-fundo) !important;
-}
-
-/* Habilidades */
-.lista-habilidades {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin: 0.6rem 0;
-}
-
-.lista-habilidades li {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--cor-borda);
-  font-family: var(--fonte-corpo);
-}
-
-.habilidade-linha {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.habilidade-linha span {
-  font-weight: 700;
-}
-
-.badge-jogador {
-  font-family: var(--fonte-ui);
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--cor-papel);
-  background: var(--cor-couro);
-  border-radius: 4px;
-  padding: 0.1rem 0.4rem;
-}
-
-.adicionar-habilidade {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  margin-top: 0.6rem;
-}
-
-/* Munição (reserva) */
-.municao-pool {
-  margin-bottom: 1rem;
-}
-
-.municao-celula {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  white-space: nowrap;
-}
-
-.municao-atual,
-.municao-max {
-  width: 3.2rem;
-  padding: 0.3rem;
-  text-align: center;
-}
-
-.municao-celula .status-valor {
-  min-width: 3.2ch;
-  text-align: center;
-}
-
-.botao-recarregar {
-  height: 2rem;
-  padding: 0 0.6rem !important;
-  font-size: 0.78rem;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.tabela-armas {
-  min-width: 640px;
-}
-
-/* Montaria — presença e carga */
-.campo-presente {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.6rem 0;
-  font-size: 0.9rem;
-}
-
-.config-carga-montaria {
-  margin: 1rem 0;
-  padding: 0.7rem 0.9rem;
-  background: var(--cor-papel);
-  border: 1px solid var(--cor-borda);
-  border-radius: 4px;
-}
-
-.config-carga-montaria p {
-  font-family: var(--fonte-corpo);
-}
-
-.config-carga-montaria label {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.4rem;
-  font-size: 0.9rem;
-}
-
-.opcoes-carga {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.sub-inventario-montaria {
-  margin-top: 1rem;
-  padding: 0.7rem 0.9rem;
-  border: 1px dashed var(--cor-borda);
-  border-radius: 6px;
-}
-
-.sub-inventario-montaria h5 {
-  font-size: 1.05rem;
-  margin-bottom: 0.3rem;
-}
-
-/* ---------------------------------------------------------------
-   Navegação em HUD (13/07) — menu lateral, hamburguer, casca do
-   Painel e cabeçalho de abas da ficha. Pensado pro celular: uma tela
-   de cada vez, navegação pelo menu em vez de tudo espalhado.
------------------------------------------------------------------- */
-
-.botao-hamburguer {
-  width: 2.4rem;
-  height: 2.4rem;
-  padding: 0;
-  background: transparent;
-  border: 1px solid var(--cor-borda);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.28rem;
-  flex-shrink: 0;
-}
-
-.botao-hamburguer:hover {
-  background: var(--cor-papel);
-}
-
-.botao-hamburguer span {
-  display: block;
-  width: 1.2rem;
-  height: 2px;
-  background: var(--cor-tinta);
-}
-
-.menu-lateral-fundo {
-  position: fixed;
-  inset: 0;
-  background: rgba(34, 26, 16, 0.55);
-  z-index: 200;
-}
-
-.menu-lateral {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: min(280px, 82vw);
-  background: var(--cor-tinta);
-  color: var(--cor-papel);
-  padding: 1rem;
-  overflow-y: auto;
-  box-shadow: 4px 0 18px rgba(0, 0, 0, 0.35);
-}
-
-.menu-lateral-cabecalho {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 0.8rem;
-  margin-bottom: 0.6rem;
-  border-bottom: 1px solid rgba(248, 241, 220, 0.25);
-}
-
-.menu-lateral-cabecalho strong {
-  font-family: var(--fonte-titulo);
-  font-size: 1.3rem;
-}
-
-.menu-lateral-fechar {
-  background: transparent;
-  border: none;
-  color: var(--cor-papel);
-  font-size: 1.1rem;
-  padding: 0.2rem 0.5rem;
-}
-
-.menu-lateral ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.menu-lateral li a,
-.menu-lateral li button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  color: var(--cor-papel);
-  border: none;
-  padding: 0.7rem 0.6rem;
-  border-radius: 4px;
-  font-size: 0.95rem;
-  text-decoration: none;
-}
-
-.menu-lateral li a:hover,
-.menu-lateral li button:hover {
-  background: rgba(248, 241, 220, 0.12);
-  color: var(--cor-papel);
-}
-
-.menu-lateral li.menu-lateral-ativo a,
-.menu-lateral li.menu-lateral-ativo button {
-  background: var(--cor-sangue);
-  font-weight: 700;
-}
-
-/* Casca do Painel (tela inicial / Seus Personagens / Minhas Campanhas) */
-.painel-shell-header {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
-  border-bottom: 2px dashed var(--cor-borda);
-}
-
-.painel-shell-header h1 {
-  flex: 1;
-  font-size: 1.5rem;
-  margin: 0;
-}
-
-.botao-sair {
-  background: transparent;
-  border: 1px solid var(--cor-borda);
-  color: var(--cor-tinta);
-  padding: 0.4rem 0.8rem;
-}
-
-.painel-shell-conteudo {
-  display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
-}
-
-.boas-vindas {
-  font-family: var(--fonte-titulo);
-  font-size: 1.3rem;
-}
-
-/* Cabeçalho de abas dentro da ficha */
-.ficha-topo {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.ficha-voltar {
-  margin: 0;
-}
-
-/* ---------------------------------------------------------------
-   Rastreador de Combate (Mestre, 13/07).
------------------------------------------------------------------- */
-.lista-combate {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-  margin-top: 0.8rem;
-}
-
-.lista-combate > li {
-  background: var(--cor-papel);
-  border: 1px solid var(--cor-borda);
-  border-radius: 6px;
-  padding: 0.7rem 0.9rem;
-}
-
-.lista-combate > li.combatente-caido {
-  border-color: var(--cor-sangue);
-}
-
-.combatente-cabecalho {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.combatente-cabecalho strong {
-  font-family: var(--fonte-titulo);
-  font-size: 1.2rem;
-  font-weight: normal;
-}
-
-.badge-tipo {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  color: var(--cor-papel);
-}
-
-.badge-tipo--npc {
-  background: var(--cor-couro);
-}
-
-.badge-tipo--jogador {
-  background: var(--cor-tinta);
-}
-
-.combatente-status {
-  display: flex;
-  gap: 1.2rem;
-  flex-wrap: wrap;
-  margin-top: 0.5rem;
-}
-
-.status-linha {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.status-valor {
-  color: var(--cor-sangue);
-}
-
-.botao-ajuste-pequeno {
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border-radius: 50%;
-  font-size: 0.85rem;
-}
-
-.ajuste-maximos {
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
-}
-
-.ajuste-maximos summary {
-  cursor: pointer;
-  color: var(--cor-couro);
-}
-
-.ajuste-maximos .grid-campos {
-  margin-top: 0.6rem;
-}
-
-/* Rastreador de Combate — tabelas de referência (13/07) */
-.link-referencia {
-  background: transparent;
-  border: none;
-  padding: 0;
-  color: var(--cor-couro);
-  text-decoration: underline dotted;
-  cursor: pointer;
-  font-size: inherit;
-}
-
-.link-referencia:hover {
-  background: transparent;
-  color: var(--cor-sangue);
-}
-
-.status-linha .link-referencia {
-  font-weight: 600;
-  color: var(--cor-tinta);
-  text-decoration: none;
-  border-bottom: 1px dotted var(--cor-couro);
-}
-
-.popup-caixa--larga {
-  max-width: 640px;
-}
-
-.popup-caixa--larga h4 {
-  margin-top: 1.2rem;
-  font-size: 1.05rem;
-}
-
-/* ---------------------------------------------------------------
-   Celular — pensado pra ser usado à mesa. Cabeçalhos menores (Rye
-   fica largo), grids em 1 coluna, tabelas viram scroll horizontal
-   em vez de espremer colunas.
------------------------------------------------------------------- */
-@media (max-width: 640px) {
-  .ficha {
-    padding: 1.25rem 0.75rem 3rem;
-  }
-
-  .ficha-nome input {
-    font-size: 1.5rem;
-  }
-
-  .ficha h2 {
-    font-size: 1.3rem;
-  }
-
-  .bloco-atributos-preto,
-  .nivel-fidelidade,
-  .config-carga-montaria {
-    padding: 0.8rem;
-  }
-
-  .grid-campos {
-    grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
-    gap: 0.7rem;
-  }
-
-  .grid-circulos {
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
-  }
-
-  .tabela-ficha {
-    min-width: 480px;
-  }
-
-  .tabela-efeitos-dor {
-    min-width: 420px;
-  }
-
-  .popup-caixa {
-    padding: 1rem;
-  }
-
-  /* Tabelas responsivas (13/07) — em vez de forçar scroll horizontal
-     (que ficava ruim: "arrastar de lado" pra ler uma linha), cada linha
-     vira um cartão empilhado, com o nome da coluna como rótulo ao lado
-     do valor. Precisa de `data-label="Nome da coluna"` em cada <td> —
-     é isso que o ::before usa. */
-  .tabela-responsiva {
-    min-width: 0 !important;
-  }
-
-  .tabela-scroll {
-    overflow-x: visible;
-  }
-
-  .tabela-responsiva thead {
-    display: none;
-  }
-
-  .tabela-responsiva,
-  .tabela-responsiva tbody,
-  .tabela-responsiva tr,
-  .tabela-responsiva td {
-    display: block;
-    width: 100%;
-  }
-
-  .tabela-responsiva tr {
-    margin-bottom: 0.7rem;
-    border: 1px solid var(--cor-borda);
-    border-radius: 6px;
-    padding: 0.4rem 0.7rem;
-    background: var(--cor-papel);
-  }
-
-  .tabela-responsiva tbody tr:last-child {
-    margin-bottom: 0;
-  }
-
-  .tabela-responsiva td {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.6rem;
-    padding: 0.4rem 0;
-    border-bottom: 1px dotted var(--cor-borda);
-  }
-
-  .tabela-responsiva td:last-child {
-    border-bottom: none;
-  }
-
-  .tabela-responsiva td::before {
-    content: attr(data-label);
-    font-weight: 700;
-    font-size: 0.75rem;
-    color: var(--cor-tinta-suave);
-    flex-shrink: 0;
-  }
-
-  .tabela-responsiva td[data-label=''] {
-    justify-content: center;
-    padding-top: 0.6rem;
-  }
-
-  .tabela-responsiva td[data-label='']::before {
-    content: none;
-  }
-
-  .tabela-responsiva td.celula-numero {
-    justify-content: flex-start;
-    gap: 0.7rem;
-  }
-
-  .tabela-responsiva td.celula-numero::before {
-    content: attr(data-label) ':';
-  }
-
-  .tabela-responsiva td input,
-  .tabela-responsiva td select {
-    max-width: 58%;
-  }
-
-  .tabela-responsiva .municao-celula {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-}
+# Sacramento RPG — Gerenciador de Personagens
+
+Sistema web para gerenciar personagens do RPG de mesa **Sacramento**:
+qualquer usuário cria campanhas e personagens livremente, participa de
+campanhas de outros por convite, e um Admin acompanha tudo. Banco de
+dados real (Supabase) por trás.
+
+> 🚧 **Status atual: Fases 1 a 7 concluídas** — modelo de Campanhas/
+> Personagens (v2), ficha de personagem completa com todas as regras
+> (atributos derivados, vida/dor, inventário, munição, habilidades,
+> montaria) e o visual definitivo da ficha (fontes, cores, textura de
+> papel). Falta só o que ficou deliberadamente de fora até aqui:
+> dinheiro, XP, munição/tipo de dano legados, histórico de alterações —
+> ver as perguntas em aberto em `docs/ARQUITETURA.md`, seção 6.
+> Em 13/07 o projeto também passou por uma refatoração de fundo mais
+> antiga: saiu a divisão Mestre/Jogador, entrou um modelo só de
+> **usuário + admin**, com **campanhas** (qualquer um cria) e
+> **personagens** (vinculáveis a N campanhas, via convite). Detalhe
+> completo em `docs/ARQUITETURA.md`, seção 6.
+
+## Stack
+
+| Camada | Tecnologia |
+|---|---|
+| Frontend | React + Vite |
+| Backend / Banco | Supabase (Postgres + Auth + Row Level Security) |
+| Hospedagem | Netlify |
+| Editor | VS Code |
+
+## Quem vê o quê (resumo — detalhe completo em `docs/ARQUITETURA.md`)
+
+- **Todo usuário** cria campanhas e personagens livremente — não existe
+  mais um papel "Mestre" separado.
+- **Personagem**: pertence a 1 usuário; só o dono edita. Quem criou uma
+  campanha (ou o Admin) também **vê e edita** os personagens vinculados
+  a ela (13/07) — inclui itens, armas, montaria e habilidades, não só
+  os campos soltos.
+- **Campanha**: quem cria vira o "dono" — convida outros usuários por
+  e-mail exato. O convidado vê o convite no próprio painel e aceita ou
+  recusa (é só um registro interno — **sem disparo de e-mail real**, por
+  enquanto).
+- **Vínculo**: depois de aceitar, o usuário vincula um ou mais dos seus
+  personagens à campanha. Um personagem pode estar em **várias
+  campanhas ao mesmo tempo**.
+- **Rastreador de Combate** (`/campanha/:id/combate`): só quem criou a
+  campanha (ou o Admin) — é ferramenta do Mestre, participante comum
+  nem vê que a tela existe.
+- Por padrão, um jogador comum só enxerga os **próprios** vínculos numa
+  campanha (não a lista completa de quem mais está jogando) — mesma
+  lógica de privacidade que já existia antes entre jogadores.
+- **Admin** (1 usuário, via promoção manual): usa o site normalmente
+  como qualquer um, e tem uma tela extra (`/admin`) só de leitura com
+  todas as campanhas e personagens do sistema.
+
+Essa regra vive no banco (RLS), não só na tela — mesmo uma chamada
+direta à API do Supabase (fora do site) respeita a mesma regra.
+
+## Pré-requisitos
+
+- [Node.js](https://nodejs.org) 18 ou mais recente
+- Conta no [Supabase](https://supabase.com) (grátis)
+- Conta no [Netlify](https://netlify.com) (grátis) — só precisa a partir da Fase 8
+- Git + VS Code
+
+## Setup local
+
+**1. Abra a pasta deste projeto no VS Code.**
+
+**2. Crie um projeto NOVO no Supabase** (este schema v2 não é compatível
+com um projeto onde você já rodou as migrations antigas — se você já
+tinha um projeto da v1, é mais simples criar outro do zero):
+   - https://supabase.com/dashboard → **New Project**
+   - Em **Settings → API**, anote a **Project URL** e a **anon public key**
+
+**3. Rode as migrations**, nesta ordem, no **SQL Editor** do Supabase:
+   1. `supabase/migrations/0001_schema_inicial.sql`
+   2. `supabase/migrations/0002_rls_policies.sql`
+   3. `supabase/migrations/0003_atributos_inventario_habilidades.sql` — **nova (13/07)**, precisa rodar mesmo se seu projeto já tinha 0001+0002
+   4. `supabase/migrations/0004_seed_habilidades_catalogo.sql` — **nova (13/07)**, popula o catálogo com as 30 habilidades do livro
+   5. `supabase/migrations/0005_combate_entradas.sql` — **nova (13/07)**, rastreador de combate do Mestre
+   6. `supabase/migrations/0006_rls_performance_fix.sql` — **nova (13/07), importante**: corrige lentidão — as funções de RLS chamavam `auth.uid()` sem empacotar numa subquery (`(select auth.uid())`), fazendo o Postgres reavaliar isso a mais do que precisava
+   7. `supabase/migrations/0007_armas_montaria_recompensa.sql` — **nova (13/07)**: revisão de armas (meio de transporte, tipo de dano), inventário da montaria por sub-local, dinheiro/recompensa
+   8. `supabase/migrations/0008_mestre_edita_ficha.sql` — **nova (13/07)**: dono de campanha vinculada passa a poder editar a ficha do personagem (não só ver)
+   9. `supabase/migrations/0009_fotos_historia_ordem.sql` — **nova (13/07)**: ordem manual de habilidades, fotos (item/personagem/perfil), história do personagem, e o bucket de Storage — **precisa de Storage habilitado no seu projeto Supabase** (vem habilitado por padrão)
+   10. `supabase/migrations/0010_fix_update_habilidades.sql` — **nova (13/07), importante**: corrige bug — reordenar habilidades não funcionava porque a tabela nunca teve política de UPDATE
+   11. `supabase/migrations/0011_contadores_combate.sql` — **nova (13/07)**: contadores de Assistências e Mortes
+
+**4. Configure as variáveis de ambiente:**
+```bash
+cp .env.example .env
+```
+Abra `.env` e preencha `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` com os
+valores do passo 2.
+
+**5. Instale as dependências e rode o projeto:**
+```bash
+npm install
+npm run dev
+```
+Abra http://localhost:5173 — agora deve aparecer a tela de **login**.
+
+**6. Configure a autenticação no Supabase** (2 ajustes no dashboard, sem
+código):
+   - **Authentication → URL Configuration** → em "Redirect URLs", adicione
+     `http://localhost:5173/**` (necessário para o e-mail de "esqueci minha
+     senha" saber pra onde voltar).
+   - **Authentication → Providers → Email** → confira se "Confirm email"
+     está do jeito que você quer: ligado (padrão) exige clicar num link no
+     e-mail antes do primeiro login; se for só testar rapidinho, pode
+     desligar temporariamente.
+
+**7. Teste o cadastro:** crie uma conta em `/cadastro` — agora é só nome,
+e-mail e senha (não tem mais escolha de papel). Confirme o e-mail se
+necessário, faça login em `/login` — você cai automaticamente em
+`/painel`, ainda vazio.
+
+**8. Crie o usuário admin** (opcional, útil pra testar a visão geral):
+No **SQL Editor** do Supabase:
+```sql
+update public.profiles set role = 'admin' where id = '<uuid-do-usuario>';
+```
+O UUID aparece em **Authentication → Users**. Depois de promovido, o
+painel dessa conta ganha um link extra "Visão geral (Admin)".
+
+**9. Teste o fluxo completo** (crie uma 2ª conta de teste também):
+   - Como **conta A**: no painel, crie um personagem e crie uma
+     campanha. Na tela da campanha, vincule seu próprio personagem (você
+     é o dono, não precisa se convidar).
+   - Ainda como conta A, em "Convidar jogador", busque a **conta B** pelo
+     e-mail exato e convide.
+   - Faça login como **conta B**: em "Convites pendentes" no painel,
+     aceite — você cai direto na página da campanha. Crie um personagem
+     e vincule-o ali.
+   - Volte como conta A: na campanha, você (o criador) vê os
+     personagens de A **e** de B. Se logar de novo como B, note que B só
+     vê o **próprio** vínculo na lista — isso é esperado (ver "Quem vê o
+     quê" acima).
+
+> ⚠️ Importante sobre senhas: o Supabase (como qualquer sistema de auth
+> sério) **nunca guarda a senha em texto puro, nem para o admin ver**. Ela é
+> hasheada e não é exibida em lugar nenhum, nem no dashboard. O que o admin
+> pode fazer é: banir/desbanir usuário, deletar usuário, ou forçar o envio
+> de um link de redefinição — não "ver a senha atual".
+
+> ℹ️ Sobre quem pode se cadastrar: o cadastro continua aberto — qualquer
+> pessoa cria conta em `/cadastro` (só nome/e-mail/senha, sem escolha de
+> papel). Todo mundo nasce com papel "usuario"; "admin" só existe via
+> promoção manual por SQL (passo 8 acima).
+
+## Solução de problemas
+
+**`Failed to fetch` / `ERR_NAME_NOT_RESOLVED` apontando para algo como
+`seu-projeto.supabase.co`** — o `.env` ainda está com os valores de exemplo
+do `.env.example` (ou não existe). Corrija assim:
+1. Confirme que criou o projeto em https://supabase.com/dashboard (passo 2).
+2. Copie a **Project URL** e a **anon public key** reais em Settings → API.
+3. Abra o arquivo **`.env`** (não o `.env.example`) na raiz do projeto e
+   cole os valores reais em `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
+4. **Pare o servidor (`Ctrl+C`) e rode `npm run dev` de novo** — o Vite só
+   lê o `.env` quando o servidor inicia; só salvar o arquivo com o servidor
+   já rodando não tem efeito.
+
+**Avisos do tipo "React Router Future Flag Warning" no console** — são só
+avisos sobre mudanças que virão no React Router v7, não são erro. Já
+deixei as flags `v7_startTransition` e `v7_relativeSplatPath` ativadas no
+`App.jsx`, então elas não devem mais aparecer.
+
+## Deploy no Netlify (Fase 8)
+
+- Conectar o repositório GitHub ao Netlify
+- Build command: `npm run build` — Publish directory: `dist`
+- Adicionar as mesmas variáveis de ambiente do `.env` em
+  **Site settings → Environment variables**
+
+## Estrutura de pastas
+
+```
+sacramento-rpg/
+├── .env.example
+├── .gitignore
+├── netlify.toml
+├── package.json
+├── vite.config.js
+├── index.html
+├── README.md
+├── docs/
+│   └── ARQUITETURA.md          # schema, matriz de permissões, decisões e perguntas em aberto
+├── supabase/
+│   └── migrations/
+│       ├── 0001_schema_inicial.sql   # campanhas, personagens, convites, campanha_personagens...
+│       ├── 0002_rls_policies.sql
+│       ├── 0003_atributos_inventario_habilidades.sql   # regras de 13/07 (ver docs/ARQUITETURA.md)
+│       ├── 0004_seed_habilidades_catalogo.sql   # as 30 habilidades do livro (combate + profissão)
+│       ├── 0005_combate_entradas.sql   # rastreador de combate do Mestre (13/07)
+│       ├── 0006_rls_performance_fix.sql   # corrige lentidão do RLS (auth.uid() sem (select ...))
+│       ├── 0007_armas_montaria_recompensa.sql   # meio_transporte/tipo_dano, local_montaria, valor_recompensa
+│       ├── 0008_mestre_edita_ficha.sql   # Mestre da campanha vinculada também edita a ficha
+│       ├── 0009_fotos_historia_ordem.sql   # ordem de habilidades, fotos, história, bucket Storage
+│       └── 0010_fix_update_habilidades.sql   # corrige bug: faltava política de UPDATE em personagem_habilidades
+└── src/
+    ├── main.jsx
+    ├── App.jsx                 # rotas (react-router-dom)
+    ├── lib/
+    │   ├── supabaseClient.js
+    │   ├── dados.js             # consultas de campanhas/personagens/convites/itens/habilidades
+    │   └── regras.js            # regras de jogo puras (vida/dor, stats derivados, munição, montaria)
+    ├── styles/
+    │   └── global.css
+    ├── contexts/
+    │   └── AuthContext.jsx      # sessão, profile, papel + ações de login/cadastro/senha
+    ├── components/
+    │   ├── ProtectedRoute.jsx   # guarda de rota (exige login / exige papel)
+    │   ├── UploadFoto.jsx       # upload de foto reutilizável (item/personagem/perfil) — novo 13/07
+    │   ├── RecortarFoto.jsx     # recorte estilo Instagram (arrastar + zoom) — novo 13/07
+    │   ├── EstrelaXerife.jsx    # selo de estrela em SVG (não emoji) — novo 13/07
+    │   ├── layout/
+    │   │   ├── MenuLateral.jsx      # drawer reutilizável (navegação OU troca de aba) — novo 13/07
+    │   │   ├── BotaoHamburguer.jsx  # botão de 3 barrinhas que abre o MenuLateral — novo 13/07
+    │   │   └── PainelShell.jsx      # casca das 3 telas do Painel (cabeçalho + menu + popups criar) — novo 13/07
+    │   ├── combate/
+    │   │   └── PopupReferencia.jsx  # shell de popup (tabelas de Iniciativa/Dor no rastreador)
+    │   └── personagem/          # sub-componentes da ficha completa
+    │       ├── CampoEditavel.jsx   # input com auto-save (onBlur), reutilizável
+    │       ├── CampoStepper.jsx    # controle +/- (Máximo de Vida/Dor) — novo 13/07
+    │       ├── TrilhaCirculos.jsx  # trilha de círculos clicável (vida/dor/antecedentes)
+    │       ├── TabelaItens.jsx     # inventário (peso×quantidade, trava de carga, coldre/bandoleira)
+    │       ├── TabelaArmas.jsx     # armas (categoria leve/pesada, munição, recarregar)
+    │       ├── MunicaoPool.jsx     # munição de reserva (leve/pesada) — novo 13/07
+    │       ├── Habilidades.jsx     # catálogo + habilidade própria — novo 13/07
+    │       ├── EfeitoDorPopup.jsx  # popup da tabela de Dor, marcado na mão — novo 13/07
+    │       ├── Montaria.jsx        # bloco da montaria (vida/dor, carga, inventário próprio)
+    │       └── LinhaCirculosAjustavel.jsx  # +/- dos lados de Vida/Dor atual, usa lib/regras.js
+    └── routes/
+        ├── Login.jsx
+        ├── Cadastro.jsx
+        ├── EsqueciSenha.jsx
+        ├── RedefinirSenha.jsx
+        ├── Painel.jsx            # tela inicial (só o menu lateral leva pro resto agora)
+        ├── PainelPersonagens.jsx # "Seus Personagens" — novo 13/07
+        ├── PainelCampanhas.jsx   # "Minhas Campanhas" (criadas + participa + convites) — novo 13/07
+        ├── EditarPerfil.jsx      # nome de exibição + foto de perfil — novo 13/07
+        ├── CampanhaDetalhe.jsx   # gestão da campanha: convite + vínculo de personagem
+        ├── Combate.jsx           # rastreador de combate do Mestre (iniciativa, vida/dor, munição) — novo 13/07
+        ├── Personagem.jsx        # ficha completa — orquestra os componentes acima
+        └── AdminDashboard.jsx    # visão macro: todas as campanhas e personagens
+```
+
+> 🔄 **13/07** — Regras novas de atributos/inventário/habilidades
+> acrescentaram `CampoStepper`, `MunicaoPool`, `Habilidades` e
+> `EfeitoDorPopup` em `components/personagem/`, e a migration `0003`.
+> A Fase 7 (visual) mexeu nesses mesmos arquivos de novo — sem
+> acrescentar componentes novos, só `src/styles/global.css` (reescrito)
+> e um par de linhas de classe em `Personagem.jsx`/`TabelaItens.jsx`/
+> `TabelaArmas.jsx`. Também adicionou o link de fontes no `index.html`
+> (raiz do projeto, fora de `src/`).
+
+## Roadmap
+
+- [x] **Fase 1** — estrutura do projeto, schema SQL, RLS, scaffold React + Vite
+- [x] **Fase 2** — Autenticação: login, cadastro, redefinição de senha
+- [x] **Fase 3** — Criar campanha, convidar jogador, criar personagem
+- [x] **Fase 4** — Painel único: personagens, campanhas (criadas/participando), convites, visão geral do Admin
+- [x] **Fase 5** — Personagem completo (todos os campos da ficha original, editáveis)
+- [x] **Fase 6** — Regras de jogo: Vida/Dor ("quebra de resistência", automática via botão "Sofrer dano"). Inventário/espaço não mudou — decisão de 13/07 manteve `espaco_max` como campo fixo editável (já era assim desde a Fase 5)
+- [x] **Regras adicionais (13/07)** — atributos somando de verdade (Físico/Velocidade/Coragem/Intelecto), popup de Efeito de Dor marcado na mão, inventário com peso×quantidade e trava de carga real, coldre/bandoleira, munição por categoria (leve/pesada) com recarga, catálogo de Habilidades, montaria com inventário e carga próprios — ver `docs/ARQUITETURA.md`
+- [x] **Fase 7** — Visual (fontes Rye + Vollkorn, paleta e textura de papel da ficha original, caixas pretas em Atributos/Itens/Armas/Nível de Fidelidade, responsivo pro celular) — ver `docs/ARQUITETURA.md`
+- [x] **Rastreador de Combate (13/07)** — tela do Mestre por campanha: NPCs e jogadores numa lista por Iniciativa, Vida/Dor (mesma regra da ficha) e Balas com recarregar simples — ver `docs/ARQUITETURA.md`
+- [x] **Navegação em HUD (13/07)** — Painel virou 3 telas (inicial + Seus Personagens + Minhas Campanhas) navegadas por menu lateral; a ficha ganhou abas (menu de 3 barrinhas interno) em vez de rolar tudo numa página só — ver `docs/ARQUITETURA.md`
+- [x] **Mestre edita a ficha do jogador (13/07)** — dono de campanha vinculada agora edita (não só vê) o personagem, itens, armas, montaria e habilidades — ver `docs/ARQUITETURA.md`
+- [x] **Fotos, história e ordem de habilidades (13/07)** — foto no personagem/itens/perfil (Supabase Storage), campo de descrição/história, ordem manual de habilidades, e tela de Editar Perfil (nome + foto) — ver `docs/ARQUITETURA.md`
+- [x] **Reforço visual e sem emojis (13/07)** — botões com tratamento de carimbo, divisor de seção com losango, selo de estrela (SVG), marca "Sacramento" no rodapé; auditoria confirmou zero emoji de app (só os ícones pedidos: X e espada) — ver `docs/ARQUITETURA.md`
+- [ ] **Fase 8** — Deploy no Netlify + variáveis de ambiente de produção
+- [ ] **Fase 9** *(opcional, sugerido)* — Histórico de alterações do personagem
+
+> 🔄 **13/07** — Fases 1 a 4 foram refeitas sob o modelo de
+> Campanhas/Personagens (v2). O que cada fase entrega funcionalmente não
+> mudou (auth, criar/gerenciar "mesas", criar ficha, visão geral do
+> admin) — o que mudou foi *quem* pode fazer *o quê* e como as coisas se
+> conectam. Ver `docs/ARQUITETURA.md`, seção 6, para o motivo e o antes/depois.
+
+## Sobre o projeto antigo (`garodtt/rpg`)
+
+Antes de propor o schema, li o código do seu protótipo anterior para entender
+as regras de vida/dor e inventário que já existiam. O resumo do que encontrei
+— e as perguntas que isso gerou — está em `docs/ARQUITETURA.md`, seção 5 e 7.
+Resumo rápido: o protótipo antigo usava 1 tabela só (`fichas`) com senha por
+ficha (sem conta de usuário de verdade); a base nova que estamos construindo
+substitui isso por autenticação e papéis reais, que é justamente o que você
+pediu agora.

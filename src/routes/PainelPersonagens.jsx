@@ -30,7 +30,7 @@ export default function PainelPersonagens() {
         <p>Carregando...</p>
       ) : personagens.length === 0 ? (
         <p className="detalhe-secundario">
-          Você ainda não criou nenhum personagem. Abra o menu (☰) e toque em "Criar Personagem".
+          Você ainda não criou nenhum personagem. Abra o menu e toque em "Criar Personagem".
         </p>
       ) : (
         <ul className="lista-cards">

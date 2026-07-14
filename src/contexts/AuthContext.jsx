@@ -52,9 +52,9 @@ export function AuthProvider({ children }) {
     role: profile?.role ?? null,
     loading,
 
-    // 13/07 — usado depois de editar nome/foto em EditarPerfil.jsx, pra
-    // o resto do app (ex.: "Bem-vindo, X" no Painel) já refletir sem
-    // precisar de F5.
+    // 13/07 — usado depois de editar nome/foto (Painel.jsx, tela
+    // inicial) pra o resto do app (ex.: qualquer outro lugar que
+    // mostre o nome/foto) já refletir sem precisar de F5.
     refreshProfile: () => (session ? carregarProfile(session.user.id) : Promise.resolve()),
 
     signUp: ({ email, password, displayName }) =>

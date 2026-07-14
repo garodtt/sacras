@@ -49,7 +49,7 @@ const ANTECEDENTES = [
 
 // Abas da ficha (13/07 — reestruturação pro celular). Antes era tudo
 // numa página só, rolando bastante — ruim de usar no celular. Agora só
-// uma aba renderiza por vez, trocada pelo menu de 3 barrinhas (☰) local
+// uma aba renderiza por vez, trocada pelo menu de 3 barrinhas local
 // (reaproveita o mesmo MenuLateral do Painel, só que aqui os itens
 // trocam de aba em vez de navegar). Agrupamento pedido:
 //   geral    -> Nome, Atributos, Antecedentes, Habilidades, Dinheiro
@@ -601,6 +601,7 @@ export default function Personagem() {
           />
         </section>
       )}
+      <p className="marca-sacramento">Sacramento</p>
     </main>
   );
 }

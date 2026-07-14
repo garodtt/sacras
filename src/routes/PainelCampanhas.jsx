@@ -99,7 +99,7 @@ export default function PainelCampanhas() {
           <p>Carregando...</p>
         ) : campanhasCriadas.length === 0 ? (
           <p className="detalhe-secundario">
-            Você ainda não criou nenhuma campanha. Abra o menu (☰) e toque em "Criar Campanha".
+            Você ainda não criou nenhuma campanha. Abra o menu e toque em "Criar Campanha".
           </p>
         ) : (
           <ul className="lista-cards">

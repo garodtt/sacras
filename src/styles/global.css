@@ -64,7 +64,10 @@ button {
   background: var(--cor-tinta);
   color: var(--cor-papel);
   padding: 0.5rem 1rem;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   cursor: pointer;
 }
 
@@ -338,9 +341,21 @@ button:focus-visible {
 }
 
 .ficha section {
+  position: relative;
   margin-top: 2rem;
   padding-top: 1.5rem;
   border-top: 2px dashed var(--cor-borda);
+}
+
+.ficha section::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: var(--cor-couro);
+  transform: translateX(-50%) rotate(45deg);
 }
 
 .ficha h2 {
@@ -1016,10 +1031,17 @@ p.badge-caido {
 
 .menu-lateral-fechar {
   background: transparent;
-  border: none;
+  border: 1px solid rgba(248, 241, 220, 0.4);
   color: var(--cor-papel);
-  font-size: 1.1rem;
-  padding: 0.2rem 0.5rem;
+  font-size: 1rem;
+  line-height: 1;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .menu-lateral ul {
@@ -1071,13 +1093,6 @@ p.badge-caido {
   flex: 1;
   font-size: 1.5rem;
   margin: 0;
-}
-
-.botao-sair {
-  background: transparent;
-  border: 1px solid var(--cor-borda);
-  color: var(--cor-tinta);
-  padding: 0.4rem 0.8rem;
 }
 
 .painel-shell-conteudo {
@@ -1520,4 +1535,168 @@ p.badge-caido {
 
 .botao-mover:disabled {
   opacity: 0.3;
+}
+
+/* ---------------------------------------------------------------
+   Marca "SACRAMENTO" (13/07) — mesmo tratamento do rodapé de cada
+   página do livro impresso: nome do jogo em versalete, bem espaçado,
+   discreto. Aparece no fim das telas do Painel e da ficha.
+------------------------------------------------------------------ */
+.marca-sacramento {
+  text-align: center;
+  font-family: var(--fonte-titulo);
+  font-size: 1rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--cor-tinta-suave);
+  opacity: 0.55;
+  margin: 2.5rem 0 0.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--cor-borda);
+}
+
+/* Selo de estrela de xerife (13/07) — SVG desenhado, não emoji; usado
+   como acento discreto ao lado do nome do sistema no cabeçalho. */
+.selo-estrela {
+  width: 1.3rem;
+  height: 1.3rem;
+  flex-shrink: 0;
+  color: var(--cor-couro);
+}
+
+.painel-shell-header h1,
+.ficha-titulo-sistema {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ---------------------------------------------------------------
+   Painel (tela inicial) — perfil consolidado + contadores (13/07,
+   3ª rodada, por pedido): bloco centralizado na tela, foto grande
+   (variante "retrato") com nome/e-mail menores ao lado, contadores em
+   lista (sem link, só números), Logout destacado.
+------------------------------------------------------------------ */
+.painel-perfil {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.painel-perfil-dados {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1 1 180px;
+}
+
+.campo-nome-inline {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.campo-nome-inline input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--fonte-titulo);
+  font-size: 1.05rem;
+  padding: 0.25rem 0.4rem;
+}
+
+.campo-nome-inline button {
+  font-size: 0.7rem;
+  padding: 0.35rem 0.6rem;
+}
+
+.campo-email-linha {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.campo-email-linha input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.4rem;
+  background: var(--cor-fundo);
+}
+
+.campo-email-linha button {
+  font-size: 0.7rem;
+  padding: 0.35rem 0.6rem;
+}
+
+.painel-contadores {
+  list-style: none;
+  padding: 0;
+  margin: 2rem auto;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+}
+
+.painel-contadores li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0.6rem 0.2rem;
+  border-bottom: 1px dashed var(--cor-borda);
+}
+
+.painel-contadores li:last-child {
+  border-bottom: none;
+}
+
+.painel-contadores strong {
+  font-family: var(--fonte-titulo);
+  font-size: 1.4rem;
+  color: var(--cor-sangue);
+}
+
+/* "Convites pendentes" é o único contador clicável (abre o popup com a
+   lista de verdade) — por dentro do <li>, o próprio botão vira quem
+   distribui rótulo/número nas pontas, já que o <li> agora só tem ELE
+   como filho direto. */
+.painel-contador-clicavel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--cor-tinta);
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: normal;
+  font-size: 1rem;
+  font-family: var(--fonte-ui);
+}
+
+.painel-contador-clicavel:hover {
+  background: transparent;
+  color: var(--cor-couro);
+}
+
+.painel-contador-clicavel strong {
+  font-family: var(--fonte-titulo);
+  font-size: 1.4rem;
+  color: var(--cor-sangue);
+}
+
+.botao-logout {
+  display: block;
+  margin: 0 auto;
+  background: var(--cor-sangue);
+  padding: 0.7rem 2rem;
+}
+
+.botao-logout:hover {
+  background: #7a2013;
 }

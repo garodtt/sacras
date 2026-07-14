@@ -4,15 +4,24 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { criarPersonagem, criarCampanha } from '../../lib/dados.js';
 import MenuLateral from './MenuLateral.jsx';
 import BotaoHamburguer from './BotaoHamburguer.jsx';
+import EstrelaXerife from '../EstrelaXerife.jsx';
 
 // Casca comum das 3 telas do Painel (Painel.jsx "tela inicial",
 // PainelPersonagens.jsx, PainelCampanhas.jsx) — 13/07, reestruturação
 // pro celular: em vez de tudo numa página só rolando, cada área vira
-// sua própria tela, navegável pelo menu lateral (☰). "Criar Personagem"
+// sua própria tela, navegável pelo menu lateral. "Criar Personagem"
 // e "Criar Campanha" viram popups em vez de formulário sempre visível
 // — depois de criar, já navega pra ficha/campanha nova, igual antes.
+//
+// 13/07 (2ª rodada): "Sair" saiu do cabeçalho — só aparece na tela
+// inicial (Painel.jsx) agora, junto com foto/nome/e-mail, por pedido.
+//
+// 13/07 (3ª rodada, correção): tirar "Editar Perfil" do menu quebrou o
+// acesso a essa informação de qualquer tela que não fosse a inicial —
+// "Perfil" voltou ao menu (aponta pra /painel, mesma rota da tela
+// inicial) especificamente por causa disso.
 export default function PainelShell({ children }) {
-  const { profile, signOut } = useAuth();
+  const { profile } = useAuth();
   const navigate = useNavigate();
 
   const [menuAberto, setMenuAberto] = useState(false);
@@ -66,6 +75,7 @@ export default function PainelShell({ children }) {
   }
 
   const itensMenu = [
+    { label: 'Perfil', to: '/painel' },
     { label: 'Seus Personagens', to: '/painel/personagens' },
     { label: '+ Criar Personagem', onClick: () => setModalPersonagem(true) },
     { label: 'Suas Campanhas', to: '/painel/campanhas' },
@@ -77,15 +87,16 @@ export default function PainelShell({ children }) {
     <div className="painel-shell">
       <header className="painel-shell-header">
         <BotaoHamburguer onClick={() => setMenuAberto(true)} />
-        <h1>Sacramento RPG</h1>
-        <button type="button" className="botao-sair" onClick={signOut}>
-          Sair
-        </button>
+        <h1>
+          <EstrelaXerife />
+          Sacramento RPG
+        </h1>
       </header>
 
       <MenuLateral aberto={menuAberto} onFechar={() => setMenuAberto(false)} titulo="Menu" itens={itensMenu} />
 
       <div className="painel-shell-conteudo">{children}</div>
+      <p className="marca-sacramento">Sacramento</p>
 
       {modalPersonagem && (
         <div className="popup-fundo" onClick={() => setModalPersonagem(false)}>

@@ -100,6 +100,7 @@ elenco completo), é 1 policy pra ajustar.
 | Itens (nome, peso, quantidade) | tabela `items` (`personagem_id` OU `mount_id`) | + `local_montaria` (cavalo/bolsa/carro/carroça, só quando é da montaria); coluna ainda se chama `espaco` no banco, tela mostra "Peso" |
 | Armas (nome, peso, dano) | tabela `weapons` (`personagem_id`) | + `meio_transporte` (coldre/bandoleira/bainha, 13/07), `tipo_dano` (Dor/Vida) e `municao_atual/max`, todos em uso |
 | Dinheiro / Valor de recompensa | `dinheiro`, `valor_recompensa` | dinheiro existe desde a Fase 1; recompensa é novo (13/07); nenhum dos dois tem regra |
+| Foto do personagem / História | `foto_url`, `descricao_historia` | novos (13/07); foto fica no bucket `fotos` do Storage, só a URL fica no banco |
 | Montaria (potência, resistência, vida, dor, fidelidade) | tabela `mounts` (`personagem_id`) | 1 por personagem; + `tem_bolsa`/`tipo_carga`/`presente` (carga própria, 13/07) |
 
 
@@ -829,6 +830,154 @@ onde esse personagem esteja vinculado.
   diferente do aviso de somente-leitura) aparece quando quem está
   editando é o Mestre, não o dono — pra deixar claro que não é a
   própria ficha, evitando edição em cima de personagem errado.
+
+### Fotos, história, ordem de habilidades e perfil (13/07)
+
+Quatro pedidos juntos, todos exigindo peças novas de infraestrutura
+(Storage do Supabase nunca tinha sido usado no projeto até agora).
+
+**Ordem de habilidades**: `personagem_habilidades` ganhou coluna
+`ordem` (migration `0009`). Optei por botões de mover pra cima/baixo
+(`▲`/`▼` por linha, `Habilidades.jsx`) em vez de arrastar — mais
+confiável no celular, que é o foco desde a reestruturação de
+navegação. `trocarOrdemHabilidades` (`dados.js`) troca a `ordem` de duas
+linhas vizinhas numa tacada só.
+
+**Storage — como ficou organizado**: um bucket só, `fotos`, público
+pra leitura (URLs funcionam sem token — são fotos de personagem/item,
+não é dado sensível) mas com escrita travada por RLS em
+`storage.objects`, usando a pasta como critério:
+```
+fotos/personagem/{personagem_id}/retrato.*    -> foto do personagem
+fotos/personagem/{personagem_id}/item-{id}.*  -> foto de um item dele
+fotos/perfil/{user_id}/foto.*                  -> foto de perfil
+```
+Uma função nova, `pode_editar_personagem`, consolida num lugar só a
+mesma checagem que já existia espalhada (dono, Admin, ou Mestre de
+campanha vinculada — migration `0008`) — só pra Storage não duplicar a
+subquery; as políticas de `items`/`weapons`/`mounts`/`personagens`
+continuam como estavam, não precisaram mudar.
+
+**Recorte assumido — foto só em item do personagem, não da montaria**:
+`TabelaItens.jsx` ganhou uma prop opcional `personagemId` — só quando
+ela vem preenchida (chamada feita a partir da lista de Itens do
+personagem, em `Personagem.jsx`) é que a coluna de Foto aparece. As 4
+chamadas feitas de dentro de `Montaria.jsx` (cavalo/bolsa/carro/
+carroça) não passam essa prop, então não têm foto. Motivo: a RLS de
+Storage só sabe validar dono por personagem (`pode_editar_personagem`),
+não por montaria — daria pra estender, mas não parecia valer a
+complexidade extra pra foto de item de cavalo. Se fizer falta, dá pra
+adicionar depois (`e_mestre_de_campanha_da_montaria`, que já existe
+desde a migration `0008`, cobre esse caso).
+
+**Componente único de upload**: `UploadFoto.jsx` (`components/`, fora
+de `personagem/` porque também é usado no Perfil) — recebe um
+`caminho` (sem extensão, adicionada a partir do arquivo escolhido),
+faz upload com `upsert: true` (sobrescreve a foto anterior no mesmo
+caminho em vez de acumular lixo no bucket), e devolve a URL pública com
+`?t={timestamp}` no final só pra evitar que o navegador mostre a foto
+antiga em cache depois de trocar. Reaproveitado em 3 lugares: retrato do
+personagem, foto de item, foto de perfil — 3 tamanhos via prop
+`variante` (retrato/quadrada/pequena).
+
+**Descrição/História**: campo novo (`personagens.descricao_historia`),
+textarea simples via `CampoEditavel` (que ganhou uma prop `placeholder`
+nova, não existia antes). Sem regra nenhuma, é só texto livre.
+
+**Editar Perfil**: tela nova (`/perfil`, `EditarPerfil.jsx`) — nome de
+exibição e foto. A RLS (`profiles_update_own_or_admin`) já permitia o
+usuário editar a própria linha desde a Fase 1; só faltava a tela.
+`AuthContext.jsx` ganhou `refreshProfile()` (novo) — depois de salvar
+nome/foto, recarrega o profile no contexto pra "Bem-vindo, X" e o resto
+do app já refletirem sem precisar de F5.
+
+### Foto quebrando o layout (13/07, correção)
+
+A prévia usava `<img>` — se o CSS de tamanho falhar por qualquer motivo
+(um `<img>` sempre tem um jeito de "vazar" pro tamanho natural se algo
+não travar direito), a imagem aparece no tamanho original e quebra a
+tela toda, como aconteceu. Duas correções, uma em cada ponta:
+
+- **Exibição**: a prévia virou uma `<div>` com `background-image` +
+  `background-size: cover` em vez de `<img>`. Uma div só tem o tamanho
+  que o CSS mandar (`width`/`height` da variante — retrato/quadrada/
+  pequena) — não tem "tamanho natural" pra vazar pra ele. Isso já
+  corrige a exibição de fotos que **já foram enviadas** antes dessa
+  correção, sem precisar reenviar nada.
+- **Upload**: `UploadFoto.jsx` agora redimensiona a imagem num
+  `<canvas>` antes de enviar (trava o maior lado em 400px, mantendo
+  proporção, e comprime pra JPEG) — pras próximas fotos não ocuparem
+  espaço à toa no Storage nem demorarem pra subir.
+
+### Bug de RLS (reordenar habilidades) e recorte de foto (13/07)
+
+**Bug real, não só falta de sincronismo**: reordenar habilidades dava
+"Cannot coerce the result to a single JSON object". Causa:
+`personagem_habilidades` tinha políticas de select/insert/delete desde
+que foi criada (migration `0003`), mas **nunca** ganhou uma de update —
+não tinha feito falta até a função de reordenar (migration `0009`)
+existir. Sem política de update, o Postgres bloqueia silenciosamente
+(0 linhas afetadas por RLS) em vez de dar um erro de permissão
+explícito — e `.select().single()` logo depois, ao receber 0 linhas,
+gera esse erro do PostgREST. Corrigido em `0010` com a mesma regra das
+outras políticas da tabela (dono, Admin, ou Mestre de campanha
+vinculada).
+
+**Foto — revisão de interação**: antes tinha um texto "Escolher foto"/
+"Trocar foto" sempre visível do lado do quadro. Agora:
+- O quadro/foto em si é um `<button>` clicável — sem texto ocupando
+  espaço, sobrou espaço pra aumentar o quadro pequeno (usado na tabela
+  de Itens): 2.6rem → 3.4rem.
+- Clicar abre um menu pequeno (`popup-caixa--menu`): "Ver em tamanho
+  grande" (só se já tiver foto), "Adicionar/Trocar foto", "Remover
+  foto" (só se já tiver foto). "Ver em tamanho grande" abre um lightbox
+  simples (`<img>` centralizada sobre um fundo escuro). "Remover" só
+  limpa o campo no banco (`foto_url = null`) — não apaga o arquivo do
+  Storage, o custo de deixar órfão é baixo e evita complicar com mais
+  uma política de delete condicional.
+- **Recorte estilo Instagram** (`RecortarFoto.jsx`, novo): ao escolher
+  um arquivo, abre um quadro fixo (260px) com a foto por trás —
+  arrasta pra posicionar, range de zoom (1x-3x) pra aproximar. O
+  arraste é travado (`clamp`) pra nunca deixar espaço vazio aparecer
+  dentro do quadro (mesma lógica do Instagram: não dá pra "soltar" a
+  foto pra fora da área visível). Confirmar desenha só a região visível
+  num `<canvas>` de saída (400px) e gera o JPEG que sobe pro Storage —
+  o redimensionamento automático sem controle do usuário (que existia
+  antes) saiu, porque agora o próprio recorte já define o
+  enquadramento final.
+
+### Assistências e Mortes (13/07)
+
+Dois campos numéricos simples (`assistencias`, `mortes`) na seção
+Combate, junto de Iniciativa/Defesa — sem regra nenhuma, só contadores
+que o jogador anota manualmente.
+
+### Reforço visual e emojis (13/07)
+
+Pedido: pegada mais "velho oeste", elementos baseados no próprio
+Sacramento, sem emoji. Auditei o projeto inteiro com um script (não só
+"olhando") pra achar todo emoji de verdade, distinguindo de setas de
+navegação (`←`) que uso de propósito e não contam.
+
+- **Removidos**: ícones tipo "caderninho de app" que tinham entrado em
+  itens de menu antes (livro, aperto de mão, engrenagem — já tinham
+  saído numa correção anterior) — confirmado que não sobrou nenhum.
+- **Mantidos, por pedido explícito**: `✕` (fechar o menu lateral) e
+  `⚔` (Rastreador de Combate, no título e no link da campanha) — são
+  ícones monocromáticos simples, não emoji colorido de app, e o pedido
+  foi manter esses dois especificamente.
+- **Botões ganharam tratamento de "carimbo"**: maiúsculas + letter-
+  spacing + peso 600 (antes eram só texto normal) — mais perto de um
+  cartaz/documento oficial do que um botão de app comum.
+- **Divisor entre seções da ficha** ganhou um pequeno losango
+  centralizado na linha tracejada (`.ficha section::before`) — detalhe
+  discreto, não é emoji nem imagem, só CSS.
+- **Selo de estrela** (`EstrelaXerife.jsx`) — SVG desenhado (não
+  emoji), ao lado de "Sacramento RPG" no cabeçalho do Painel.
+- **Marca "Sacramento"** no rodapé (Painel e ficha) — mesmo tratamento
+  do rodapé de cada página do livro impresso: nome do sistema em
+  versalete, bem espaçado, discreto (baixa opacidade). `.marca-
+  sacramento` no CSS.
 
 ## 7. Fluxo de autenticação
 
