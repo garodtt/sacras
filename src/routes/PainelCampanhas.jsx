@@ -70,7 +70,7 @@ export default function PainelCampanhas() {
 
   return (
     <PainelShell>
-      <h2>Minhas campanhas</h2>
+      <h2>Suas campanhas</h2>
       {erro && <p className="erro">{erro}</p>}
 
       {!carregando && convites.length > 0 && (

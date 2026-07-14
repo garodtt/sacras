@@ -11,6 +11,7 @@ import {
   atualizarArma,
   buscarMontaria,
   listarHabilidadesPersonagem,
+  listarCampanhasDoPersonagem,
 } from '../lib/dados.js';
 import CampoEditavel from '../components/personagem/CampoEditavel.jsx';
 import CampoStepper from '../components/personagem/CampoStepper.jsx';
@@ -97,6 +98,7 @@ export default function Personagem() {
   const [armas, setArmas] = useState([]);
   const [montaria, setMontaria] = useState(null);
   const [habilidades, setHabilidades] = useState([]);
+  const [campanhasVinculadas, setCampanhasVinculadas] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [mensagemDor, setMensagemDor] = useState('');
@@ -111,12 +113,13 @@ export default function Personagem() {
     setCarregando(true);
     setErro('');
 
-    const [resPersonagem, resItens, resArmas, resMontaria, resHabilidades] = await Promise.all([
+    const [resPersonagem, resItens, resArmas, resMontaria, resHabilidades, resCampanhas] = await Promise.all([
       buscarPersonagem(id),
       listarItens(id),
       listarArmas(id),
       buscarMontaria(id),
       listarHabilidadesPersonagem(id),
+      listarCampanhasDoPersonagem(id),
     ]);
 
     const primeiroErro =
@@ -128,10 +131,16 @@ export default function Personagem() {
     setArmas(resArmas.data ?? []);
     setMontaria(resMontaria.data ?? null);
     setHabilidades(resHabilidades.data ?? []);
+    setCampanhasVinculadas((resCampanhas.data ?? []).map((row) => row.campanha).filter(Boolean));
     setCarregando(false);
   }
 
-  const canEdit = Boolean(personagem) && (personagem.user_id === user?.id || role === 'admin');
+  // 13/07 — Mestre de QUALQUER campanha onde este personagem esteja
+  // vinculado também edita, não só o dono/Admin (RLS já permite isso
+  // desde a migration 0008; isso aqui só reflete na tela).
+  const souMestreDeAlgumaCampanha = campanhasVinculadas.some((c) => c.criado_por === user?.id);
+  const souDono = Boolean(personagem) && personagem.user_id === user?.id;
+  const canEdit = Boolean(personagem) && (souDono || role === 'admin' || souMestreDeAlgumaCampanha);
 
   async function salvarCampo(campo, valor) {
     const { data, error } = await atualizarPersonagem(personagem.id, { [campo]: valor });
@@ -341,6 +350,11 @@ export default function Personagem() {
       {!canEdit && (
         <p className="aviso-somente-leitura">
           Você está vendo a ficha de outro personagem — só o dono (ou o Admin) pode editar.
+        </p>
+      )}
+      {canEdit && !souDono && role !== 'admin' && (
+        <p className="aviso-mestre">
+          Você está editando como Mestre de uma campanha deste personagem — não é a sua própria ficha.
         </p>
       )}
 

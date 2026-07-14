@@ -108,6 +108,19 @@ export function desvincularPersonagem(vinculoId) {
   return supabase.from('campanha_personagens').delete().eq('id', vinculoId);
 }
 
+// Campanhas onde ESTE personagem está vinculado, com quem criou cada
+// uma (`criado_por`) — usado em Personagem.jsx pra saber se quem está
+// olhando a ficha é Mestre de alguma delas (e por isso pode editar,
+// mesmo não sendo o dono do personagem). RLS (campanha_personagens_select)
+// já filtra: só volta linha se o usuário puder ver aquele vínculo
+// (dono do personagem, dono da campanha, ou Admin).
+export function listarCampanhasDoPersonagem(personagemId) {
+  return supabase
+    .from('campanha_personagens')
+    .select('campanha:campanhas(id, nome, criado_por)')
+    .eq('personagem_id', personagemId);
+}
+
 // ---------------------------------------------------------------------
 // CONVITES — "comunicação interna", sem disparo de e-mail real.
 // ---------------------------------------------------------------------

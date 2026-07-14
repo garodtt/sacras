@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
@@ -18,6 +19,23 @@ import AdminDashboard from './routes/AdminDashboard.jsx';
 // "roteadora" por papel (PainelRedirect saiu) — todo usuário autenticado
 // cai no mesmo /painel. Só o Admin tem uma rota extra (/admin).
 export default function App() {
+  // 13/07 — corrige "tela presa" ao voltar no celular: o Safari/Chrome
+  // mobile às vezes restaura uma "foto" congelada da página anterior em
+  // vez de deixar o React renderizar de novo (bfcache — back/forward
+  // cache do navegador). `pageshow` com `event.persisted = true` avisa
+  // exatamente isso; a saída mais confiável é recarregar de verdade.
+  // Sem isso, o sintoma é: voltar de uma ficha mostra conteúdo antigo,
+  // só corrige na segunda tentativa (a segunda navegação não usa o
+  // cache congelado).
+  useEffect(() => {
+    function handlePageShow(event) {
+      if (event.persisted) {
+        window.location.reload();
+      }
+    }
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
   return (
     <AuthProvider>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

@@ -327,6 +327,16 @@ button:focus-visible {
   color: var(--cor-tinta-suave);
 }
 
+.aviso-mestre {
+  background: var(--cor-papel);
+  border: 1px solid var(--cor-borda);
+  border-left: 4px solid var(--cor-poeira);
+  border-radius: 4px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  color: var(--cor-tinta-suave);
+}
+
 .ficha section {
   margin-top: 2rem;
   padding-top: 1.5rem;

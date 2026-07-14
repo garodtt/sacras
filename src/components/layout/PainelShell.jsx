@@ -66,11 +66,11 @@ export default function PainelShell({ children }) {
   }
 
   const itensMenu = [
-    { label: '📘 Seus Personagens', to: '/painel/personagens' },
+    { label: 'Seus Personagens', to: '/painel/personagens' },
     { label: '+ Criar Personagem', onClick: () => setModalPersonagem(true) },
-    { label: '🤝 Minhas Campanhas', to: '/painel/campanhas' },
+    { label: 'Suas Campanhas', to: '/painel/campanhas' },
     { label: '+ Criar Campanha', onClick: () => setModalCampanha(true) },
-    ...(profile?.role === 'admin' ? [{ label: '⚙ Visão geral (Admin)', to: '/admin' }] : []),
+    ...(profile?.role === 'admin' ? [{ label: 'Visão geral (Admin)', to: '/admin' }] : []),
   ];
 
   return (
