@@ -58,7 +58,7 @@ campanhas
 | Aceitar/recusar convite | ✅ | — | ✅ (o próprio convite) | ❌ |
 | Ver personagem | ✅ | ✅ (se vinculado à sua campanha) | ✅ (o próprio) | ❌ |
 | Criar personagem | ✅ | — | ✅ (só pra si mesmo) | — |
-| Editar personagem | ✅ | ❌ (só vê, não edita o de outro) | ✅ (o próprio) | ❌ |
+| Editar personagem | ✅ | ✅ (13/07: se vinculado à sua campanha) | ✅ (o próprio) | ❌ |
 | Vincular personagem à campanha | ✅ | ✅ (personagem próprio, na própria campanha) | ✅ (se dono da campanha ou convite aceito) | ❌ |
 | Remover vínculo | ✅ | ✅ (qualquer um, na própria campanha) | ✅ (o próprio vínculo) | ❌ |
 | Ver/editar Rastreador de Combate | ✅ | ✅ (a própria campanha) | ❌ | ❌ |
@@ -629,6 +629,206 @@ Corrigido.
 1 (fora da tela até agora); `valor_recompensa` é campo novo. Os dois
 são só números soltos, sem regra — nova seção "Dinheiro" na ficha,
 sem cálculo nenhum ligado a eles ainda.
+
+### Ajustes de UX — armas e peso (13/07, segunda rodada)
+
+- **Peso soma em vez de diminuir o máximo**: `TabelaItens.jsx` ganhou
+  `pesoAdicional` (peso de outra fonte, ex.: munição excedente) — soma
+  no "usado" pra exibição, em vez do máximo encolher (`0/9.92` virou
+  confuso; agora é `0.08/10`, o máximo mostrado é sempre o de verdade).
+- **Bug de verdade encontrado e corrigido**: quando uma mudança era
+  rejeitada pela trava de peso, o `<input>` ficava mostrando o valor
+  digitado mesmo sem ter salvado — parecia que só um aviso apareceu, mas
+  na real tinha barrado. Eram inputs não-controlados (`defaultValue`);
+  agora um contador de tentativas rejeitadas força o campo a "voltar"
+  pro valor de verdade via `key` (remonta o input). Mesma lógica raiz
+  afetava o `<select>` de `meio_transporte` das armas — esse foi trocado
+  pra controlado (`value`) de vez, que é mais direto pra um select (não
+  tem "meio de digitação" pra preservar como um número tem).
+- **Munição virou dois campos**: "Mun. máx." (editável direto) e "Mun.
+  atual" (só mostra o número, com botão `−1`; ao chegar a 0, vira
+  "Recarregar") — igual o Rastreador de Combate já fazia, só que lá
+  também usa a mesma munição simples (sem pool). Recarregar continua
+  chamando `onRecarregar` (`Personagem.jsx`), que já descontava do pool
+  certo (leve/pesada conforme coldre/bandoleira) desde a primeira
+  versão — só a UI em cima mudou.
+- Mensagens de limite (bandoleira/coldre/bainha cheios) agora dizem
+  "cheio" de forma direta, em vez de só explicar o número.
+
+### Munição — +1 parcial e layout estável (13/07, terceira rodada)
+
+- **`aplicarRecarga` ganhou `quantidade`** (default `Infinity` = encher
+  até o máximo, igual antes): passar `1` faz um "+1" parcial — pega uma
+  bala do pool certo (leve/pesada) e põe na arma, sem precisar encher
+  tudo. Mesma função pros dois botões, só muda o parâmetro.
+- **`−1`, `+1` e "Recarregar" ficam sempre visíveis juntos** (só
+  desabilitam quando não fazem sentido: arma cheia, ou pool vazio) — 
+  antes o layout trocava entre "só −1" (arma com munição) e "só
+  Recarregar" (arma vazia), e essa troca de conjunto de botões
+  desalinhava a linha (mudava de tamanho) quando clicava. Agora é
+  sempre o mesmo conjunto, então não pula mais.
+- **`−1` consome (não devolve ao pool)** — é a bala que já estava na
+  arma sendo usada. `+1` e "Recarregar" são os únicos que tiram do
+  pool — e por isso, se o pool tiver mais balas do que a capacidade do
+  coldre/bandoleira (excedente pesando no inventário), recarregar
+  reduz esse excedente automaticamente, já que é o mesmo número.
+
+### Bug de reatividade no pool de munição (13/07, quarta rodada)
+
+`MunicaoPool.jsx` usava `defaultValue` nos dois campos (leve/pesada) —
+essa prop só é lida na primeira montagem do componente; mudanças
+posteriores vindas de FORA daquele input (recarregar uma arma, `+1`)
+não atualizavam o campo na tela, só depois de recarregar a página
+inteira (que remonta tudo do zero, lendo o valor certo do banco).
+
+Corrigido com o mesmo padrão que `CampoEditavel.jsx` já usava: um
+buffer local (`useState`) + `useEffect` que sincroniza o buffer sempre
+que o valor vindo de fora mudar. Também aproveitei pra mostrar a
+mensagem de erro da trava de peso (antes a função devolvia a mensagem,
+mas nada na tela exibia) e garantir que o campo volta pro valor de
+verdade quando uma tentativa é rejeitada — mesma lógica dos outros
+campos travados na ficha.
+
+Conferi o resto do projeto (`grep` por `defaultValue`): os outros usos
+(itens, nome/peso/dano de arma, munição máxima) só são alterados pelo
+próprio campo, nunca por uma ação de fora — não tinham essa
+precondição, então não precisavam do mesmo conserto.
+
+### Navegação em HUD — Painel e ficha em abas (13/07)
+
+Pedido: com a maioria jogando pelo celular, ter tudo espalhado numa
+página só rolando ficou ruim. Reestruturei em dois níveis.
+
+**Painel virou 3 telas + menu lateral.** Antes (`Painel.jsx`) era uma
+página só com: convites, personagens + formulário de criar, campanhas
+criadas + formulário de criar, campanhas que participa — tudo sempre
+visível. Agora:
+- `PainelShell.jsx` (`components/layout/`) é a casca comum das 3 telas —
+  cabeçalho com hamburguer (☰) + menu lateral (`MenuLateral.jsx`) com 4
+  itens (Seus Personagens, Criar Personagem, Minhas Campanhas, Criar
+  Campanha) + os dois popups de criação (antes eram formulários sempre
+  abertos na página; agora só aparecem quando você toca no item do
+  menu). Depois de criar, navega pra ficha/campanha nova — igual antes.
+- `Painel.jsx` (rota `/painel`) virou só uma tela de boas-vindas — a
+  navegação de verdade é toda pelo menu.
+- `PainelPersonagens.jsx` (`/painel/personagens`) e
+  `PainelCampanhas.jsx` (`/painel/campanhas`) são as duas telas de
+  lista. **Convites pendentes foram pra dentro de "Minhas Campanhas"**
+  — não foram citados no pedido como item de menu próprio, e são sobre
+  campanha, então botei junto de "que você participa/criou".
+- `MenuLateral.jsx` é genérico de propósito: cada item usa `to` (link
+  de verdade, `<Link>`) OU `onClick` (ação local), nunca os dois — o
+  mesmo componente é reaproveitado dentro da ficha (abas), só trocando
+  o que os itens fazem.
+
+**Ficha virou 4 abas**, trocadas pelo mesmo `MenuLateral` (aqui com
+`onClick` pra cada item, não `to` — não navega, só troca
+`abaAtiva` local, mesma URL):
+- **Nome/Atributos/Antecedentes/Habilidades/Dinheiro** — pedido
+  literal.
+- **Combate e Armas** — pedido dizia só "combate/armas", mas incluí
+  **Círculos de Vida e Dor** aqui também (não foi citado explicitamente
+  em nenhum grupo) — é tudo sobre "levar dano" e não tinha outro lugar
+  óbvio pra ir.
+- **Inventário** — Itens do personagem + Inventário da Montaria juntos
+  (pedido: "inventário/inventário montaria"). Isso exigiu separar
+  `Montaria.jsx` em duas partes: ganhou uma prop `secao` ('stats' |
+  'inventario') que decide qual metade do JSX renderizar. Como as duas
+  abas nunca ficam montadas ao mesmo tempo (só uma aba renderiza por
+  vez), a instância de `Montaria` é desmontada/remontada a cada troca
+  de aba — busca os itens de novo toda vez. Um pouco de refetch a mais,
+  mas mantém tudo simples e sempre atualizado; pro tamanho de dado
+  aqui, não é um problema de verdade.
+- **Montaria** — só os stats dela (nome, presente, potência/
+  resistência, vida/dor própria, fidelidade, config de carga).
+
+Cada `<section>` das 4 abas é só renderizada condicionalmente
+(`{abaAtiva === 'x' && (...)}`) dentro do MESMO `Personagem.jsx` — não
+duplica handlers nem estado, só o JSX final é que aparece um bloco de
+cada vez.
+
+### Tabelas responsivas e botões de popup (13/07, quinta rodada)
+
+Duas queixas de celular, resolvidas juntas:
+
+- **Botões empilhados nos popups de criar** (`PainelShell.jsx`): o botão
+  de enviar (dentro do `<form>`) e o "Cancelar" (fora dele) tinham
+  larguras diferentes, sem alinhamento — ficava com cara de acidente,
+  não de decisão. Separei os dois do form (o botão de enviar usa o
+  atributo HTML `form="id-do-form"` pra continuar funcionando de fora)
+  e agrupei num `.popup-acoes` com `flex: 1` nos dois — mesma largura,
+  lado a lado, "Cancelar" com estilo secundário (contorno, sem
+  preencher).
+- **Tabelas "arrastando pro lado"**: a solução de Fase 7
+  (`.tabela-scroll`, rolagem horizontal) resolvia o problema técnico
+  mas continuava ruim de usar — ler uma linha inteira exigia arrastar.
+  Troquei pela técnica clássica de "tabela responsiva": em telas até
+  640px, cada `<tr>` vira um cartão empilhado, e cada `<td>` mostra o
+  nome da coluna como rótulo ao lado do valor (via `content:
+  attr(data-label)` no `::before` — exige um atributo `data-label="..."`
+  em cada célula, adicionado nas 4 tabelas afetadas: `TabelaItens.jsx`,
+  `TabelaArmas.jsx`, `EfeitoDorPopup.jsx`, e as 3 tabelas de referência
+  do Rastreador de Combate). Colunas de identificador (`#`, `Carta`)
+  ganharam uma classe `celula-numero` pra aparecer como destaque em vez
+  de "rótulo: valor" repetitivo; a coluna de "Remover" (sem cabeçalho)
+  usa `data-label=""` pra não mostrar rótulo nenhum, só o botão
+  centralizado.
+- Continua sendo CSS puro — sem JS novo, sem biblioteca de tabela.
+
+### Emojis, texto e "tela presa" ao voltar (13/07, sexta rodada)
+
+- **Emojis removidos** dos 3 itens do menu lateral (`PainelShell.jsx`) —
+  ficou só texto.
+- **"Minhas campanhas" → "Suas campanhas"**: pra bater com "Seus
+  Personagens" (2ª pessoa nos dois, em vez de misturar 1ª/2ª pessoa
+  entre as duas telas).
+- **"Tela presa" ao voltar de uma ficha (só corrige na segunda
+  tentativa)**: revisei `ProtectedRoute.jsx`, o link de Voltar da ficha
+  e as rotas em `App.jsx` — estruturalmente todos corretos, nenhum
+  aponta pro lugar errado nem guarda estado à toa. O sintoma descrito
+  (conteúdo antigo na volta, resolve sozinho na segunda navegação) bate
+  exatamente com um comportamento conhecido de navegador mobile: o
+  **bfcache** (back/forward cache) do Safari/Chrome no celular às vezes
+  restaura uma "foto" congelada da página anterior em vez de deixar o
+  React rodar de novo. Corrigido em `App.jsx` com um listener de
+  `pageshow` que força um reload de verdade quando detecta isso
+  (`event.persisted`).
+  **Sinalizando por transparência**: não consegui reproduzir a
+  navegação ao vivo daqui (sandbox sem navegador de verdade) — é o
+  diagnóstico mais provável dado o sintoma e a correção padrão pra esse
+  caso específico, mas não é 100% garantido até você confirmar que
+  resolveu. Se continuar acontecendo, me diga se: (a) troca de aba
+  dentro da ficha também trava, ou só voltar de rota; (b) acontece só no
+  celular ou no computador também — isso ajuda a descartar hipóteses.
+
+### Mestre pode editar a ficha do jogador (13/07)
+
+Antes, o dono de uma campanha vinculada só enxergava o personagem
+(`pode_ver_personagem` já incluía isso desde a Fase 1) — editar era só
+dono do personagem ou Admin. Migration `0008` estende as políticas de
+**escrita** (insert/update/delete) da mesma forma que a leitura já
+funcionava: dono do personagem, Admin, OU dono de **qualquer** campanha
+onde esse personagem esteja vinculado.
+
+- Vale pra ficha inteira, não só a tabela `personagens`: `items`,
+  `weapons`, `mounts` e `personagem_habilidades` também ganharam o
+  Mestre como editor — "editar a ficha" inclui itens, armas, montaria e
+  habilidades, não só os campos soltos (atributos, vida/dor etc.).
+- **Criar/excluir o personagem em si continua só dono/Admin** — isso não
+  mudou de propósito. O Mestre edita o que já existe (inclusive
+  adicionando/removendo itens, armas etc. dentro dele), mas não cria
+  nem apaga o personagem inteiro.
+- Duas funções novas (`e_mestre_de_campanha_do_personagem`,
+  `e_mestre_de_campanha_da_montaria`) isolam a mesma lógica que já
+  existia dentro de `pode_ver_personagem`/`pode_ver_montaria` — evita
+  duplicar a subquery em cada política.
+- No app, `Personagem.jsx` busca agora (`listarCampanhasDoPersonagem`)
+  quais campanhas esse personagem está vinculado, com quem criou cada
+  uma — `canEdit` passa a valer também se o usuário atual criou
+  qualquer uma delas. Um aviso novo (`.aviso-mestre`, cor de destaque
+  diferente do aviso de somente-leitura) aparece quando quem está
+  editando é o Mestre, não o dono — pra deixar claro que não é a
+  própria ficha, evitando edição em cima de personagem errado.
 
 ## 7. Fluxo de autenticação
 

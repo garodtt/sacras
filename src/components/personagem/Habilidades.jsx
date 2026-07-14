@@ -4,6 +4,7 @@ import {
   adicionarHabilidadeCatalogo,
   criarHabilidadeCustomizada,
   removerHabilidadePersonagem,
+  trocarOrdemHabilidades,
 } from '../../lib/dados.js';
 
 const NOME_CATEGORIA = { combate: 'Combate', profissao: 'Profissão' };
@@ -13,6 +14,11 @@ const NOME_CATEGORIA = { combate: 'Combate', profissao: 'Profissão' };
 // "Criada pelo jogador"). Antes (Fase 5) era um textarea de texto livre.
 // Catálogo populado em 13/07 com as 30 habilidades do livro (migration
 // 0004) — agrupadas aqui por categoria (combate/profissão) no dropdown.
+//
+// Ordem manual (13/07, migration 0009): `habilidades` já chega ordenada
+// por `ordem` (listarHabilidadesPersonagem). Botões de mover pra cima/
+// baixo trocam a `ordem` com o vizinho — mais confiável no celular do
+// que arrastar.
 export default function Habilidades({ personagemId, habilidades, onMudar, editavel }) {
   const [catalogo, setCatalogo] = useState([]);
   const [carregandoCatalogo, setCarregandoCatalogo] = useState(true);
@@ -45,11 +51,15 @@ export default function Habilidades({ personagemId, habilidades, onMudar, editav
     return hab.habilidades_catalogo?.descricao || null;
   }
 
+  function proximaOrdem() {
+    return habilidades.length === 0 ? 0 : Math.max(...habilidades.map((h) => h.ordem ?? 0)) + 1;
+  }
+
   async function adicionarDoCatalogo() {
     if (!selecionado) return;
     setErro('');
     setSalvando(true);
-    const { data, error } = await adicionarHabilidadeCatalogo(personagemId, selecionado);
+    const { data, error } = await adicionarHabilidadeCatalogo(personagemId, selecionado, proximaOrdem());
     setSalvando(false);
     if (error) setErro(error.message);
     else {
@@ -63,7 +73,7 @@ export default function Habilidades({ personagemId, habilidades, onMudar, editav
     if (!nomeNova.trim()) return;
     setErro('');
     setSalvando(true);
-    const { data, error } = await criarHabilidadeCustomizada(personagemId, nomeNova.trim());
+    const { data, error } = await criarHabilidadeCustomizada(personagemId, nomeNova.trim(), proximaOrdem());
     setSalvando(false);
     if (error) setErro(error.message);
     else {
@@ -79,14 +89,61 @@ export default function Habilidades({ personagemId, habilidades, onMudar, editav
     else onMudar(habilidades.filter((h) => h.id !== hab.id));
   }
 
+  async function mover(index, direcao) {
+    const outroIndex = index + direcao;
+    if (outroIndex < 0 || outroIndex >= habilidades.length) return;
+
+    const atual = habilidades[index];
+    const outro = habilidades[outroIndex];
+
+    setErro('');
+    const [resA, resB] = await trocarOrdemHabilidades(atual.id, atual.ordem, outro.id, outro.ordem);
+    const erroTroca = resA.error || resB.error;
+    if (erroTroca) {
+      setErro(erroTroca.message);
+      return;
+    }
+
+    const atualizado = habilidades
+      .map((h) => {
+        if (h.id === atual.id) return { ...h, ordem: outro.ordem };
+        if (h.id === outro.id) return { ...h, ordem: atual.ordem };
+        return h;
+      })
+      .sort((a, b) => a.ordem - b.ordem);
+    onMudar(atualizado);
+  }
+
   return (
     <div className="bloco-habilidades">
       {erro && <p className="erro">{erro}</p>}
 
       <ul className="lista-habilidades">
-        {habilidades.map((h) => (
+        {habilidades.map((h, index) => (
           <li key={h.id}>
             <div className="habilidade-linha">
+              {editavel && (
+                <span className="botoes-mover">
+                  <button
+                    type="button"
+                    className="botao-mover"
+                    disabled={index === 0}
+                    onClick={() => mover(index, -1)}
+                    aria-label="Mover pra cima"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    className="botao-mover"
+                    disabled={index === habilidades.length - 1}
+                    onClick={() => mover(index, 1)}
+                    aria-label="Mover pra baixo"
+                  >
+                    ▼
+                  </button>
+                </span>
+              )}
               <span>{nomeDe(h)}</span>
               {!h.catalogo_id && <span className="badge-jogador">Criada pelo jogador</span>}
               {editavel && (

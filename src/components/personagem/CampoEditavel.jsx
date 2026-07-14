@@ -13,6 +13,7 @@ export default function CampoEditavel({
   min,
   max,
   dica,
+  placeholder,
   editavel = true,
   linhas, // se vier (nº de linhas), renderiza <textarea> em vez de <input>
 }) {
@@ -54,6 +55,7 @@ export default function CampoEditavel({
         max={linhas ? undefined : max}
         value={buffer}
         disabled={!editavel}
+        placeholder={placeholder}
         onChange={(e) => setBuffer(e.target.value)}
         onBlur={commit}
       />

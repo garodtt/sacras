@@ -348,27 +348,38 @@ export function listarHabilidadesPersonagem(personagemId) {
     .from('personagem_habilidades')
     .select('*, habilidades_catalogo(id, nome, descricao)')
     .eq('personagem_id', personagemId)
-    .order('created_at', { ascending: true });
+    .order('ordem', { ascending: true });
 }
 
-export function adicionarHabilidadeCatalogo(personagemId, catalogoId) {
+export function adicionarHabilidadeCatalogo(personagemId, catalogoId, ordem) {
   return supabase
     .from('personagem_habilidades')
-    .insert({ personagem_id: personagemId, catalogo_id: catalogoId })
+    .insert({ personagem_id: personagemId, catalogo_id: catalogoId, ordem })
     .select('*, habilidades_catalogo(id, nome, descricao)')
     .single();
 }
 
-export function criarHabilidadeCustomizada(personagemId, nome) {
+export function criarHabilidadeCustomizada(personagemId, nome, ordem) {
   return supabase
     .from('personagem_habilidades')
-    .insert({ personagem_id: personagemId, nome_customizado: nome })
+    .insert({ personagem_id: personagemId, nome_customizado: nome, ordem })
     .select('*, habilidades_catalogo(id, nome, descricao)')
     .single();
 }
 
 export function removerHabilidadePersonagem(id) {
   return supabase.from('personagem_habilidades').delete().eq('id', id);
+}
+
+// Reordenar (13/07) — botões de mover pra cima/baixo trocam a `ordem`
+// de duas habilidades vizinhas de uma vez (mais confiável no celular
+// do que arrastar). `atualizarCampo` genérica já existe pra outras
+// tabelas; aqui é específico só pra deixar a troca de par explícita.
+export function trocarOrdemHabilidades(idA, ordemA, idB, ordemB) {
+  return Promise.all([
+    supabase.from('personagem_habilidades').update({ ordem: ordemB }).eq('id', idA).select().single(),
+    supabase.from('personagem_habilidades').update({ ordem: ordemA }).eq('id', idB).select().single(),
+  ]);
 }
 
 // ---------------------------------------------------------------------
@@ -403,4 +414,13 @@ export function removerCombateEntrada(id) {
 
 export function removerTodasCombateEntradas(campanhaId) {
   return supabase.from('combate_entradas').delete().eq('campanha_id', campanhaId);
+}
+
+// ---------------------------------------------------------------------
+// PERFIL — nome e foto (13/07). RLS (profiles_update_own_or_admin) já
+// permitia o usuário editar a própria linha desde a Fase 1; só nunca
+// tinha tela pra isso.
+// ---------------------------------------------------------------------
+export function atualizarProfile(userId, campos) {
+  return supabase.from('profiles').update(campos).eq('id', userId).select().single();
 }

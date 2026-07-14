@@ -52,6 +52,11 @@ export function AuthProvider({ children }) {
     role: profile?.role ?? null,
     loading,
 
+    // 13/07 — usado depois de editar nome/foto em EditarPerfil.jsx, pra
+    // o resto do app (ex.: "Bem-vindo, X" no Painel) já refletir sem
+    // precisar de F5.
+    refreshProfile: () => (session ? carregarProfile(session.user.id) : Promise.resolve()),
+
     signUp: ({ email, password, displayName }) =>
       supabase.auth.signUp({
         email,

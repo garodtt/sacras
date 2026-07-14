@@ -25,6 +25,7 @@ import EfeitoDorPopup from '../components/personagem/EfeitoDorPopup.jsx';
 import Montaria from '../components/personagem/Montaria.jsx';
 import MenuLateral from '../components/layout/MenuLateral.jsx';
 import BotaoHamburguer from '../components/layout/BotaoHamburguer.jsx';
+import UploadFoto from '../components/UploadFoto.jsx';
 import {
   aplicarDano,
   calcularStatsDerivados,
@@ -361,6 +362,14 @@ export default function Personagem() {
       {abaAtiva === 'geral' && (
         <>
           <header className="ficha-header">
+            <UploadFoto
+              caminho={`personagem/${personagem.id}/retrato`}
+              fotoAtual={personagem.foto_url}
+              editavel={canEdit}
+              variante="retrato"
+              alt={personagem.nome || 'Personagem'}
+              onSalvar={(url) => salvarCampo('foto_url', url)}
+            />
             <div className="ficha-nome">
               <CampoEditavel
                 label="Nome"
@@ -371,6 +380,18 @@ export default function Personagem() {
               />
             </div>
           </header>
+
+          <section>
+            <h2>Descrição / História</h2>
+            <CampoEditavel
+              label=""
+              linhas={5}
+              valor={personagem.descricao_historia ?? ''}
+              editavel={canEdit}
+              onSalvar={(v) => salvarCampo('descricao_historia', v)}
+              placeholder="Aparência, personalidade, de onde veio, o que busca..."
+            />
+          </section>
 
           <details>
             <summary>Condições iniciais (referência)</summary>
@@ -547,6 +568,7 @@ export default function Personagem() {
               pesoAdicional={pesoMunicaoExcedente}
               onAdicionar={() => criarItem(personagem.id, itens.length)}
               onExcluirTodos={() => removerTodosItensPersonagem(personagem.id)}
+              personagemId={personagem.id}
             />
           </section>
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { atualizarItem, removerItem } from '../../lib/dados.js';
+import UploadFoto from '../UploadFoto.jsx';
 
 // Tabela de inventário — reaproveitada pro personagem E pra montaria
 // (mesma tabela `items` no banco, dono diferente). Quem chama decide
@@ -19,7 +20,23 @@ import { atualizarItem, removerItem } from '../../lib/dados.js';
 // aviso, mas na real tinha travado. `tentativas` força o input a
 // remontar (voltar pro valor de verdade) toda vez que uma tentativa é
 // rejeitada, mesmo se o valor salvo não mudou.
-export default function TabelaItens({ itens, onMudar, editavel, limiteEspaco, pesoAdicional = 0, onAdicionar, onExcluirTodos }) {
+//
+// Foto por item (13/07, opcional): só aparece quando `personagemId` é
+// passado — ou seja, só nos itens do PRÓPRIO personagem. Itens da
+// montaria (chamados sem essa prop, ver Montaria.jsx) não têm coluna de
+// foto — o Storage (migration 0009) só sabe validar dono por
+// personagem, não por montaria, e não parecia valer a complexidade
+// extra pra foto de item de cavalo.
+export default function TabelaItens({
+  itens,
+  onMudar,
+  editavel,
+  limiteEspaco,
+  pesoAdicional = 0,
+  onAdicionar,
+  onExcluirTodos,
+  personagemId,
+}) {
   const [adicionando, setAdicionando] = useState(false);
   const [erro, setErro] = useState('');
   const [tentativas, setTentativas] = useState({});
@@ -102,6 +119,7 @@ export default function TabelaItens({ itens, onMudar, editavel, limiteEspaco, pe
         <table className="tabela-ficha tabela-responsiva">
           <thead>
             <tr>
+              {personagemId && <th>Foto</th>}
               <th>Nome</th>
               <th>Peso (un.)</th>
               <th>Qtd.</th>
@@ -112,6 +130,18 @@ export default function TabelaItens({ itens, onMudar, editavel, limiteEspaco, pe
           <tbody>
             {itens.map((item) => (
               <tr key={item.id}>
+                {personagemId && (
+                  <td data-label="Foto">
+                    <UploadFoto
+                      caminho={`personagem/${personagemId}/item-${item.id}`}
+                      fotoAtual={item.foto_url}
+                      editavel={editavel}
+                      variante="pequena"
+                      alt={item.nome || 'Item'}
+                      onSalvar={(url) => salvarCampo(item, 'foto_url', url)}
+                    />
+                  </td>
+                )}
                 <td data-label="Nome">
                   <input
                     defaultValue={item.nome}
@@ -159,7 +189,7 @@ export default function TabelaItens({ itens, onMudar, editavel, limiteEspaco, pe
             ))}
             {itens.length === 0 && (
               <tr>
-                <td colSpan={editavel ? 5 : 4} className="detalhe-secundario">
+                <td colSpan={(personagemId ? 1 : 0) + (editavel ? 5 : 4)} className="detalhe-secundario">
                   Nenhum item ainda.
                 </td>
               </tr>
