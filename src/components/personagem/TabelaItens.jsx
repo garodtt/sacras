@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { atualizarItem, removerItem } from '../../lib/dados.js';
 import UploadFoto from '../UploadFoto.jsx';
+import PopupConfirmar from '../PopupConfirmar.jsx';
 
 // Tabela de inventário — reaproveitada pro personagem E pra montaria
 // (mesma tabela `items` no banco, dono diferente). Quem chama decide
@@ -40,6 +41,8 @@ export default function TabelaItens({
   const [adicionando, setAdicionando] = useState(false);
   const [erro, setErro] = useState('');
   const [tentativas, setTentativas] = useState({});
+  const [itemParaRemover, setItemParaRemover] = useState(null);
+  const [confirmandoExcluirTodos, setConfirmandoExcluirTodos] = useState(false);
 
   const pesoTotal = (item) => Number(item.espaco ?? 0) * Number(item.quantidade ?? 1);
   const pesoItens = itens.reduce((soma, i) => soma + pesoTotal(i), 0);
@@ -73,7 +76,7 @@ export default function TabelaItens({
 
   async function excluirTodos() {
     if (itens.length === 0) return;
-    if (!window.confirm(`Excluir todos os ${itens.length} itens?`)) return;
+    setConfirmandoExcluirTodos(false);
     const { error } = await onExcluirTodos();
     if (error) setErro(error.message);
     else onMudar([]);
@@ -105,8 +108,9 @@ export default function TabelaItens({
     salvarCampo(item, 'quantidade', novaQuantidade);
   }
 
-  async function remover(item) {
-    if (!window.confirm(`Remover "${item.nome || 'este item'}"?`)) return;
+  async function remover() {
+    const item = itemParaRemover;
+    setItemParaRemover(null);
     const { error } = await removerItem(item.id);
     if (error) setErro(error.message);
     else onMudar(itens.filter((i) => i.id !== item.id));
@@ -180,7 +184,7 @@ export default function TabelaItens({
                 <td data-label="Total" className="detalhe-secundario">{pesoTotal(item)}</td>
                 {editavel && (
                   <td data-label="">
-                    <button type="button" className="botao-remover" onClick={() => remover(item)}>
+                    <button type="button" className="botao-remover" onClick={() => setItemParaRemover(item)}>
                       Remover
                     </button>
                   </td>
@@ -206,12 +210,26 @@ export default function TabelaItens({
             {adicionando ? 'Adicionando...' : '+ Adicionar item'}
           </button>
           {itens.length > 0 && (
-            <button type="button" className="botao-remover" onClick={excluirTodos}>
+            <button type="button" className="botao-remover" onClick={() => setConfirmandoExcluirTodos(true)}>
               Excluir todos
             </button>
           )}
         </div>
       )}
+
+      <PopupConfirmar
+        aberto={Boolean(itemParaRemover)}
+        mensagem={`Remover "${itemParaRemover?.nome || 'este item'}"?`}
+        onConfirmar={remover}
+        onCancelar={() => setItemParaRemover(null)}
+      />
+      <PopupConfirmar
+        aberto={confirmandoExcluirTodos}
+        mensagem={`Excluir todos os ${itens.length} itens?`}
+        textoConfirmar="Excluir todos"
+        onConfirmar={excluirTodos}
+        onCancelar={() => setConfirmandoExcluirTodos(false)}
+      />
     </div>
   );
 }

@@ -84,6 +84,7 @@ tinha um projeto da v1, é mais simples criar outro do zero):
    9. `supabase/migrations/0009_fotos_historia_ordem.sql` — **nova (13/07)**: ordem manual de habilidades, fotos (item/personagem/perfil), história do personagem, e o bucket de Storage — **precisa de Storage habilitado no seu projeto Supabase** (vem habilitado por padrão)
    10. `supabase/migrations/0010_fix_update_habilidades.sql` — **nova (13/07), importante**: corrige bug — reordenar habilidades não funcionava porque a tabela nunca teve política de UPDATE
    11. `supabase/migrations/0011_contadores_combate.sql` — **nova (13/07)**: contadores de Assistências e Mortes
+   12. `supabase/migrations/0012_auditoria_rls.sql` — **nova (13/07), importante**: auditoria completa de RLS — fecha mais 2 lacunas (`campanha_personagens` sem UPDATE, `profiles` sem INSERT/DELETE)
 
 **4. Configure as variáveis de ambiente:**
 ```bash
@@ -97,6 +98,11 @@ valores do passo 2.
 npm install
 npm run dev
 ```
+
+**6. PWA (13/07, novo)**: `manifest.json`, `sw.js`, `icon-192.png` e
+`icon-512.png` vão direto na pasta `public/` (raiz do projeto, ao lado
+de `index.html` — não dentro de `src/`). Sem eles o app funciona
+normal, só sem o botão de "instalar" e sem abrir o esqueleto offline.
 Abra http://localhost:5173 — agora deve aparecer a tela de **login**.
 
 **6. Configure a autenticação no Supabase** (2 ajustes no dashboard, sem
@@ -196,7 +202,9 @@ sacramento-rpg/
 │       ├── 0007_armas_montaria_recompensa.sql   # meio_transporte/tipo_dano, local_montaria, valor_recompensa
 │       ├── 0008_mestre_edita_ficha.sql   # Mestre da campanha vinculada também edita a ficha
 │       ├── 0009_fotos_historia_ordem.sql   # ordem de habilidades, fotos, história, bucket Storage
-│       └── 0010_fix_update_habilidades.sql   # corrige bug: faltava política de UPDATE em personagem_habilidades
+│       ├── 0010_fix_update_habilidades.sql   # corrige bug: faltava política de UPDATE em personagem_habilidades
+│       ├── 0011_contadores_combate.sql   # Assistências e Mortes
+│       └── 0012_auditoria_rls.sql   # audita e fecha lacunas de RLS (campanha_personagens, profiles)
 └── src/
     ├── main.jsx
     ├── App.jsx                 # rotas (react-router-dom)
@@ -204,6 +212,7 @@ sacramento-rpg/
     │   ├── supabaseClient.js
     │   ├── dados.js             # consultas de campanhas/personagens/convites/itens/habilidades
     │   └── regras.js            # regras de jogo puras (vida/dor, stats derivados, munição, montaria)
+    │   └── toastBus.js           # barramento simples de toast (pub/sub) — novo 13/07
     ├── styles/
     │   └── global.css
     ├── contexts/
@@ -213,6 +222,8 @@ sacramento-rpg/
     │   ├── UploadFoto.jsx       # upload de foto reutilizável (item/personagem/perfil) — novo 13/07
     │   ├── RecortarFoto.jsx     # recorte estilo Instagram (arrastar + zoom) — novo 13/07
     │   ├── EstrelaXerife.jsx    # selo de estrela em SVG (não emoji) — novo 13/07
+    │   ├── PopupConfirmar.jsx   # substitui window.confirm() em todo o app — novo 13/07
+    │   ├── ToastHost.jsx        # feedback "Salvo"/erro reutilizável — novo 13/07
     │   ├── layout/
     │   │   ├── MenuLateral.jsx      # drawer reutilizável (navegação OU troca de aba) — novo 13/07
     │   │   ├── BotaoHamburguer.jsx  # botão de 3 barrinhas que abre o MenuLateral — novo 13/07
@@ -235,10 +246,9 @@ sacramento-rpg/
         ├── Cadastro.jsx
         ├── EsqueciSenha.jsx
         ├── RedefinirSenha.jsx
-        ├── Painel.jsx            # tela inicial (só o menu lateral leva pro resto agora)
+        ├── Painel.jsx            # tela inicial: perfil (foto/nome/e-mail) + contadores + Sair — ver nota 13/07
         ├── PainelPersonagens.jsx # "Seus Personagens" — novo 13/07
         ├── PainelCampanhas.jsx   # "Minhas Campanhas" (criadas + participa + convites) — novo 13/07
-        ├── EditarPerfil.jsx      # nome de exibição + foto de perfil — novo 13/07
         ├── CampanhaDetalhe.jsx   # gestão da campanha: convite + vínculo de personagem
         ├── Combate.jsx           # rastreador de combate do Mestre (iniciativa, vida/dor, munição) — novo 13/07
         ├── Personagem.jsx        # ficha completa — orquestra os componentes acima
@@ -267,8 +277,10 @@ sacramento-rpg/
 - [x] **Rastreador de Combate (13/07)** — tela do Mestre por campanha: NPCs e jogadores numa lista por Iniciativa, Vida/Dor (mesma regra da ficha) e Balas com recarregar simples — ver `docs/ARQUITETURA.md`
 - [x] **Navegação em HUD (13/07)** — Painel virou 3 telas (inicial + Seus Personagens + Minhas Campanhas) navegadas por menu lateral; a ficha ganhou abas (menu de 3 barrinhas interno) em vez de rolar tudo numa página só — ver `docs/ARQUITETURA.md`
 - [x] **Mestre edita a ficha do jogador (13/07)** — dono de campanha vinculada agora edita (não só vê) o personagem, itens, armas, montaria e habilidades — ver `docs/ARQUITETURA.md`
-- [x] **Fotos, história e ordem de habilidades (13/07)** — foto no personagem/itens/perfil (Supabase Storage), campo de descrição/história, ordem manual de habilidades, e tela de Editar Perfil (nome + foto) — ver `docs/ARQUITETURA.md`
+- [x] **Fotos, história e ordem de habilidades (13/07)** — foto no personagem/itens/perfil (Supabase Storage), campo de descrição/história, ordem manual de habilidades — ver `docs/ARQUITETURA.md`
 - [x] **Reforço visual e sem emojis (13/07)** — botões com tratamento de carimbo, divisor de seção com losango, selo de estrela (SVG), marca "Sacramento" no rodapé; auditoria confirmou zero emoji de app (só os ícones pedidos: X e espada) — ver `docs/ARQUITETURA.md`
+- [x] **Painel-dashboard consolidado (13/07)** — tela inicial reúne perfil (foto, nome editável, e-mail com copiar) e contadores (convites/personagens/campanhas, só números, sem link) numa tela só; "Sair" saiu do cabeçalho comum e só existe aqui; tela separada de Editar Perfil foi removida (virou redundante) — ver `docs/ARQUITETURA.md`
+- [x] **Rodada de melhorias gerais (13/07)** — auditoria completa de RLS (mais 2 lacunas fechadas), `window.confirm()` trocado por popup em todo o app, tokens visuais unificados, toast reutilizável, tabela de Armas menos densa, acento de cor por categoria, badge de convite pendente, limpeza de foto órfã, tooltip de munição, PWA básico (app instalável, funciona offline pro shell — não pros dados), e "Última alteração" na ficha — ver `docs/ARQUITETURA.md`
 - [ ] **Fase 8** — Deploy no Netlify + variáveis de ambiente de produção
 - [ ] **Fase 9** *(opcional, sugerido)* — Histórico de alterações do personagem
 

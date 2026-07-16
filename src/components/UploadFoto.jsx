@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import RecortarFoto from './RecortarFoto.jsx';
+import PopupConfirmar from './PopupConfirmar.jsx';
 
 // Upload de foto reutilizável (13/07, revisado) — usado pro retrato do
 // personagem, foto de item, e foto de perfil. Cada um manda um
@@ -34,6 +35,7 @@ export default function UploadFoto({
   const [arquivoParaRecortar, setArquivoParaRecortar] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
+  const [confirmandoRemover, setConfirmandoRemover] = useState(false);
   const inputRef = useRef(null);
 
   function handleCliqueFoto() {
@@ -84,9 +86,15 @@ export default function UploadFoto({
   }
 
   async function remover() {
-    setMenuAberto(false);
-    if (!window.confirm('Remover esta foto?')) return;
+    setConfirmandoRemover(false);
     setErro('');
+    // Apaga o arquivo de verdade do bucket também — só limpar o campo
+    // no banco deixava o arquivo antigo "órfão" ocupando espaço à toa
+    // no Storage pra sempre. Falha silenciosa aqui (só loga) porque o
+    // mais importante — limpar o campo — não deve travar por causa
+    // disso; um arquivo remanescente sem dono não é grave, só feio.
+    const extensoes = ['jpg', 'jpeg', 'png', 'webp'];
+    await supabase.storage.from('fotos').remove(extensoes.map((ext) => `${caminho}.${ext}`));
     await onSalvar(null);
   }
 
@@ -122,7 +130,14 @@ export default function UploadFoto({
                 {fotoAtual ? 'Trocar foto' : 'Adicionar foto'}
               </button>
               {fotoAtual && (
-                <button type="button" className="botao-remover" onClick={remover}>
+                <button
+                  type="button"
+                  className="botao-remover"
+                  onClick={() => {
+                    setMenuAberto(false);
+                    setConfirmandoRemover(true);
+                  }}
+                >
                   Remover foto
                 </button>
               )}
@@ -148,6 +163,13 @@ export default function UploadFoto({
           onConfirmar={handleRecorteConfirmado}
         />
       )}
+
+      <PopupConfirmar
+        aberto={confirmandoRemover}
+        mensagem="Remover esta foto?"
+        onConfirmar={remover}
+        onCancelar={() => setConfirmandoRemover(false)}
+      />
     </div>
   );
 }

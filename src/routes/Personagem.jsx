@@ -382,7 +382,7 @@ export default function Personagem() {
           </header>
 
           <section>
-            <h2>Descrição / História</h2>
+            <h2 className="ficha-acento-geral">Descrição / História</h2>
             <CampoEditavel
               label=""
               linhas={5}
@@ -402,7 +402,7 @@ export default function Personagem() {
           </details>
 
           <section>
-            <h2>Atributos</h2>
+            <h2 className="ficha-acento-geral">Atributos</h2>
             <p className="detalhe-secundario">
               Pontos usados: {pontosAtributo} / 4 (guia de criação — não travado aqui)
             </p>
@@ -431,7 +431,7 @@ export default function Personagem() {
           </section>
 
           <section>
-            <h2>Antecedentes</h2>
+            <h2 className="ficha-acento-geral">Antecedentes</h2>
             <p className="detalhe-secundario">
               Pontos usados: {pontosAntecedentes} / {budgetAntecedentes} (4 + Intelecto — guia, não travado)
             </p>
@@ -453,12 +453,12 @@ export default function Personagem() {
           </section>
 
           <section>
-            <h2>Habilidades</h2>
+            <h2 className="ficha-acento-geral">Habilidades</h2>
             <Habilidades personagemId={personagem.id} habilidades={habilidades} onMudar={setHabilidades} editavel={canEdit} />
           </section>
 
           <section>
-            <h2>Dinheiro</h2>
+            <h2 className="ficha-acento-geral">Dinheiro</h2>
             <div className="grid-campos">
               <CampoEditavel label="Dinheiro" valor={personagem.dinheiro} min={0} editavel={canEdit}
                 onSalvar={(v) => salvarCampo('dinheiro', v)} />
@@ -472,7 +472,7 @@ export default function Personagem() {
       {abaAtiva === 'combate' && (
         <>
           <section>
-            <h2>Combate</h2>
+            <h2 className="ficha-acento-combate">Combate</h2>
             <p className="detalhe-secundario">Movimentos e Ações de Combate são derivados dos Atributos.</p>
             <div className="grid-campos">
               <CampoEditavel label="Movimentos" valor={personagem.movimentos} editavel={false} onSalvar={() => {}} />
@@ -489,7 +489,7 @@ export default function Personagem() {
           </section>
 
           <section>
-            <h2>
+            <h2 className="ficha-acento-combate">
               Círculos de Vida e Dor
               {caido && <span className="badge-caido">Caído</span>}
             </h2>
@@ -527,7 +527,7 @@ export default function Personagem() {
           </section>
 
           <section>
-            <h2>Armas</h2>
+            <h2 className="ficha-acento-combate">Armas</h2>
             <MunicaoPool
               capacidade={capacidadeMunicao}
               atualLeve={personagem.municao_leve_atual}
@@ -552,7 +552,7 @@ export default function Personagem() {
       {abaAtiva === 'inventario' && (
         <>
           <section>
-            <h2>Itens</h2>
+            <h2 className="ficha-acento-inventario">Itens</h2>
             {canEdit && (
               <div className="campo-espaco-max">
                 <CampoEditavel label="Peso máximo" valor={personagem.espaco_max} min={0} editavel={canEdit}
@@ -577,7 +577,7 @@ export default function Personagem() {
           </section>
 
           <section>
-            <h2>Inventário da Montaria</h2>
+            <h2 className="ficha-acento-inventario">Inventário da Montaria</h2>
             <Montaria
               personagemId={personagem.id}
               montaria={montaria}
@@ -591,7 +591,7 @@ export default function Personagem() {
 
       {abaAtiva === 'montaria' && (
         <section>
-          <h2>Montaria</h2>
+          <h2 className="ficha-acento-montaria">Montaria</h2>
           <Montaria
             personagemId={personagem.id}
             montaria={montaria}
@@ -600,6 +600,17 @@ export default function Personagem() {
             secao="stats"
           />
         </section>
+      )}
+      {personagem.updated_at && (
+        <p className="detalhe-secundario ficha-ultima-alteracao">
+          Última alteração: {new Date(personagem.updated_at).toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </p>
       )}
       <p className="marca-sacramento">Sacramento</p>
     </main>

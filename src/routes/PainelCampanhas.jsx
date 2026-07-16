@@ -85,7 +85,12 @@ export default function PainelCampanhas() {
                 </div>
                 <span>
                   <button onClick={() => handleResponderConvite(c.id, 'aceito', c.campanha?.id)}>Aceitar</button>{' '}
-                  <button onClick={() => handleResponderConvite(c.id, 'recusado', c.campanha?.id)}>Recusar</button>
+                  <button
+                    className="botao-secundario"
+                    onClick={() => handleResponderConvite(c.id, 'recusado', c.campanha?.id)}
+                  >
+                    Recusar
+                  </button>
                 </span>
               </li>
             ))}

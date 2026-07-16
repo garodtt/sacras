@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { calcularPesoMunicaoExcedente } from '../../lib/regras.js';
+import PopupReferencia from '../combate/PopupReferencia.jsx';
 
 // Munição de RESERVA (leve = coldre, pesada = bandoleira). Capacidade
 // vem das ARMAS (meio_transporte, src/lib/regras.js) — cada arma no
@@ -21,6 +22,7 @@ export default function MunicaoPool({ capacidade, atualLeve, atualPesada, limite
   const [bufferLeve, setBufferLeve] = useState(atualLeve ?? 0);
   const [bufferPesada, setBufferPesada] = useState(atualPesada ?? 0);
   const [erro, setErro] = useState('');
+  const [ajudaAberta, setAjudaAberta] = useState(false);
 
   useEffect(() => {
     setBufferLeve(atualLeve ?? 0);
@@ -58,6 +60,12 @@ export default function MunicaoPool({ capacidade, atualLeve, atualPesada, limite
 
   return (
     <div className="municao-pool-bloco">
+      <div className="municao-pool-cabecalho">
+        <strong>Munição de reserva</strong>
+        <button type="button" className="botao-ajuda" onClick={() => setAjudaAberta(true)} aria-label="Como funciona a munição">
+          ?
+        </button>
+      </div>
       {erro && <p className="erro">{erro}</p>}
       <div className="grid-campos municao-pool">
         <label className="campo-editavel">
@@ -105,6 +113,24 @@ export default function MunicaoPool({ capacidade, atualLeve, atualPesada, limite
           </small>
         </label>
       </div>
+
+      <PopupReferencia titulo="Como funciona a munição" aberto={ajudaAberta} onFechar={() => setAjudaAberta(false)}>
+        <p>
+          Cada arma no <strong>coldre</strong> traz junto 36 balas <strong>leves</strong> de capacidade; cada arma na{' '}
+          <strong>bandoleira</strong> traz 24 <strong>pesadas</strong>. É como se o coldre/bandoleira "viesse" com a
+          arma — não é um item separado.
+        </p>
+        <p>
+          Munição dentro dessa capacidade <strong>não pesa nada</strong> no inventário — já é considerada guardada
+          direto na arma. Se você tiver <strong>mais</strong> munição do que essa capacidade (por exemplo, achou
+          balas extras numa missão), o que sobra pesa normalmente (0,08 por bala leve, 0,25 por pesada) e entra na
+          conta de carga dos Itens.
+        </p>
+        <p>
+          "Recarregar" numa arma (aba Combate, tabela de Armas) puxa dessa reserva pro carregador da arma — se
+          reduzir a reserva pra dentro da capacidade de novo, o peso extra desaparece sozinho.
+        </p>
+      </PopupReferencia>
     </div>
   );
 }

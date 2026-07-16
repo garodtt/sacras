@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import PopupConfirmar from '../components/PopupConfirmar.jsx';
 import {
   buscarCampanha,
   listarPersonagensDaCampanha,
@@ -33,6 +34,7 @@ export default function CampanhaDetalhe() {
   const [possoVincular, setPossoVincular] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
+  const [vinculoParaRemover, setVinculoParaRemover] = useState(null);
 
   const [personagemParaVincular, setPersonagemParaVincular] = useState('');
   const [vinculando, setVinculando] = useState(false);
@@ -102,8 +104,9 @@ export default function CampanhaDetalhe() {
     }
   }
 
-  async function handleDesvincular(vinculoId) {
-    if (!window.confirm('Remover este personagem da campanha?')) return;
+  async function handleDesvincular() {
+    const vinculoId = vinculoParaRemover;
+    setVinculoParaRemover(null);
     const { error } = await desvincularPersonagem(vinculoId);
     if (error) setErro(error.message);
     else carregarTudo();
@@ -160,7 +163,7 @@ export default function CampanhaDetalhe() {
                 <span className="detalhe-secundario">— {m.personagem.dono?.display_name}</span>
               </div>
               {(podeGerenciar || m.personagem.user_id === profile.id) && (
-                <button onClick={() => handleDesvincular(m.id)}>Remover</button>
+                <button className="botao-remover" onClick={() => setVinculoParaRemover(m.id)}>Remover</button>
               )}
             </li>
           ))}
@@ -251,6 +254,13 @@ export default function CampanhaDetalhe() {
           )}
         </section>
       )}
+
+      <PopupConfirmar
+        aberto={Boolean(vinculoParaRemover)}
+        mensagem="Remover este personagem da campanha?"
+        onConfirmar={handleDesvincular}
+        onCancelar={() => setVinculoParaRemover(null)}
+      />
     </main>
   );
 }

@@ -21,6 +21,13 @@
   --fonte-titulo: 'Rye', 'Copperplate', serif;
   --fonte-corpo: 'Vollkorn', Georgia, serif;
   --fonte-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Tokens de padronização visual (13/07) — antes cada tela tinha um
+     raio/divisor levemente diferente, acumulado ao longo de ~15 rodadas
+     de ajuste; unificado aqui. */
+  --radio-padrao: 6px;
+  --divisor-forte: 2px dashed var(--cor-borda);
+  --divisor-sutil: 1px solid var(--cor-borda);
 }
 
 * {
@@ -60,7 +67,7 @@ a:hover {
 button {
   font-family: var(--fonte-ui);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
   background: var(--cor-tinta);
   color: var(--cor-papel);
   padding: 0.5rem 1rem;
@@ -117,7 +124,7 @@ button:focus-visible {
   max-width: 380px;
   background: var(--cor-papel);
   border: 1px solid var(--cor-borda);
-  border-radius: 8px;
+  border-radius: var(--radio-padrao);
   padding: 2rem;
 }
 
@@ -142,14 +149,14 @@ button:focus-visible {
 .card-auth input {
   padding: 0.5rem 0.6rem;
   border: 1px solid var(--cor-borda);
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
   font-size: 1rem;
   background: #fff;
 }
 
 .card-auth fieldset {
   border: 1px solid var(--cor-borda);
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
   padding: 0.6rem 0.8rem;
 }
 
@@ -192,7 +199,7 @@ button:focus-visible {
 .painel section {
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--cor-borda);
+  border-top: var(--divisor-sutil);
 }
 
 .lista-cards {
@@ -206,7 +213,7 @@ button:focus-visible {
 .lista-cards li {
   background: var(--cor-papel);
   border: 1px solid var(--cor-borda);
-  border-radius: 6px;
+  border-radius: var(--radio-padrao);
   padding: 0.7rem 0.9rem;
   display: flex;
   align-items: center;
@@ -241,7 +248,7 @@ button:focus-visible {
 .form-inline textarea {
   padding: 0.4rem 0.5rem;
   border: 1px solid var(--cor-borda);
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
   font-size: 0.95rem;
   background: #fff;
 }
@@ -277,7 +284,7 @@ button:focus-visible {
 .tabela-admin td {
   text-align: left;
   padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--cor-borda);
+  border-bottom: var(--divisor-sutil);
   font-size: 0.9rem;
 }
 
@@ -324,7 +331,7 @@ button:focus-visible {
   background: var(--cor-papel);
   border: 1px solid var(--cor-borda);
   border-left: 4px solid var(--cor-couro);
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
   padding: 0.6rem 0.9rem;
   font-size: 0.85rem;
   color: var(--cor-tinta-suave);
@@ -334,7 +341,7 @@ button:focus-visible {
   background: var(--cor-papel);
   border: 1px solid var(--cor-borda);
   border-left: 4px solid var(--cor-poeira);
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
   padding: 0.6rem 0.9rem;
   font-size: 0.85rem;
   color: var(--cor-tinta-suave);
@@ -344,7 +351,7 @@ button:focus-visible {
   position: relative;
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 2px dashed var(--cor-borda);
+  border-top: var(--divisor-forte);
 }
 
 .ficha section::before {
@@ -364,6 +371,27 @@ button:focus-visible {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  padding-left: 0.6rem;
+  border-left: 4px solid var(--cor-borda);
+}
+
+/* Acento de cor por categoria (13/07) — discreto, só uma borda lateral
+   no título; mantém a paleta da Fase 7 (nada de cor nova), só usa cada
+   uma com mais intenção pra ajudar a orientação visual entre abas. */
+.ficha-acento-geral {
+  border-left-color: var(--cor-couro) !important;
+}
+
+.ficha-acento-combate {
+  border-left-color: var(--cor-sangue) !important;
+}
+
+.ficha-acento-inventario {
+  border-left-color: var(--cor-poeira) !important;
+}
+
+.ficha-acento-montaria {
+  border-left-color: var(--cor-tinta-suave) !important;
 }
 
 .ficha details {
@@ -390,7 +418,7 @@ button:focus-visible {
    Ver classe aplicada em src/routes/Personagem.jsx. */
 .bloco-atributos-preto {
   background: var(--cor-tinta);
-  border-radius: 6px;
+  border-radius: var(--radio-padrao);
   padding: 1rem;
   margin-top: 0.8rem;
 }
@@ -424,7 +452,7 @@ button:focus-visible {
 .campo-editavel textarea {
   padding: 0.45rem 0.55rem;
   border: 1px solid var(--cor-borda);
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
   font-size: 1.05rem;
   font-family: var(--fonte-corpo);
   font-weight: 700;
@@ -551,7 +579,7 @@ button:focus-visible {
 .tabela-efeitos-dor td {
   text-align: left;
   padding: 0.45rem 0.5rem;
-  border-bottom: 1px solid var(--cor-borda);
+  border-bottom: var(--divisor-sutil);
 }
 
 .tabela-efeitos-dor tr.efeito-ativo {
@@ -593,7 +621,8 @@ button:focus-visible {
 
 .tabela-ficha td {
   padding: 0.3rem 0.5rem;
-  border-bottom: 1px solid var(--cor-borda);
+  border-bottom: var(--divisor-sutil);
+  vertical-align: middle;
 }
 
 .tabela-ficha input,
@@ -601,7 +630,7 @@ button:focus-visible {
   width: 100%;
   padding: 0.35rem 0.4rem;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
   background: transparent;
   font-size: 0.95rem;
   color: var(--cor-tinta);
@@ -632,6 +661,13 @@ button:focus-visible {
   color: var(--cor-papel) !important;
 }
 
+.tabela-ficha .botao-remover,
+.tabela-ficha .botao-detalhes-toggle {
+  height: 2rem !important;
+  display: inline-flex;
+  align-items: center;
+}
+
 .acoes-tabela {
   display: flex;
   gap: 0.6rem;
@@ -650,7 +686,7 @@ button:focus-visible {
 .nivel-fidelidade {
   background: var(--cor-tinta);
   color: var(--cor-papel);
-  border-radius: 6px;
+  border-radius: var(--radio-padrao);
   padding: 1rem 1.2rem;
 }
 
@@ -730,7 +766,7 @@ button:focus-visible {
   display: inline-block;
   margin-left: 0.6rem;
   padding: 0.15rem 0.6rem;
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
   background: var(--cor-sangue);
   color: var(--cor-papel);
   font-family: var(--fonte-ui);
@@ -801,7 +837,7 @@ p.badge-caido {
 .popup-caixa {
   background: var(--cor-papel);
   border: 1px solid var(--cor-borda);
-  border-radius: 6px;
+  border-radius: var(--radio-padrao);
   padding: 1.2rem;
   max-width: 480px;
   width: 100%;
@@ -849,7 +885,7 @@ p.badge-caido {
   flex-direction: column;
   gap: 0.3rem;
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--cor-borda);
+  border-bottom: var(--divisor-sutil);
   font-family: var(--fonte-corpo);
 }
 
@@ -870,7 +906,7 @@ p.badge-caido {
   font-weight: 700;
   color: var(--cor-papel);
   background: var(--cor-couro);
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
   padding: 0.1rem 0.4rem;
 }
 
@@ -931,7 +967,7 @@ p.badge-caido {
   padding: 0.7rem 0.9rem;
   background: var(--cor-papel);
   border: 1px solid var(--cor-borda);
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
 }
 
 .config-carga-montaria p {
@@ -956,7 +992,7 @@ p.badge-caido {
   margin-top: 1rem;
   padding: 0.7rem 0.9rem;
   border: 1px dashed var(--cor-borda);
-  border-radius: 6px;
+  border-radius: var(--radio-padrao);
 }
 
 .sub-inventario-montaria h5 {
@@ -971,6 +1007,7 @@ p.badge-caido {
 ------------------------------------------------------------------ */
 
 .botao-hamburguer {
+  position: relative;
   width: 2.4rem;
   height: 2.4rem;
   padding: 0;
@@ -982,6 +1019,17 @@ p.badge-caido {
   justify-content: center;
   gap: 0.28rem;
   flex-shrink: 0;
+}
+
+.botao-hamburguer-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--cor-sangue);
+  border: 2px solid var(--cor-fundo);
 }
 
 .botao-hamburguer:hover {
@@ -1062,7 +1110,7 @@ p.badge-caido {
   color: var(--cor-papel);
   border: none;
   padding: 0.7rem 0.6rem;
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
   font-size: 0.95rem;
   text-decoration: none;
 }
@@ -1086,7 +1134,7 @@ p.badge-caido {
   gap: 0.8rem;
   padding-bottom: 1rem;
   margin-bottom: 1rem;
-  border-bottom: 2px dashed var(--cor-borda);
+  border-bottom: var(--divisor-forte);
 }
 
 .painel-shell-header h1 {
@@ -1133,7 +1181,7 @@ p.badge-caido {
 .lista-combate > li {
   background: var(--cor-papel);
   border: 1px solid var(--cor-borda);
-  border-radius: 6px;
+  border-radius: var(--radio-padrao);
   padding: 0.7rem 0.9rem;
 }
 
@@ -1160,7 +1208,7 @@ p.badge-caido {
   text-transform: uppercase;
   letter-spacing: 0.03em;
   padding: 0.15rem 0.45rem;
-  border-radius: 4px;
+  border-radius: var(--radio-padrao);
   color: var(--cor-papel);
 }
 
@@ -1177,6 +1225,20 @@ p.badge-caido {
   gap: 1.2rem;
   flex-wrap: wrap;
   margin-top: 0.5rem;
+}
+
+.armas-referencia {
+  flex-basis: 100%;
+  font-size: 0.8rem;
+}
+
+.armas-referencia ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.2rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
 }
 
 .status-linha {
@@ -1318,7 +1380,7 @@ p.badge-caido {
   .tabela-responsiva tr {
     margin-bottom: 0.7rem;
     border: 1px solid var(--cor-borda);
-    border-radius: 6px;
+    border-radius: var(--radio-padrao);
     padding: 0.4rem 0.7rem;
     background: var(--cor-papel);
   }
@@ -1411,7 +1473,7 @@ p.badge-caido {
   background-repeat: no-repeat;
   background-color: var(--cor-papel);
   border: 2px solid var(--cor-tinta);
-  border-radius: 6px;
+  border-radius: var(--radio-padrao);
   flex-shrink: 0;
 }
 
@@ -1423,7 +1485,7 @@ p.badge-caido {
   font-size: 1.3rem;
   text-align: center;
   border: 2px dashed var(--cor-borda);
-  border-radius: 6px;
+  border-radius: var(--radio-padrao);
   background: var(--cor-papel);
   flex-shrink: 0;
 }
@@ -1466,7 +1528,7 @@ p.badge-caido {
   max-width: min(90vw, 500px);
   max-height: 85vh;
   border: 3px solid var(--cor-papel);
-  border-radius: 6px;
+  border-radius: var(--radio-padrao);
   display: block;
   margin: 0 auto;
 }
@@ -1482,7 +1544,7 @@ p.badge-caido {
   overflow: hidden;
   margin: 0.8rem auto;
   border: 2px solid var(--cor-tinta);
-  border-radius: 6px;
+  border-radius: var(--radio-padrao);
   background: var(--cor-tinta);
   cursor: grab;
   touch-action: none;
@@ -1496,11 +1558,6 @@ p.badge-caido {
   transform-origin: center;
   -webkit-user-select: none;
   user-select: none;
-  pointer-events: none;
-}
-
-.recorte-zoom {
-  display: flex;
   align-items: center;
   gap: 0.6rem;
   justify-content: center;
@@ -1552,7 +1609,13 @@ p.badge-caido {
   opacity: 0.55;
   margin: 2.5rem 0 0.5rem;
   padding-top: 1.2rem;
-  border-top: 1px solid var(--cor-borda);
+  border-top: var(--divisor-sutil);
+}
+
+.ficha-ultima-alteracao {
+  text-align: center;
+  margin-top: 2rem;
+  margin-bottom: 0;
 }
 
 /* Selo de estrela de xerife (13/07) — SVG desenhado, não emoji; usado
@@ -1646,7 +1709,7 @@ p.badge-caido {
   align-items: center;
   width: 100%;
   padding: 0.6rem 0.2rem;
-  border-bottom: 1px dashed var(--cor-borda);
+  border-bottom: var(--divisor-sutil);
 }
 
 .painel-contadores li:last-child {
@@ -1699,4 +1762,111 @@ p.badge-caido {
 
 .botao-logout:hover {
   background: #7a2013;
+}
+
+.municao-pool-cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.botao-ajuda {
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--cor-couro);
+  color: var(--cor-couro);
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.botao-ajuda:hover {
+  background: var(--cor-couro);
+  color: var(--cor-papel);
+}
+
+/* Detalhes expansíveis da tabela de Armas (13/07) — Peso/Dano/Tipo
+   ficam escondidos atrás de um toggle por linha; Nome/Transporte/
+   Munição (o que se consulta na hora de jogar) ficam sempre visíveis. */
+.botao-detalhes-toggle {
+  height: 2rem;
+  background: transparent;
+  border: 1px solid var(--cor-borda);
+  color: var(--cor-tinta-suave);
+  font-size: 0.7rem;
+  padding: 0 0.5rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.linha-detalhes-arma td {
+  background: var(--cor-fundo);
+  padding: 0.7rem !important;
+}
+
+.detalhes-arma-grade {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.detalhes-arma-grade label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--cor-tinta-suave);
+  flex: 1 1 100px;
+}
+
+/* ---------------------------------------------------------------
+   Toast (13/07) — feedback de sucesso/erro reutilizável, no lugar de
+   cada componente inventar seu próprio "Salvo!"/"Copiado!" inline.
+------------------------------------------------------------------ */
+.toast-container {
+  position: fixed;
+  bottom: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  pointer-events: none;
+  width: 100%;
+  padding: 0 1rem;
+}
+
+.toast {
+  background: var(--cor-tinta);
+  color: var(--cor-papel);
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radio-padrao);
+  font-size: 0.85rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  animation: toast-entra 0.2s ease-out;
+  max-width: 90vw;
+}
+
+.toast--erro {
+  background: var(--cor-sangue);
+}
+
+@keyframes toast-entra {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

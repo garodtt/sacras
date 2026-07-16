@@ -387,10 +387,13 @@ export function trocarOrdemHabilidades(idA, ordemA, idB, ordemB) {
 // por Iniciativa igual o gerenciador antigo (maior primeiro).
 // ---------------------------------------------------------------------
 
+// 13/07 — embute o personagem ligado (quando existir) na mesma
+// consulta: Vida/Dor vêm sempre ao vivo daqui, sem precisar buscar
+// separado nem copiar em `combate_entradas`.
 export function listarCombateEntradas(campanhaId) {
   return supabase
     .from('combate_entradas')
-    .select('*')
+    .select('*, personagem:personagens(id, nome, circulos_vida_atual, circulos_vida_max, circulos_dor_atual, circulos_dor_max)')
     .eq('campanha_id', campanhaId)
     .order('iniciativa', { ascending: false })
     .order('created_at', { ascending: true });
@@ -400,12 +403,17 @@ export function criarCombateEntrada(campanhaId, dados) {
   return supabase
     .from('combate_entradas')
     .insert({ campanha_id: campanhaId, ...dados })
-    .select()
+    .select('*, personagem:personagens(id, nome, circulos_vida_atual, circulos_vida_max, circulos_dor_atual, circulos_dor_max)')
     .single();
 }
 
 export function atualizarCombateEntrada(id, campos) {
-  return supabase.from('combate_entradas').update(campos).eq('id', id).select().single();
+  return supabase
+    .from('combate_entradas')
+    .update(campos)
+    .eq('id', id)
+    .select('*, personagem:personagens(id, nome, circulos_vida_atual, circulos_vida_max, circulos_dor_atual, circulos_dor_max)')
+    .single();
 }
 
 export function removerCombateEntrada(id) {

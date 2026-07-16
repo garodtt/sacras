@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import PopupConfirmar from '../components/PopupConfirmar.jsx';
 import {
   buscarCampanha,
   listarCombateEntradas,
@@ -8,6 +9,9 @@ import {
   atualizarCombateEntrada,
   removerCombateEntrada,
   removerTodasCombateEntradas,
+  listarPersonagensDaCampanha,
+  listarArmas,
+  atualizarPersonagem,
 } from '../lib/dados.js';
 import { aplicarDano, ajustarValorSimples } from '../lib/regras.js';
 import CampoEditavel from '../components/personagem/CampoEditavel.jsx';
@@ -47,21 +51,24 @@ const FALHAS_CRITICAS = [
   { n: 6, efeito: 'Você cai... igual bosta. E perde duas ações de qualquer tipo para levantar.' },
 ];
 
-// Rastreador de combate do Mestre (13/07) — porta a lógica do
-// gerenciador antigo (HTML/JS solto) pra dentro do app: NPCs e
-// jogadores numa lista só, ordenada por Iniciativa (maior primeiro),
-// com Vida/Dor (mesma regra de quebra de resistência da ficha,
-// reaproveitada de src/lib/regras.js) e Balas com recarregar simples
-// (reseta pro máximo — sem pool de reserva, diferente do coldre/
-// bandoleira do personagem; aqui é só uma munição solta por NPC).
+// Rastreador de combate do Mestre (13/07, revisado). NPCs continuam
+// sendo um "bloco de stats" digitado na hora (sem referenciar
+// personagens.id, como sempre foi). Jogadores agora podem ser
+// IMPORTADOS da campanha (botão "Importar jogadores") — nesse caso a
+// entrada guarda `personagem_id` (migration 0013) e Vida/Dor deixam de
+// ter cópia própria: leem e escrevem DIRETO na tabela `personagens`
+// (mesma linha que a ficha do jogador usa). Não existe sincronização
+// de verdade acontecendo — é a MESMA linha do banco vista de dois
+// lugares, então não tem como "dessincronizar". Se o jogador muda a
+// Vida na própria ficha, aparece aqui na próxima vez que os dados forem
+// buscados (o React não empurra updates sozinho entre abas/pessoas —
+// dá F5/reentra na tela pra ver a mudança de outra sessão, mas nunca
+// mostra um valor requentado).
 //
-// Vida e Dor têm +1 e −1 (não só −1, como o código de referência tinha)
-// — dá pra recuperar pontos de um jeito ou de outro (poção, cura de
-// habilidade, etc.). "Caído" é derivado (`vida_atual <= 0`), então subir
-// a Vida de novo já tira sozinho desse estado, sem lógica extra.
+// Armas/munição do jogador importado aparecem como referência (nome +
+// munição atual/máx. de cada arma) — só leitura aqui; editar arma
+// continua sendo na ficha do próprio personagem, não no rastreador.
 //
-// Cada entrada é um bloco de stats digitado na hora, sem referenciar
-// personagens.id — o Mestre controla isso à parte da ficha de verdade.
 // Só o dono da campanha (ou Admin) vê essa tela; RLS já bloqueia o
 // resto no banco, mas mostramos um aviso claro em vez de uma lista
 // vazia sem explicação.
@@ -71,9 +78,13 @@ export default function Combate() {
 
   const [campanha, setCampanha] = useState(null);
   const [entradas, setEntradas] = useState([]);
+  const [armasPorPersonagem, setArmasPorPersonagem] = useState({});
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
+  const [entradaParaRemover, setEntradaParaRemover] = useState(null);
+  const [confirmandoEncerrar, setConfirmandoEncerrar] = useState(false);
   const [adicionando, setAdicionando] = useState(false);
+  const [importando, setImportando] = useState(false);
 
   const [nome, setNome] = useState('');
   const [tipo, setTipo] = useState('npc');
@@ -94,8 +105,27 @@ export default function Combate() {
     const [resCampanha, resEntradas] = await Promise.all([buscarCampanha(id), listarCombateEntradas(id)]);
     if (resCampanha.error || resEntradas.error) setErro((resCampanha.error || resEntradas.error).message);
     setCampanha(resCampanha.data ?? null);
-    setEntradas(resEntradas.data ?? []);
+    const listaEntradas = resEntradas.data ?? [];
+    setEntradas(listaEntradas);
+    await carregarArmasLigadas(listaEntradas);
     setCarregando(false);
+  }
+
+  // Busca as armas de cada personagem LIGADO (uma vez por personagem,
+  // não por entrada — se dois jogadores raros tivessem o mesmo id isso
+  // nem seria possível, mas evita repetir busca à toa de qualquer jeito).
+  async function carregarArmasLigadas(listaEntradas) {
+    const ids = [...new Set(listaEntradas.map((e) => e.personagem_id).filter(Boolean))];
+    if (ids.length === 0) {
+      setArmasPorPersonagem({});
+      return;
+    }
+    const resultados = await Promise.all(ids.map((pid) => listarArmas(pid)));
+    const mapa = {};
+    ids.forEach((pid, i) => {
+      mapa[pid] = resultados[i].data ?? [];
+    });
+    setArmasPorPersonagem(mapa);
   }
 
   const souCriador = campanha?.criado_por === profile.id;
@@ -144,42 +174,146 @@ export default function Combate() {
     }
   }
 
-  async function remover(entrada) {
-    if (!window.confirm(`Remover "${entrada.nome}" do combate?`)) return;
+  async function remover() {
+    const entrada = entradaParaRemover;
+    setEntradaParaRemover(null);
     const { error } = await removerCombateEntrada(entrada.id);
     if (error) setErro(error.message);
     else setEntradas((atual) => atual.filter((e) => e.id !== entrada.id));
   }
 
   async function encerrarCombate() {
-    if (entradas.length === 0) return;
-    if (!window.confirm('Encerrar o combate e remover todos os combatentes da lista?')) return;
+    setConfirmandoEncerrar(false);
     const { error } = await removerTodasCombateEntradas(id);
     if (error) setErro(error.message);
     else setEntradas([]);
   }
 
-  // Vida: ferimento direto, não passa pela Dor (mesma regra da ficha).
-  function ajustarVida(entrada, delta) {
-    const nova = ajustarValorSimples({ atual: entrada.vida_atual, max: entrada.vida_max, delta });
-    if (nova !== entrada.vida_atual) persistir(entrada, { vida_atual: nova });
-  }
+  // Importar jogadores (13/07) — pega todo personagem vinculado à
+  // campanha que AINDA não está na lista de combate, e cria uma
+  // entrada ligada (personagem_id) pra cada um. Vida/Dor não são
+  // copiadas — a entrada só referencia o personagem; o valor mostrado
+  // sempre vem direto da tabela `personagens` (ver `vidaAtualDe`/
+  // `dorAtualDe` abaixo), então já entra com o que estiver valendo
+  // agora mesmo, sem precisar de nenhuma lógica extra de "atualizar".
+  async function importarJogadores() {
+    setErro('');
+    setImportando(true);
 
-  // Dor: subir é simples; descer aciona a quebra de resistência.
-  function ajustarDor(entrada, delta) {
-    if (delta > 0) {
-      const nova = ajustarValorSimples({ atual: entrada.dor_atual, max: entrada.dor_max, delta });
-      if (nova !== entrada.dor_atual) persistir(entrada, { dor_atual: nova });
+    const { data: vinculos, error: erroVinculos } = await listarPersonagensDaCampanha(id);
+    if (erroVinculos) {
+      setErro(erroVinculos.message);
+      setImportando(false);
       return;
     }
-    const resultado = aplicarDano({
-      vidaAtual: entrada.vida_atual,
-      vidaMax: entrada.vida_max,
-      dorAtual: entrada.dor_atual,
-      dorMax: entrada.dor_max,
-      dano: 1,
-    });
-    persistir(entrada, { vida_atual: resultado.vidaAtual, dor_atual: resultado.dorAtual });
+
+    const jaNaLista = new Set(entradas.map((e) => e.personagem_id).filter(Boolean));
+    const paraImportar = (vinculos ?? [])
+      .map((v) => v.personagem)
+      .filter((p) => p && !jaNaLista.has(p.id));
+
+    if (paraImportar.length === 0) {
+      setErro('Todos os personagens da campanha já estão na lista (ou a campanha não tem nenhum vinculado).');
+      setImportando(false);
+      return;
+    }
+
+    const resultados = await Promise.all(
+      paraImportar.map((p) =>
+        criarCombateEntrada(id, {
+          personagem_id: p.id,
+          nome: p.nome, // cópia só de segurança (se o personagem for excluído, a entrada não fica sem nome)
+          tipo: 'jogador',
+          iniciativa: 0,
+        })
+      )
+    );
+
+    const comErro = resultados.find((r) => r.error);
+    if (comErro) {
+      setErro(comErro.error.message);
+      setImportando(false);
+      return;
+    }
+
+    const novasEntradas = resultados.map((r) => r.data);
+    const listaCompleta = reordenar([...entradas, ...novasEntradas]);
+    setEntradas(listaCompleta);
+    await carregarArmasLigadas(listaCompleta);
+    setImportando(false);
+  }
+
+  // Valor de Vida/Dor "de verdade" pra uma entrada — se for ligada a um
+  // personagem, vem do personagem (ao vivo); senão, vem da própria
+  // entrada (NPC digitado na hora).
+  function vidaAtualDe(entrada) {
+    return entrada.personagem ? entrada.personagem.circulos_vida_atual : entrada.vida_atual;
+  }
+  function vidaMaxDe(entrada) {
+    return entrada.personagem ? entrada.personagem.circulos_vida_max : entrada.vida_max;
+  }
+  function dorAtualDe(entrada) {
+    return entrada.personagem ? entrada.personagem.circulos_dor_atual : entrada.dor_atual;
+  }
+  function dorMaxDe(entrada) {
+    return entrada.personagem ? entrada.personagem.circulos_dor_max : entrada.dor_max;
+  }
+  function nomeDe(entrada) {
+    return entrada.personagem?.nome || entrada.nome;
+  }
+
+  // Atualiza o `.personagem` embutido de uma entrada específica, sem
+  // precisar reordenar (Vida/Dor não mexem em Iniciativa).
+  function atualizarPersonagemLocal(entradaId, personagemAtualizado) {
+    setEntradas((atual) =>
+      atual.map((e) => (e.id === entradaId ? { ...e, personagem: personagemAtualizado } : e))
+    );
+  }
+
+  async function persistirPersonagem(entrada, campos) {
+    const { data, error } = await atualizarPersonagem(entrada.personagem_id, campos);
+    if (error) setErro(error.message);
+    else atualizarPersonagemLocal(entrada.id, data);
+  }
+
+  // Vida: ferimento direto, não passa pela Dor (mesma regra da ficha).
+  // Ramifica: entrada ligada a um personagem escreve DIRETO na ficha de
+  // verdade (`personagens`); NPC continua só na própria entrada.
+  function ajustarVida(entrada, delta) {
+    const atual = vidaAtualDe(entrada);
+    const max = vidaMaxDe(entrada);
+    const nova = ajustarValorSimples({ atual, max, delta });
+    if (nova === atual) return;
+
+    if (entrada.personagem_id) persistirPersonagem(entrada, { circulos_vida_atual: nova });
+    else persistir(entrada, { vida_atual: nova });
+  }
+
+  // Dor: subir é simples; descer aciona a quebra de resistência (mesma
+  // função de src/lib/regras.js usada na ficha do personagem).
+  function ajustarDor(entrada, delta) {
+    const vidaAtual = vidaAtualDe(entrada);
+    const vidaMax = vidaMaxDe(entrada);
+    const dorAtual = dorAtualDe(entrada);
+    const dorMax = dorMaxDe(entrada);
+
+    if (delta > 0) {
+      const nova = ajustarValorSimples({ atual: dorAtual, max: dorMax, delta });
+      if (nova === dorAtual) return;
+      if (entrada.personagem_id) persistirPersonagem(entrada, { circulos_dor_atual: nova });
+      else persistir(entrada, { dor_atual: nova });
+      return;
+    }
+
+    const resultado = aplicarDano({ vidaAtual, vidaMax, dorAtual, dorMax, dano: 1 });
+    if (entrada.personagem_id) {
+      persistirPersonagem(entrada, {
+        circulos_vida_atual: resultado.vidaAtual,
+        circulos_dor_atual: resultado.dorAtual,
+      });
+    } else {
+      persistir(entrada, { vida_atual: resultado.vidaAtual, dor_atual: resultado.dorAtual });
+    }
   }
 
   function ajustarBalas(entrada, delta) {
@@ -249,23 +383,39 @@ export default function Combate() {
       <section>
         <div className="painel-header">
           <h2>Ordem de iniciativa ({entradas.length})</h2>
-          {entradas.length > 0 && (
-            <button type="button" className="botao-remover" onClick={encerrarCombate}>
-              Encerrar combate
-            </button>
-          )}
+          <span>
+            <button type="button" onClick={importarJogadores} disabled={importando}>
+              {importando ? 'Importando...' : 'Importar jogadores da campanha'}
+            </button>{' '}
+            {entradas.length > 0 && (
+              <button type="button" className="botao-remover" onClick={() => setConfirmandoEncerrar(true)}>
+                Encerrar combate
+              </button>
+            )}
+          </span>
         </div>
+        <p className="detalhe-secundario">
+          "Importar jogadores" traz Vida/Dor sempre ao vivo da ficha de cada personagem vinculado à campanha — mudou
+          na ficha, mudou aqui também, porque é a mesma linha do banco.
+        </p>
 
         {entradas.length === 0 && <p className="detalhe-secundario">Nenhum combatente ainda — adicione acima.</p>}
 
         <ul className="lista-combate">
           {entradas.map((entrada) => {
-            const caido = entrada.vida_atual <= 0;
+            const ligado = Boolean(entrada.personagem_id);
+            const vidaAtual = vidaAtualDe(entrada);
+            const vidaMax = vidaMaxDe(entrada);
+            const dorAtual = dorAtualDe(entrada);
+            const dorMax = dorMaxDe(entrada);
+            const caido = vidaAtual <= 0;
+            const armasDoPersonagem = ligado ? armasPorPersonagem[entrada.personagem_id] ?? [] : [];
+
             return (
               <li key={entrada.id} className={caido ? 'combatente-caido' : ''}>
                 <div className="combatente-cabecalho">
                   <span className={`badge-tipo badge-tipo--${entrada.tipo}`}>{TIPO_LABEL[entrada.tipo]}</span>
-                  <strong>{entrada.nome}</strong>
+                  <strong>{nomeDe(entrada)}</strong>
                   {caido && <span className="badge-caido">Caído</span>}
                   <button
                     type="button"
@@ -274,7 +424,7 @@ export default function Combate() {
                   >
                     Iniciativa {entrada.iniciativa}
                   </button>
-                  <button type="button" className="botao-remover" onClick={() => remover(entrada)}>
+                  <button type="button" className="botao-remover" onClick={() => setEntradaParaRemover(entrada)}>
                     Remover
                   </button>
                 </div>
@@ -286,7 +436,7 @@ export default function Combate() {
                       −1
                     </button>
                     <strong className="status-valor">
-                      {entrada.vida_atual} / {entrada.vida_max}
+                      {vidaAtual} / {vidaMax}
                     </strong>
                     <button type="button" className="botao-ajuste-pequeno" onClick={() => ajustarVida(entrada, 1)}>
                       +1
@@ -305,14 +455,14 @@ export default function Combate() {
                       −1
                     </button>
                     <strong className="status-valor">
-                      {entrada.dor_atual} / {entrada.dor_max}
+                      {dorAtual} / {dorMax}
                     </strong>
                     <button type="button" className="botao-ajuste-pequeno" onClick={() => ajustarDor(entrada, 1)}>
                       +1
                     </button>
                   </div>
 
-                  {entrada.balas_max > 0 && (
+                  {!ligado && entrada.balas_max > 0 && (
                     <div className="status-linha">
                       <span>Balas</span>
                       {entrada.balas_atual > 0 ? (
@@ -329,35 +479,62 @@ export default function Combate() {
                       </strong>
                     </div>
                   )}
+
+                  {ligado && armasDoPersonagem.length > 0 && (
+                    <div className="armas-referencia">
+                      <span className="detalhe-secundario">Armas (editar na ficha):</span>
+                      <ul>
+                        {armasDoPersonagem.map((arma) => (
+                          <li key={arma.id}>
+                            {arma.nome || '(sem nome)'}
+                            {arma.municao_max > 0 && (
+                              <span className="detalhe-secundario">
+                                {' '}
+                                — {arma.municao_atual ?? 0}/{arma.municao_max}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
                 <details className="ajuste-maximos">
                   <summary>Ajustar máximos</summary>
                   <div className="grid-campos">
-                    <CampoEditavel
-                      label="Vida máx."
-                      valor={entrada.vida_max}
-                      min={1}
-                      onSalvar={(v) => {
-                        const nova = ajustarValorSimples({ atual: entrada.vida_atual, max: v, delta: v - entrada.vida_max });
-                        persistir(entrada, { vida_max: v, vida_atual: nova });
-                      }}
-                    />
-                    <CampoEditavel
-                      label="Dor máx."
-                      valor={entrada.dor_max}
-                      min={1}
-                      onSalvar={(v) => {
-                        const nova = ajustarValorSimples({ atual: entrada.dor_atual, max: v, delta: v - entrada.dor_max });
-                        persistir(entrada, { dor_max: v, dor_atual: nova });
-                      }}
-                    />
-                    <CampoEditavel
-                      label="Balas máx."
-                      valor={entrada.balas_max}
-                      min={0}
-                      onSalvar={(v) => persistir(entrada, { balas_max: v, balas_atual: Math.min(v, entrada.balas_atual) })}
-                    />
+                    {ligado ? (
+                      <p className="detalhe-secundario">
+                        Vida/Dor máximos deste personagem vêm dos Atributos — ajuste na própria ficha, não aqui.
+                      </p>
+                    ) : (
+                      <>
+                        <CampoEditavel
+                          label="Vida máx."
+                          valor={entrada.vida_max}
+                          min={1}
+                          onSalvar={(v) => {
+                            const nova = ajustarValorSimples({ atual: entrada.vida_atual, max: v, delta: v - entrada.vida_max });
+                            persistir(entrada, { vida_max: v, vida_atual: nova });
+                          }}
+                        />
+                        <CampoEditavel
+                          label="Dor máx."
+                          valor={entrada.dor_max}
+                          min={1}
+                          onSalvar={(v) => {
+                            const nova = ajustarValorSimples({ atual: entrada.dor_atual, max: v, delta: v - entrada.dor_max });
+                            persistir(entrada, { dor_max: v, dor_atual: nova });
+                          }}
+                        />
+                        <CampoEditavel
+                          label="Balas máx."
+                          valor={entrada.balas_max}
+                          min={0}
+                          onSalvar={(v) => persistir(entrada, { balas_max: v, balas_atual: Math.min(v, entrada.balas_atual) })}
+                        />
+                      </>
+                    )}
                     <CampoEditavel
                       label="Iniciativa"
                       valor={entrada.iniciativa}
@@ -453,6 +630,20 @@ export default function Combate() {
           </tbody>
         </table>
       </PopupReferencia>
+
+      <PopupConfirmar
+        aberto={Boolean(entradaParaRemover)}
+        mensagem={`Remover "${entradaParaRemover?.nome}" do combate?`}
+        onConfirmar={remover}
+        onCancelar={() => setEntradaParaRemover(null)}
+      />
+      <PopupConfirmar
+        aberto={confirmandoEncerrar}
+        mensagem="Encerrar o combate e remover todos os combatentes da lista?"
+        textoConfirmar="Encerrar combate"
+        onConfirmar={encerrarCombate}
+        onCancelar={() => setConfirmandoEncerrar(false)}
+      />
     </main>
   );
 }

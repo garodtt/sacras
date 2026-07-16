@@ -14,6 +14,7 @@ import CampanhaDetalhe from './routes/CampanhaDetalhe.jsx';
 import Combate from './routes/Combate.jsx';
 import Personagem from './routes/Personagem.jsx';
 import AdminDashboard from './routes/AdminDashboard.jsx';
+import ToastHost from './components/ToastHost.jsx';
 
 // v2 (13/07): não existe mais separação Mestre/Jogador nem rota
 // "roteadora" por papel (PainelRedirect saiu) — todo usuário autenticado
@@ -38,6 +39,7 @@ export default function App() {
   }, []);
   return (
     <AuthProvider>
+      <ToastHost />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/login" element={<Login />} />

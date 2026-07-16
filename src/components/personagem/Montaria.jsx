@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import CampoEditavel from './CampoEditavel.jsx';
 import CampoStepper from './CampoStepper.jsx';
+import PopupConfirmar from '../PopupConfirmar.jsx';
 import LinhaCirculosAjustavel from './LinhaCirculosAjustavel.jsx';
 import TabelaItens from './TabelaItens.jsx';
 import {
@@ -58,6 +59,7 @@ export default function Montaria({ personagemId, montaria, onMudar, editavel, se
   const [criando, setCriando] = useState(false);
   const [nomeNova, setNomeNova] = useState('');
   const [erro, setErro] = useState('');
+  const [confirmandoRemover, setConfirmandoRemover] = useState(false);
   const [mensagemDor, setMensagemDor] = useState('');
   const [itensMontaria, setItensMontaria] = useState([]);
   const [carregandoItens, setCarregandoItens] = useState(false);
@@ -198,7 +200,7 @@ export default function Montaria({ personagemId, montaria, onMudar, editavel, se
   }
 
   async function handleRemover() {
-    if (!window.confirm('Remover a montaria deste personagem?')) return;
+    setConfirmandoRemover(false);
     const { error } = await removerMontaria(montaria.id);
     if (error) setErro(error.message);
     else onMudar(null);
@@ -423,10 +425,17 @@ export default function Montaria({ personagemId, montaria, onMudar, editavel, se
       </div>
 
       {editavel && (
-        <button type="button" className="botao-remover" onClick={handleRemover}>
+        <button type="button" className="botao-remover" onClick={() => setConfirmandoRemover(true)}>
           Remover montaria
         </button>
       )}
+
+      <PopupConfirmar
+        aberto={confirmandoRemover}
+        mensagem="Remover a montaria deste personagem?"
+        onConfirmar={handleRemover}
+        onCancelar={() => setConfirmandoRemover(false)}
+      />
     </div>
   );
 }

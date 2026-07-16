@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { criarArma, atualizarArma, removerArma } from '../../lib/dados.js';
 import { validarMeioTransporte, LIMITE_BANDOLEIRA, LIMITE_COLDRE_MAIS_BANDOLEIRA } from '../../lib/regras.js';
+import PopupConfirmar from '../PopupConfirmar.jsx';
 
 // Tabela de Armas (13/07 — revisado 3x). `meio_transporte` (coldre/
 // bandoleira/bainha) decide de qual pool a arma recarrega — limites em
@@ -21,6 +22,17 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
   const [adicionando, setAdicionando] = useState(false);
   const [erro, setErro] = useState('');
   const [recarregando, setRecarregando] = useState(null);
+  const [armaParaRemover, setArmaParaRemover] = useState(null);
+  const [expandidas, setExpandidas] = useState(() => new Set());
+
+  function alternarDetalhes(armaId) {
+    setExpandidas((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(armaId)) novo.delete(armaId);
+      else novo.add(armaId);
+      return novo;
+    });
+  }
 
   async function adicionar() {
     setErro('');
@@ -66,8 +78,9 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
     onMudar(armas.map((a) => (a.id === arma.id ? { ...a, municao_atual: resultado.municaoAtual } : a)));
   }
 
-  async function remover(arma) {
-    if (!window.confirm(`Remover "${arma.nome || 'esta arma'}"?`)) return;
+  async function remover() {
+    const arma = armaParaRemover;
+    setArmaParaRemover(null);
     const { error } = await removerArma(arma.id);
     if (error) setErro(error.message);
     else onMudar(armas.filter((a) => a.id !== arma.id));
@@ -81,12 +94,10 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
           <thead>
             <tr>
               <th>Nome</th>
-              <th>Peso</th>
-              <th>Dano</th>
-              <th>Tipo</th>
               <th>Transporte</th>
               <th>Mun. máx.</th>
               <th>Mun. atual</th>
+              <th></th>
               {editavel && <th></th>}
             </tr>
           </thead>
@@ -101,126 +112,149 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
               const semMunicaoPraPor = armaCheia || (pool ?? 0) <= 0;
 
               return (
-                <tr key={arma.id}>
-                  <td data-label="Nome">
-                    <input
-                      defaultValue={arma.nome}
-                      disabled={!editavel}
-                      onBlur={(e) => e.target.value !== arma.nome && salvarCampo(arma, 'nome', e.target.value)}
-                    />
-                  </td>
-                  <td data-label="Peso">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      defaultValue={arma.espaco}
-                      disabled={!editavel}
-                      onBlur={(e) => {
-                        const novo = Number(e.target.value) || 0;
-                        if (novo !== Number(arma.espaco)) salvarCampo(arma, 'espaco', novo);
-                      }}
-                    />
-                  </td>
-                  <td data-label="Dano">
-                    <input
-                      defaultValue={arma.dano}
-                      placeholder="ex.: 1d6+2"
-                      disabled={!editavel}
-                      onBlur={(e) => e.target.value !== arma.dano && salvarCampo(arma, 'dano', e.target.value)}
-                    />
-                  </td>
-                  <td data-label="Tipo">
-                    <select
-                      value={arma.tipo_dano || ''}
-                      disabled={!editavel}
-                      onChange={(e) => salvarCampo(arma, 'tipo_dano', e.target.value || null)}
-                    >
-                      <option value="">—</option>
-                      <option value="dor">Dor</option>
-                      <option value="vida">Vida</option>
-                    </select>
-                  </td>
-                  <td data-label="Transporte">
-                    <select
-                      value={arma.meio_transporte || ''}
-                      disabled={!editavel}
-                      onChange={(e) => salvarMeioTransporte(arma, e.target.value)}
-                    >
-                      <option value="">—</option>
-                      <option value="coldre">Coldre (leve)</option>
-                      <option value="bandoleira">Bandoleira (pesada)</option>
-                      <option value="bainha">Bainha</option>
-                    </select>
-                  </td>
-                  <td data-label="Mun. máx.">
-                    {temMunicao ? (
+                <Fragment key={arma.id}>
+                  <tr>
+                    <td data-label="Nome">
                       <input
-                        type="number"
-                        min="0"
-                        className="municao-max"
-                        defaultValue={arma.municao_max ?? 0}
+                        defaultValue={arma.nome}
                         disabled={!editavel}
-                        onBlur={(e) => {
-                          const novo = Math.max(0, Number(e.target.value) || 0);
-                          if (novo !== Number(arma.municao_max ?? 0)) salvarCampo(arma, 'municao_max', novo);
-                        }}
+                        onBlur={(e) => e.target.value !== arma.nome && salvarCampo(arma, 'nome', e.target.value)}
                       />
-                    ) : (
-                      <span className="detalhe-secundario">—</span>
-                    )}
-                  </td>
-                  <td data-label="Mun. atual" className="municao-celula">
-                    {temMunicao ? (
-                      <>
-                        <button
-                          type="button"
-                          className="botao-ajuste-pequeno"
-                          disabled={!editavel || semMunicaoPraTirar}
-                          onClick={() => decrementarMunicao(arma)}
-                          title="Usar 1 bala (não devolve pro pool)"
-                        >
-                          −1
-                        </button>
-                        <strong className="status-valor">
-                          {atual}/{max}
-                        </strong>
-                        <button
-                          type="button"
-                          className="botao-ajuste-pequeno"
-                          disabled={!editavel || semMunicaoPraPor || recarregando === arma.id}
-                          onClick={() => executarRecarga(arma, 1)}
-                          title="Pôr 1 bala do pool na arma"
-                        >
-                          +1
-                        </button>
-                        <button
-                          type="button"
-                          className="botao-recarregar"
-                          disabled={!editavel || semMunicaoPraPor || recarregando === arma.id}
-                          onClick={() => executarRecarga(arma, undefined)}
-                          title="Encher até o máximo com o pool disponível"
-                        >
-                          {recarregando === arma.id ? '...' : 'Recarregar'}
-                        </button>
-                      </>
-                    ) : (
-                      <span className="detalhe-secundario">—</span>
-                    )}
-                  </td>
-                  {editavel && (
+                    </td>
+                    <td data-label="Transporte">
+                      <select
+                        value={arma.meio_transporte || ''}
+                        disabled={!editavel}
+                        onChange={(e) => salvarMeioTransporte(arma, e.target.value)}
+                      >
+                        <option value="">—</option>
+                        <option value="coldre">Coldre (leve)</option>
+                        <option value="bandoleira">Bandoleira (pesada)</option>
+                        <option value="bainha">Bainha</option>
+                      </select>
+                    </td>
+                    <td data-label="Mun. máx.">
+                      {temMunicao ? (
+                        <input
+                          type="number"
+                          min="0"
+                          className="municao-max"
+                          defaultValue={arma.municao_max ?? 0}
+                          disabled={!editavel}
+                          onBlur={(e) => {
+                            const novo = Math.max(0, Number(e.target.value) || 0);
+                            if (novo !== Number(arma.municao_max ?? 0)) salvarCampo(arma, 'municao_max', novo);
+                          }}
+                        />
+                      ) : (
+                        <span className="detalhe-secundario">—</span>
+                      )}
+                    </td>
+                    <td data-label="Mun. atual" className="municao-celula">
+                      {temMunicao ? (
+                        <>
+                          <button
+                            type="button"
+                            className="botao-ajuste-pequeno"
+                            disabled={!editavel || semMunicaoPraTirar}
+                            onClick={() => decrementarMunicao(arma)}
+                            title="Usar 1 bala (não devolve pro pool)"
+                          >
+                            −1
+                          </button>
+                          <strong className="status-valor">
+                            {atual}/{max}
+                          </strong>
+                          <button
+                            type="button"
+                            className="botao-ajuste-pequeno"
+                            disabled={!editavel || semMunicaoPraPor || recarregando === arma.id}
+                            onClick={() => executarRecarga(arma, 1)}
+                            title="Pôr 1 bala do pool na arma"
+                          >
+                            +1
+                          </button>
+                          <button
+                            type="button"
+                            className="botao-recarregar"
+                            disabled={!editavel || semMunicaoPraPor || recarregando === arma.id}
+                            onClick={() => executarRecarga(arma, undefined)}
+                            title="Encher até o máximo com o pool disponível"
+                          >
+                            {recarregando === arma.id ? '...' : 'Recarregar'}
+                          </button>
+                        </>
+                      ) : (
+                        <span className="detalhe-secundario">—</span>
+                      )}
+                    </td>
                     <td data-label="">
-                      <button type="button" className="botao-remover" onClick={() => remover(arma)}>
-                        Remover
+                      <button
+                        type="button"
+                        className="botao-detalhes-toggle"
+                        onClick={() => alternarDetalhes(arma.id)}
+                        aria-expanded={expandidas.has(arma.id)}
+                      >
+                        {expandidas.has(arma.id) ? 'Detalhes ▲' : 'Detalhes ▾'}
                       </button>
                     </td>
+                    {editavel && (
+                      <td data-label="">
+                        <button type="button" className="botao-remover" onClick={() => setArmaParaRemover(arma)}>
+                          Remover
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                  {expandidas.has(arma.id) && (
+                    <tr className="linha-detalhes-arma">
+                      <td colSpan={editavel ? 6 : 5} data-label="">
+                        <div className="detalhes-arma-grade">
+                          <label>
+                            Peso
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              defaultValue={arma.espaco}
+                              disabled={!editavel}
+                              onBlur={(e) => {
+                                const novo = Number(e.target.value) || 0;
+                                if (novo !== Number(arma.espaco)) salvarCampo(arma, 'espaco', novo);
+                              }}
+                            />
+                          </label>
+                          <label>
+                            Dano
+                            <input
+                              defaultValue={arma.dano}
+                              placeholder="ex.: 1d6+2"
+                              disabled={!editavel}
+                              onBlur={(e) => e.target.value !== arma.dano && salvarCampo(arma, 'dano', e.target.value)}
+                            />
+                          </label>
+                          <label>
+                            Tipo
+                            <select
+                              value={arma.tipo_dano || ''}
+                              disabled={!editavel}
+                              onChange={(e) => salvarCampo(arma, 'tipo_dano', e.target.value || null)}
+                            >
+                              <option value="">—</option>
+                              <option value="dor">Dor</option>
+                              <option value="vida">Vida</option>
+                            </select>
+                          </label>
+                        </div>
+                      </td>
+                    </tr>
                   )}
-                </tr>
+                </Fragment>
               );
             })}
             {armas.length === 0 && (
               <tr>
-                <td colSpan={editavel ? 8 : 7} className="detalhe-secundario">
+                <td colSpan={editavel ? 6 : 5} className="detalhe-secundario">
                   Nenhuma arma ainda.
                 </td>
               </tr>
@@ -229,15 +263,22 @@ export default function TabelaArmas({ personagemId, armas, onMudar, editavel, on
         </table>
       </div>
       <p className="detalhe-secundario">
-        Transporte: até {LIMITE_COLDRE_MAIS_BANDOLEIRA} armas somando Coldre + Bandoleira (Bandoleira até{' '}
-        {LIMITE_BANDOLEIRA}), e 1 na Bainha. "−1" consome (não devolve ao pool); "+1" e "Recarregar" puxam do pool
-        certo (leve/pesada).
+        Toque em "Detalhes" numa arma pra ver Peso/Dano/Tipo. Transporte: até {LIMITE_COLDRE_MAIS_BANDOLEIRA} armas
+        somando Coldre + Bandoleira (Bandoleira até {LIMITE_BANDOLEIRA}), e 1 na Bainha. "−1" consome (não devolve ao
+        pool); "+1" e "Recarregar" puxam do pool certo (leve/pesada).
       </p>
       {editavel && (
         <button type="button" onClick={adicionar} disabled={adicionando}>
           {adicionando ? 'Adicionando...' : '+ Adicionar arma'}
         </button>
       )}
+
+      <PopupConfirmar
+        aberto={Boolean(armaParaRemover)}
+        mensagem={`Remover "${armaParaRemover?.nome || 'esta arma'}"?`}
+        onConfirmar={remover}
+        onCancelar={() => setArmaParaRemover(null)}
+      />
     </div>
   );
 }

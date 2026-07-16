@@ -6,6 +6,7 @@ import {
   removerHabilidadePersonagem,
   trocarOrdemHabilidades,
 } from '../../lib/dados.js';
+import PopupConfirmar from '../PopupConfirmar.jsx';
 
 const NOME_CATEGORIA = { combate: 'Combate', profissao: 'Profissão' };
 
@@ -26,6 +27,7 @@ export default function Habilidades({ personagemId, habilidades, onMudar, editav
   const [nomeNova, setNomeNova] = useState('');
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [habParaRemover, setHabParaRemover] = useState(null);
 
   useEffect(() => {
     listarCatalogoHabilidades().then(({ data, error }) => {
@@ -82,8 +84,9 @@ export default function Habilidades({ personagemId, habilidades, onMudar, editav
     }
   }
 
-  async function remover(hab) {
-    if (!window.confirm(`Remover "${nomeDe(hab)}"?`)) return;
+  async function remover() {
+    const hab = habParaRemover;
+    setHabParaRemover(null);
     const { error } = await removerHabilidadePersonagem(hab.id);
     if (error) setErro(error.message);
     else onMudar(habilidades.filter((h) => h.id !== hab.id));
@@ -147,7 +150,7 @@ export default function Habilidades({ personagemId, habilidades, onMudar, editav
               <span>{nomeDe(h)}</span>
               {!h.catalogo_id && <span className="badge-jogador">Criada pelo jogador</span>}
               {editavel && (
-                <button type="button" className="botao-remover" onClick={() => remover(h)}>
+                <button type="button" className="botao-remover" onClick={() => setHabParaRemover(h)}>
                   Remover
                 </button>
               )}
@@ -204,6 +207,13 @@ export default function Habilidades({ personagemId, habilidades, onMudar, editav
           </form>
         </div>
       )}
+
+      <PopupConfirmar
+        aberto={Boolean(habParaRemover)}
+        mensagem={`Remover "${habParaRemover ? nomeDe(habParaRemover) : ''}"?`}
+        onConfirmar={remover}
+        onCancelar={() => setHabParaRemover(null)}
+      />
     </div>
   );
 }

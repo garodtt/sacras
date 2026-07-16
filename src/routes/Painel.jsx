@@ -11,6 +11,7 @@ import {
 } from '../lib/dados.js';
 import PainelShell from '../components/layout/PainelShell.jsx';
 import UploadFoto from '../components/UploadFoto.jsx';
+import { mostrarToast } from '../lib/toastBus.js';
 
 // Tela inicial — perfil (foto, nome editável, e-mail com copiar) e o
 // resumo (convites/personagens/campanhas) moram juntos aqui. "Sair"
@@ -28,8 +29,6 @@ export default function Painel() {
 
   const [nome, setNome] = useState(profile?.display_name ?? '');
   const [salvandoNome, setSalvandoNome] = useState(false);
-  const [nomeSalvo, setNomeSalvo] = useState(false);
-  const [emailCopiado, setEmailCopiado] = useState(false);
   const [erro, setErro] = useState('');
 
   const [personagens, setPersonagens] = useState([]);
@@ -80,8 +79,7 @@ export default function Painel() {
     if (error) setErro(error.message);
     else {
       await refreshProfile();
-      setNomeSalvo(true);
-      setTimeout(() => setNomeSalvo(false), 2000);
+      mostrarToast('Nome salvo.');
     }
   }
 
@@ -95,8 +93,7 @@ export default function Painel() {
   async function copiarEmail() {
     try {
       await navigator.clipboard.writeText(profile.email);
-      setEmailCopiado(true);
-      setTimeout(() => setEmailCopiado(false), 2000);
+      mostrarToast('E-mail copiado.');
     } catch {
       setErro('Não consegui copiar automaticamente — selecione o e-mail manualmente.');
     }
@@ -134,13 +131,13 @@ export default function Painel() {
           <form onSubmit={salvarNome} className="campo-nome-inline">
             <input value={nome} onChange={(e) => setNome(e.target.value)} required />
             <button type="submit" disabled={salvandoNome}>
-              {salvandoNome ? '...' : nomeSalvo ? 'Salvo!' : 'Salvar'}
+              {salvandoNome ? '...' : 'Salvar'}
             </button>
           </form>
           <div className="campo-email-linha">
             <input value={profile.email ?? ''} readOnly />
             <button type="button" className="botao-secundario" onClick={copiarEmail}>
-              {emailCopiado ? 'Copiado!' : 'Copiar'}
+              Copiar
             </button>
           </div>
         </div>

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
-import { criarPersonagem, criarCampanha } from '../../lib/dados.js';
+import { criarPersonagem, criarCampanha, listarConvitesPendentes } from '../../lib/dados.js';
 import MenuLateral from './MenuLateral.jsx';
 import BotaoHamburguer from './BotaoHamburguer.jsx';
 import EstrelaXerife from '../EstrelaXerife.jsx';
@@ -25,6 +25,7 @@ export default function PainelShell({ children }) {
   const navigate = useNavigate();
 
   const [menuAberto, setMenuAberto] = useState(false);
+  const [temConvitePendente, setTemConvitePendente] = useState(false);
   const [modalPersonagem, setModalPersonagem] = useState(false);
   const [modalCampanha, setModalCampanha] = useState(false);
 
@@ -36,6 +37,15 @@ export default function PainelShell({ children }) {
   const [descricaoCampanha, setDescricaoCampanha] = useState('');
   const [criandoCampanha, setCriandoCampanha] = useState(false);
   const [erroCampanha, setErroCampanha] = useState('');
+
+  // Badge de convite pendente no ícone do menu (13/07) — sem isso, só
+  // dava pra descobrir que chegou convite entrando no Painel. Busca só
+  // a contagem (não a lista — quem quer agir vai no Painel mesmo).
+  useEffect(() => {
+    listarConvitesPendentes(profile.id).then(({ data }) => {
+      setTemConvitePendente((data ?? []).length > 0);
+    });
+  }, [profile.id]);
 
   async function handleCriarPersonagem(e) {
     e.preventDefault();
@@ -86,11 +96,10 @@ export default function PainelShell({ children }) {
   return (
     <div className="painel-shell">
       <header className="painel-shell-header">
-        <BotaoHamburguer onClick={() => setMenuAberto(true)} />
+        <BotaoHamburguer onClick={() => setMenuAberto(true)} badge={temConvitePendente} />
         <h1>
           <EstrelaXerife />
           Sacramento RPG
-          <EstrelaXerife />
         </h1>
       </header>
 

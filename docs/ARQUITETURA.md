@@ -979,6 +979,196 @@ navegação (`←`) que uso de propósito e não contam.
   versalete, bem espaçado, discreto (baixa opacidade). `.marca-
   sacramento` no CSS.
 
+### Painel virou dashboard, e-mail com cópia (13/07)
+
+Duas peças que faltavam, vistas na mesma imagem: a tela inicial estava
+quase vazia (só "Bem-vindo, X"), e Editar Perfil não tinha e-mail.
+
+- **`Painel.jsx`**: agora busca (igual `PainelPersonagens`/
+  `PainelCampanhas` já faziam) personagens, campanhas criadas, campanhas
+  que participa e convites pendentes, e mostra: retrato + nome (com
+  link pra Editar Perfil — não duplica a edição aqui, só um resumo),
+  alerta destacado se tiver convite pendente, 3 cartões de contagem
+  (Personagens / Campanhas criadas / Participa), e a lista de campanhas
+  direto na tela — sem precisar entrar em "Suas Campanhas" só pra ver
+  os nomes.
+- **`EditarPerfil.jsx`** ganhou o campo de e-mail — só leitura (o
+  e-mail de login não é editável por aqui, mudar e-mail de autenticação
+  exige confirmação por link, fora do escopo pedido) com botão de
+  copiar (`navigator.clipboard`, com fallback avisando se o navegador
+  bloquear). `profiles.email` já era preenchido automaticamente no
+  cadastro desde a Fase 1 (trigger `handle_new_user`), só faltava
+  mostrar.
+
+**Atualização (13/07, mesmo dia — desenho de referência mandado
+depois)**: o parágrafo acima já não reflete o estado atual —
+`EditarPerfil.jsx` **foi removido**. Motivo: o pedido seguinte (com um
+desenho mostrando foto+nome+e-mail+contadores todos numa tela só)
+deixou claro que a divisão em 2 telas (Painel resumo + Editar Perfil
+separado) não era o que fazia sentido pro fluxo — ter as duas era
+redundante. Consolidado tudo em `Painel.jsx`:
+
+- Foto (editável), nome (input + "Salvar" ao lado, sem popup/tela
+  separada) e e-mail (só leitura + copiar) ficam juntos no topo.
+- Os contadores (Convites pendentes / Personagens / Campanhas criadas /
+  Campanhas que participa) viraram uma **lista simples de números**
+  (`.painel-contadores`) — de propósito **sem link nenhum** (pedido
+  explícito: "não quero links, apenas contadores"). Antes eram cartões
+  clicáveis que levavam pra `/painel/personagens` e `/painel/campanhas`
+  — isso saiu. Navegação de verdade continua só pelo menu lateral.
+- **"Sair" saiu do cabeçalho compartilhado** (`PainelShell.jsx`, que
+  aparecia em toda tela do Painel) e só existe na tela inicial agora —
+  pedido explícito também.
+- Rota `/perfil` e o item "Editar Perfil" do menu foram removidos
+  (`App.jsx`, `PainelShell.jsx`) — não tinham mais função, tudo que
+  faziam já está na tela inicial.
+
+### Painel — acesso de qualquer tela, layout e Logout (13/07, 3ª rodada)
+
+Consolidar tudo em `Painel.jsx` (rodada anterior) teve um efeito
+colateral não previsto: sem "Editar Perfil" no menu, essa informação só
+era alcançável voltando pra `/painel` manualmente — de qualquer outra
+tela (ficha, campanha, Seus Personagens) não tinha como chegar lá.
+Corrigido:
+
+- **"Perfil" voltou ao menu lateral** (`PainelShell.jsx`), primeiro
+  item da lista, apontando pra `/painel` — a MESMA tela consolidada de
+  antes (não recriei uma tela separada), só restaurando o acesso via
+  menu.
+- **Layout**: foto foi de "quadrada" (4rem) pra "retrato" (6.5rem —
+  maior), nome/e-mail ficaram menores (nome: 1.3rem → 1.05rem; e-mail:
+  ganhou `font-size: 0.8rem`) ao lado dela. O bloco de perfil e a lista
+  de contadores ganharam `max-width: 420px; margin: 0 auto` — antes
+  esticavam pra largura toda do `.painel` (720px), agora ficam
+  centralizados como um cartão, mais organizado.
+- **"Sair" → "Logout"**, com classe própria (`.botao-logout`) em vez de
+  `.botao-secundario` — fundo vermelho (`--cor-sangue`), mais largura,
+  centralizado — pedido explícito de ficar "um pouco mais destacado".
+
+### Painel — centralização, largura dos contadores, convites com ação (13/07, 4ª rodada)
+
+- **Foto descentralizada**: `.painel-perfil` tinha `flex-wrap`, mas
+  nenhum `justify-content` — quando a tela é estreita o bastante pra
+  foto+nome/e-mail quebrarem linha, a foto ficava sozinha na linha de
+  cima **encostada à esquerda** (padrão do flexbox sem
+  `justify-content`). Adicionado `justify-content: center`.
+- **Números colados no texto**: `.painel-contadores` e seus `<li>` não
+  tinham `width: 100%` explícito — dependiam só do comportamento padrão
+  de `align-items: stretch` de um flex column, que aparentemente não
+  bastou (ou algo no fluxo ao redor interferiu). Adicionado `width:
+  100%` explícito nos dois, garantindo que o `justify-content:
+  space-between` de cada linha realmente tenha os 420px inteiros pra
+  empurrar o número até a ponta.
+- **"Convites pendentes" virou o único contador clicável**: um número
+  sozinho não serve pra nada num convite — precisa poder aceitar ou
+  recusar. Os outros 3 (Personagens, Campanhas criadas, Campanhas que
+  participa) continuam só números — não existe "ação" possível neles
+  a partir daqui, então não ganharam popup. Clicar em "Convites
+  pendentes" abre um popup com a lista de verdade (mesma lógica de
+  `PainelCampanhas.jsx`: Aceitar navega pra campanha, Recusar recarrega
+  a lista) — o `<li>` continua com a MESMA aparência dos outros
+  (rótulo à esquerda, número à direita), só que agora é um `<button>`
+  por dentro em vez de só texto.
+
+### Rodada de melhorias gerais (13/07) — visual, UX, mecânica e técnico
+
+Depois de eu listar sugestões de melhoria (visual incomodando sem saber
+nomear o quê, UX, mecânica, técnico), você pediu pra implementar a
+lista quase inteira de uma vez (ficaram de fora, por pedido: rolagem de
+dados, duplicar personagem, busca/filtro — não estavam na lista que
+você reenviou). Registro tudo numa seção só porque foi tudo na mesma
+leva.
+
+**Auditoria de RLS (migration `0012`)** — feita com um script Python
+comparando toda política existente (select/insert/update/delete) de
+TODAS as tabelas contra toda operação que `dados.js` realmente chama,
+não só "olhando". Achou mais duas lacunas iguais à de
+`personagem_habilidades` (migration `0010`): `campanha_personagens`
+nunca teve UPDATE, `profiles` nunca teve INSERT nem DELETE. Nenhuma das
+duas é bug ativo hoje (nada tenta fazer essas operações agora — perfis
+são criados por trigger, o vínculo campanha-personagem nunca precisou
+de update) — são exatamente o tipo de lacuna que só aparece quando
+alguém tenta pela primeira vez, como já tinha acontecido. Fechadas com
+`is_admin()` (profiles) ou a mesma regra do insert/delete (campanha_
+personagens). Rodando o script de novo depois da migration: zero
+lacunas em todas as 11 tabelas.
+
+**`window.confirm()` substituído em todo o app** — 9 ocorrências em 7
+arquivos (`TabelaArmas`, `Montaria`, `TabelaItens` ×2, `Habilidades`,
+`UploadFoto`, `Combate` ×2, `CampanhaDetalhe`). Componente novo,
+`PopupConfirmar.jsx`, reutilizado em todos. Como o React não pausa
+esperando clique (diferente do `confirm()` nativo, que é bloqueante),
+cada tela guarda em estado local QUAL item está pendente de confirmação
+e só executa a ação de verdade dentro do `onConfirmar`.
+
+**Tokens visuais** (`:root`, `global.css`) — `--radio-padrao` (6px,
+substituiu 4px/6px/8px espalhados, 25 ocorrências unificadas),
+`--divisor-forte` (2px dashed, separação entre seções maiores),
+`--divisor-sutil` (1px solid, separação entre itens de lista). Aplicado
+via script, não um por um.
+
+**Hierarquia de botões** — `.botao-remover` (vermelho) já existia mas
+não estava em todo canto; agora também no "Remover" de personagem
+vinculado (`CampanhaDetalhe.jsx`) e no "Recusar" de convite
+(`PainelCampanhas.jsx`, alinhado ao mesmo `.botao-secundario` que
+`Painel.jsx` já usava).
+
+**Toast reutilizável** — `toastBus.js` (pub/sub bem simples, sem
+Context/Provider) + `ToastHost.jsx` (montado uma vez em `App.jsx`).
+Qualquer lugar chama `mostrarToast('mensagem')`. Só troquei os dois
+avisos ad-hoc que já existiam em `Painel.jsx` (nome salvo, e-mail
+copiado) — **não** varri o app inteiro trocando cada salvamento
+silencioso, porque a maioria dos `onSalvar` de hoje não devolve
+sucesso/erro pro chamador (só trata o erro internamente); fazer isso
+direito em todo lugar seria um refactor bem maior do contrato dessas
+funções. Fica pronto pra usar aos poucos.
+
+**Densidade da tabela de Armas** — Peso/Dano/Tipo saíram da linha
+principal e viraram uma linha de "Detalhes" expansível por arma (toggle
+▾/▲). Nome/Transporte/Munição (o que se consulta durante o jogo)
+continuam sempre visíveis.
+
+**Acento de cor por categoria** — `.ficha h2` ganhou uma borda lateral
+colorida (`ficha-acento-geral/combate/inventario/montaria`), reaproveitando
+cores já existentes na paleta (couro/sangue/poeira/tinta-suave) — sem
+cor nova, só usando cada uma com mais intenção.
+
+**Badge de convite pendente** — `PainelShell.jsx` busca a contagem de
+convites (só a contagem, não a lista) e passa pro `BotaoHamburguer`
+(prop `badge`, bolinha vermelha no canto). Resolve "só descubro
+entrando no Painel" sem precisar de push notification de verdade.
+
+**Foto órfã no Storage** — `UploadFoto.jsx`: ao remover uma foto, agora
+apaga o arquivo de verdade do bucket (`supabase.storage.remove`), não
+só limpa o campo no banco. Falha nessa limpeza é silenciosa de
+propósito (não deve travar a remoção do campo por causa disso).
+
+**Tooltip da munição** — botão "?" em `MunicaoPool.jsx` abre um popup
+(reaproveita `PopupReferencia.jsx`, do Rastreador de Combate) explicando
+capacidade × excedente em linguagem direta.
+
+**PWA básico** — `manifest.json` + `sw.js` (service worker) +
+ícones novos (`icon-192.png`/`icon-512.png`, gerados com o motivo da
+estrela da paleta do app) + registro em `main.jsx`. **Importante
+entender o alcance real**: só o ESQUELETO do app (HTML/CSS/JS) fica em
+cache, pra abrir instalado/offline — os DADOS (fichas, campanhas,
+combate) são sempre buscados ao vivo do Supabase, nunca ficam em cache.
+Isso não é "editar sem internet e sincronizar depois" (exigiria fila de
+sincronização e resolução de conflito — projeto bem maior); é só "o
+app abre e a tela aparece mesmo numa mesa sem wi-fi", que resolve o
+problema mais citado sem virar um projeto à parte.
+
+**Histórico de mudanças — versão mínima, não o log completo**: como
+expliquei antes, um log de verdade (o que mudou, quando, quem mudou)
+exige decisões que não estavam claras (o que logar, por quanto tempo
+guardar, mostrar onde) — não tentei adivinhar isso sozinho. O que
+entra agora é bem mais simples: `personagens.updated_at` **já existia**
+desde a Fase 1 (atualizado sozinho por trigger a cada UPDATE) — só
+nunca tinha sido exibido. Agora aparece "Última alteração: dd/mm/aaaa,
+hh:mm" no rodapé da ficha. Não diz O QUE mudou, só QUANDO — se quiser
+o log de verdade (com o quê), é um projeto à parte pra decidir o
+escopo certo.
+
 ## 7. Fluxo de autenticação
 
 - **Cadastro aberto, sem escolha de papel**: qualquer pessoa pode se
