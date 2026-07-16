@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import PopupConfirmar from '../components/PopupConfirmar.jsx';
 import {
   buscarCampanha,
+  atualizarCampanha,
   listarCombateEntradas,
   criarCombateEntrada,
   atualizarCombateEntrada,
@@ -85,6 +86,8 @@ export default function Combate() {
   const [confirmandoEncerrar, setConfirmandoEncerrar] = useState(false);
   const [adicionando, setAdicionando] = useState(false);
   const [importando, setImportando] = useState(false);
+  const [desfazerAcao, setDesfazerAcao] = useState(null);
+  const desfazerTimeoutRef = useRef(null);
 
   const [nome, setNome] = useState('');
   const [tipo, setTipo] = useState('npc');
@@ -97,6 +100,7 @@ export default function Combate() {
 
   useEffect(() => {
     carregar();
+    return () => clearTimeout(desfazerTimeoutRef.current);
   }, [id]);
 
   async function carregar() {
@@ -143,6 +147,30 @@ export default function Combate() {
     setEntradas((atual) => reordenar(atual.map((e) => (e.id === entradaAtualizada.id ? entradaAtualizada : e))));
   }
 
+  // Desfazer (13/07) — clique errado durante uma mesa é comum, e
+  // diferente do resto do app, aqui não tem confirmação antes de tirar
+  // Vida/Dor (uma confirmação a cada −1 ia atrapalhar o ritmo do
+  // combate). Em troca, guarda os valores de ANTES por alguns segundos
+  // — dá pra desfazer só a última mudança, não um histórico inteiro.
+  // Só ajustes de Vida/Dor registram desfazer (quem chama passa
+  // explicitamente o que precisa reverter) — editar Iniciativa/Máximos
+  // não passa por aqui, então não teria o que "desfazer" com um clique
+  // só mesmo.
+  function registrarDesfazer(entrada, camposAnteriores) {
+    clearTimeout(desfazerTimeoutRef.current);
+    setDesfazerAcao({ entrada, camposAnteriores });
+    desfazerTimeoutRef.current = setTimeout(() => setDesfazerAcao(null), 6000);
+  }
+
+  function desfazer() {
+    if (!desfazerAcao) return;
+    clearTimeout(desfazerTimeoutRef.current);
+    const { entrada, camposAnteriores } = desfazerAcao;
+    setDesfazerAcao(null);
+    if (entrada.personagem_id) persistirPersonagem(entrada, camposAnteriores);
+    else persistir(entrada, camposAnteriores);
+  }
+
   async function persistir(entrada, campos) {
     const { data, error } = await atualizarCombateEntrada(entrada.id, campos);
     if (error) setErro(error.message);
@@ -186,7 +214,37 @@ export default function Combate() {
     setConfirmandoEncerrar(false);
     const { error } = await removerTodasCombateEntradas(id);
     if (error) setErro(error.message);
-    else setEntradas([]);
+    else {
+      setEntradas([]);
+      // Zera turno/rodada também — não faz sentido continuar em
+      // "Rodada 7" quando a lista de combatentes já foi embora.
+      const { data } = await atualizarCampanha(id, { combate_turno_index: 0, combate_rodada: 1 });
+      if (data) setCampanha(data);
+    }
+  }
+
+  // Turno/rodada (13/07) — guardado na campanha (não como estado local
+  // do React) pra não perder o lugar se a página recarregar no meio da
+  // sessão. Avançar passa pro próximo da lista de iniciativa; ao
+  // ultrapassar o último, volta pro primeiro E soma 1 na rodada — é
+  // assim que "uma rodada" é definida (todo mundo agiu uma vez).
+  async function avancarTurno() {
+    if (entradas.length === 0) return;
+    const proximoIndex = campanha.combate_turno_index + 1;
+    const passouDoUltimo = proximoIndex >= entradas.length;
+    const { data, error } = await atualizarCampanha(id, {
+      combate_turno_index: passouDoUltimo ? 0 : proximoIndex,
+      combate_rodada: passouDoUltimo ? campanha.combate_rodada + 1 : campanha.combate_rodada,
+    });
+    if (error) setErro(error.message);
+    else setCampanha(data);
+  }
+
+  async function ajustarRodada(delta) {
+    const nova = Math.max(1, campanha.combate_rodada + delta);
+    const { data, error } = await atualizarCampanha(id, { combate_rodada: nova });
+    if (error) setErro(error.message);
+    else setCampanha(data);
   }
 
   // Importar jogadores (13/07) — pega todo personagem vinculado à
@@ -285,8 +343,13 @@ export default function Combate() {
     const nova = ajustarValorSimples({ atual, max, delta });
     if (nova === atual) return;
 
-    if (entrada.personagem_id) persistirPersonagem(entrada, { circulos_vida_atual: nova });
-    else persistir(entrada, { vida_atual: nova });
+    if (entrada.personagem_id) {
+      registrarDesfazer(entrada, { circulos_vida_atual: atual });
+      persistirPersonagem(entrada, { circulos_vida_atual: nova });
+    } else {
+      registrarDesfazer(entrada, { vida_atual: atual });
+      persistir(entrada, { vida_atual: nova });
+    }
   }
 
   // Dor: subir é simples; descer aciona a quebra de resistência (mesma
@@ -300,18 +363,25 @@ export default function Combate() {
     if (delta > 0) {
       const nova = ajustarValorSimples({ atual: dorAtual, max: dorMax, delta });
       if (nova === dorAtual) return;
-      if (entrada.personagem_id) persistirPersonagem(entrada, { circulos_dor_atual: nova });
-      else persistir(entrada, { dor_atual: nova });
+      if (entrada.personagem_id) {
+        registrarDesfazer(entrada, { circulos_dor_atual: dorAtual });
+        persistirPersonagem(entrada, { circulos_dor_atual: nova });
+      } else {
+        registrarDesfazer(entrada, { dor_atual: dorAtual });
+        persistir(entrada, { dor_atual: nova });
+      }
       return;
     }
 
     const resultado = aplicarDano({ vidaAtual, vidaMax, dorAtual, dorMax, dano: 1 });
     if (entrada.personagem_id) {
+      registrarDesfazer(entrada, { circulos_vida_atual: vidaAtual, circulos_dor_atual: dorAtual });
       persistirPersonagem(entrada, {
         circulos_vida_atual: resultado.vidaAtual,
         circulos_dor_atual: resultado.dorAtual,
       });
     } else {
+      registrarDesfazer(entrada, { vida_atual: vidaAtual, dor_atual: dorAtual });
       persistir(entrada, { vida_atual: resultado.vidaAtual, dor_atual: resultado.dorAtual });
     }
   }
@@ -399,24 +469,44 @@ export default function Combate() {
           na ficha, mudou aqui também, porque é a mesma linha do banco.
         </p>
 
+        {entradas.length > 0 && (
+          <div className="combate-rodada-controle">
+            <span>
+              Rodada{' '}
+              <button type="button" className="botao-ajuste-pequeno" onClick={() => ajustarRodada(-1)}>
+                −1
+              </button>
+              <strong>{campanha.combate_rodada}</strong>
+              <button type="button" className="botao-ajuste-pequeno" onClick={() => ajustarRodada(1)}>
+                +1
+              </button>
+            </span>
+            <button type="button" onClick={avancarTurno}>
+              Próximo turno →
+            </button>
+          </div>
+        )}
+
         {entradas.length === 0 && <p className="detalhe-secundario">Nenhum combatente ainda — adicione acima.</p>}
 
         <ul className="lista-combate">
-          {entradas.map((entrada) => {
+          {entradas.map((entrada, index) => {
             const ligado = Boolean(entrada.personagem_id);
             const vidaAtual = vidaAtualDe(entrada);
             const vidaMax = vidaMaxDe(entrada);
             const dorAtual = dorAtualDe(entrada);
             const dorMax = dorMaxDe(entrada);
             const caido = vidaAtual <= 0;
+            const turnoAtual = index === campanha.combate_turno_index;
             const armasDoPersonagem = ligado ? armasPorPersonagem[entrada.personagem_id] ?? [] : [];
 
             return (
-              <li key={entrada.id} className={caido ? 'combatente-caido' : ''}>
+              <li key={entrada.id} className={[caido && 'combatente-caido', turnoAtual && 'combatente-turno-atual'].filter(Boolean).join(' ')}>
                 <div className="combatente-cabecalho">
                   <span className={`badge-tipo badge-tipo--${entrada.tipo}`}>{TIPO_LABEL[entrada.tipo]}</span>
                   <strong>{nomeDe(entrada)}</strong>
                   {caido && <span className="badge-caido">Caído</span>}
+                  {turnoAtual && <span className="badge-turno">Turno atual</span>}
                   <button
                     type="button"
                     className="link-referencia detalhe-secundario"
@@ -644,6 +734,15 @@ export default function Combate() {
         onConfirmar={encerrarCombate}
         onCancelar={() => setConfirmandoEncerrar(false)}
       />
+
+      {desfazerAcao && (
+        <div className="barra-desfazer">
+          <span>Vida/Dor de {nomeDe(desfazerAcao.entrada)} alterada.</span>
+          <button type="button" onClick={desfazer}>
+            Desfazer
+          </button>
+        </div>
+      )}
     </main>
   );
 }

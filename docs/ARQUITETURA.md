@@ -1169,6 +1169,132 @@ hh:mm" no rodapé da ficha. Não diz O QUE mudou, só QUANDO — se quiser
 o log de verdade (com o quê), é um projeto à parte pra decidir o
 escopo certo.
 
+### Tabela de Armas desalinhada, e Combate ligado a personagens de verdade (13/07)
+
+**Tabela "em escada"**: os botões da linha (−1/+1/Recarregar, o
+"Detalhes ▾" novo, e "Remover") tinham alturas diferentes (uns com
+`height: 2rem` explícito, outros sem nenhuma altura fixa), e as células
+da tabela não tinham `vertical-align` definido — cada célula alinhava
+pelo próprio conteúdo, criando o efeito de degrau. Corrigido com
+`vertical-align: middle` em todas as células de `.tabela-ficha`, e
+altura consistente (2rem) nos botões que estavam sem.
+
+**Combate ligado a personagens de verdade (migration `0013`)**: até
+aqui, `combate_entradas` era sempre um bloco de stats digitado na hora,
+sem referenciar `personagens.id` de propósito (decisão documentada
+desde a criação do Rastreador). Pedido novo: puxar os jogadores da
+campanha já com Vida/Dor atualizados, e que uma mudança na ficha do
+jogador reflita sozinha no combate.
+
+A solução **não foi sincronização** — foi eliminar a cópia. Coluna
+nova `combate_entradas.personagem_id` (nullable, `on delete set null`):
+quando setada, a entrada não guarda Vida/Dor próprios — o app lê e
+escreve DIRETO em `personagens` (mesma linha que a ficha do jogador
+usa). Não tem como "dessincronizar" porque não existem duas cópias, só
+uma linha vista de dois lugares. `listarCombateEntradas`/
+`criarCombateEntrada`/`atualizarCombateEntrada` (`dados.js`) agora
+embutem esse personagem ligado na mesma consulta (`select('*,
+personagem:personagens(...)')`), sem precisar de busca separada.
+
+- **"Importar jogadores da campanha"** (botão novo em `Combate.jsx`) —
+  busca todo personagem vinculado à campanha (`listarPersonagensDaCampanha`,
+  já existia) que ainda não está na lista, e cria uma entrada ligada pra
+  cada um (`tipo: 'jogador'`, iniciativa 0 — o Mestre rola/ajusta na
+  hora). Não existe seletor pra escolher quais importar — traz todos de
+  uma vez; se algum não for pra este combate específico, é só "Remover"
+  depois (remove só a entrada, não mexe no personagem).
+- **Vida/Dor**: `vidaAtualDe`/`vidaMaxDe`/`dorAtualDe`/`dorMaxDe`
+  (funções auxiliares em `Combate.jsx`) leem do `entrada.personagem`
+  embutido quando existir, senão da própria entrada (NPC). `ajustarVida`/
+  `ajustarDor` ramificam do mesmo jeito na escrita: entrada ligada chama
+  `atualizarPersonagem` (escreve na ficha de verdade); NPC continua
+  chamando `atualizarCombateEntrada`, como sempre foi.
+- **"Ajustar máximos"**: pra entrada ligada, Vida máx./Dor máx. ficam
+  **escondidos** (só um aviso: "ajuste na própria ficha") — esses
+  valores vêm dos Atributos do personagem; deixar o Mestre sobrescrever
+  isso pelo Combate ficaria inconsistente com a ficha. Balas máx.
+  também some (personagem ligado usa a lista de armas de verdade, não
+  o campo solto de NPC). Iniciativa continua editável nos dois casos —
+  é específico de cada combate, não existe na ficha.
+- **Armas**: mostradas como referência (nome + munição atual/máx. de
+  cada arma), buscadas em lote (`listarArmas`, uma vez por personagem
+  único entre as entradas ligadas, não uma vez por entrada). **Só
+  leitura no Rastreador** — editar arma/munição continua sendo na
+  própria ficha do personagem; não construí um −1/Recarregar por arma
+  aqui dentro pra não duplicar a UI que já existe em `TabelaArmas.jsx`
+  com mais contexto (transporte, pool de reserva etc.).
+- **O que "ao vivo" quer dizer, com precisão**: é a mesma linha do
+  banco — não existe um mecanismo empurrando updates entre pessoas/abas
+  em tempo real (isso exigiria Realtime do Supabase, que não está
+  configurado). Se o jogador mexer na própria ficha enquanto o Mestre
+  está com o Rastreador aberto em outra aba, o Mestre só vê o valor novo
+  na próxima vez que a tela recarregar dados (F5, reentrar na tela, ou
+  importar de novo) — nunca um valor desatualizado sendo mostrado como
+  se fosse atual, só não atualiza sozinho no meio da tela aberta.
+
+### Rodada de melhorias do Combate, Catálogo e Trilha (13/07)
+
+**Rastreador de Combate**:
+- **Combatente caído mais dramático**: além da borda vermelha, o card
+  inteiro agora escurece e dessatura (`filter: grayscale(0.7); opacity:
+  0.7;`) — mais fácil notar batendo o olho rápido na tela.
+- **Turno atual e Rodada**: guardados na CAMPANHA (`campanhas.
+  combate_turno_index`, `combate_rodada` — migration `0014`), não como
+  estado local do React — se a página recarregar no meio da sessão, o
+  Mestre não perde o lugar. "Próximo turno" avança o índice; ao
+  ultrapassar o último da lista, volta pro primeiro E soma 1 na
+  Rodada (é assim que "uma rodada" é definida: todo mundo agiu uma
+  vez). Rodada também pode ser ajustada manualmente (+1/−1). Encerrar
+  o combate zera os dois de volta.
+- **Desfazer**: diferente do resto do app, ajustar Vida/Dor no combate
+  não pede confirmação antes (atrapalharia o ritmo da mesa) — em troca,
+  guarda o valor de ANTES por 6 segundos numa barra fixa no rodapé.
+  Só a ÚLTIMA mudança pode ser desfeita (não é um histórico), e só
+  ajustes de Vida/Dor registram isso — editar Iniciativa ou Máximos
+  não passa por aqui.
+
+**Busca no inventário** (`TabelaItens.jsx`): campo de busca (só aparece
+com mais de 3 itens) filtra a EXIBIÇÃO da tabela; a carga usada/limite
+continuam somando todos os itens sempre — filtrar a lista visível não
+pode "esconder" peso da conta.
+
+**Catálogo de Equipamento** — nova aba "Catálogo de Equipamento" no
+menu da ficha, abre um popup de leitura. Decisão técnica importante:
+em vez de renderizar o PDF no navegador (`react-pdf`/pdf.js exigem um
+"worker" script à parte, com configuração que eu não conseguiria testar
+de verdade daqui, só compilar), as 14 páginas do PDF enviado foram
+convertidas UMA VEZ em imagem (`pdftoppm`, 130dpi) e ficam em
+`public/catalogo/pagina-01.jpg` a `pagina-14.jpg`, servidas como
+arquivo estático — simples e garantido de funcionar, ao custo de não
+poder selecionar/copiar texto de dentro do catálogo (só imagem). O
+leitor (`LeitorCatalogo.jsx`) é só isso: uma imagem por vez, Anterior/
+Próxima (também funciona com as setas do teclado), com uma transição
+leve de "virar página".
+
+**Trilha de Redenção** (migration `0015`, tabela nova
+`personagem_trilha_passos`) — conteúdo das 6 trilhas (Vingança, Fuga,
+Dívida, Remorso, Recomeço, Ambição) extraído do PDF enviado, cada uma
+com 6 passos fixos. Decisões:
+- **Uma trilha ativa por vez** (o livro é explícito: "representada por
+  UMA das Trilhas") — escolher uma nova apaga os passos da anterior
+  (com confirmação, já que perde o progresso).
+- **Passos são editáveis, não só uma checklist fixa** — o texto padrão
+  do livro tem lacunas tipo "(nome)"/"(assassinou/sequestrou)" que o
+  livro pede explicitamente pra preencher com a história de cada
+  personagem; por isso cada passo é um textarea (começa com o texto
+  padrão, o jogador ajusta), com um checkbox separado pra marcar
+  concluído.
+- **Ao completar os 6 passos, a recompensa é só CELEBRADA, não
+  aplicada sozinha**: mostra "+1 Habilidade, +2 de Vida, carta extra
+  na Iniciativa", mas não adiciona uma Habilidade automaticamente (é
+  o jogador que escolhe QUAL) nem mexe em Vida máx. direto (isso já é
+  calculado a partir de Atributo — sobrescrever aqui ia ficar
+  inconsistente com esse cálculo). O jogador aplica manualmente nas
+  abas correspondentes depois de ver a mensagem.
+- RLS: mesma regra de sempre pra dado de personagem (dono, Mestre de
+  campanha vinculada, ou Admin) — auditoria (script da migration
+  `0012`) reconfirmada depois, incluindo a tabela nova.
+
 ## 7. Fluxo de autenticação
 
 - **Cadastro aberto, sem escolha de papel**: qualquer pessoa pode se

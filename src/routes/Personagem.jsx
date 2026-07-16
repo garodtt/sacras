@@ -11,6 +11,7 @@ import {
   atualizarArma,
   buscarMontaria,
   listarHabilidadesPersonagem,
+  listarTrilhaPersonagem,
   listarCampanhasDoPersonagem,
 } from '../lib/dados.js';
 import CampoEditavel from '../components/personagem/CampoEditavel.jsx';
@@ -21,11 +22,13 @@ import TabelaItens from '../components/personagem/TabelaItens.jsx';
 import TabelaArmas from '../components/personagem/TabelaArmas.jsx';
 import MunicaoPool from '../components/personagem/MunicaoPool.jsx';
 import Habilidades from '../components/personagem/Habilidades.jsx';
+import TrilhaPersonagem from '../components/personagem/TrilhaPersonagem.jsx';
 import EfeitoDorPopup from '../components/personagem/EfeitoDorPopup.jsx';
 import Montaria from '../components/personagem/Montaria.jsx';
 import MenuLateral from '../components/layout/MenuLateral.jsx';
 import BotaoHamburguer from '../components/layout/BotaoHamburguer.jsx';
 import UploadFoto from '../components/UploadFoto.jsx';
+import LeitorCatalogo from '../components/LeitorCatalogo.jsx';
 import {
   aplicarDano,
   calcularStatsDerivados,
@@ -99,11 +102,13 @@ export default function Personagem() {
   const [armas, setArmas] = useState([]);
   const [montaria, setMontaria] = useState(null);
   const [habilidades, setHabilidades] = useState([]);
+  const [trilhaPassos, setTrilhaPassos] = useState([]);
   const [campanhasVinculadas, setCampanhasVinculadas] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [mensagemDor, setMensagemDor] = useState('');
   const [abaAtiva, setAbaAtiva] = useState('geral');
+  const [catalogoAberto, setCatalogoAberto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
 
   useEffect(() => {
@@ -114,13 +119,14 @@ export default function Personagem() {
     setCarregando(true);
     setErro('');
 
-    const [resPersonagem, resItens, resArmas, resMontaria, resHabilidades, resCampanhas] = await Promise.all([
+    const [resPersonagem, resItens, resArmas, resMontaria, resHabilidades, resCampanhas, resTrilha] = await Promise.all([
       buscarPersonagem(id),
       listarItens(id),
       listarArmas(id),
       buscarMontaria(id),
       listarHabilidadesPersonagem(id),
       listarCampanhasDoPersonagem(id),
+      listarTrilhaPersonagem(id),
     ]);
 
     const primeiroErro =
@@ -133,6 +139,7 @@ export default function Personagem() {
     setMontaria(resMontaria.data ?? null);
     setHabilidades(resHabilidades.data ?? []);
     setCampanhasVinculadas((resCampanhas.data ?? []).map((row) => row.campanha).filter(Boolean));
+    setTrilhaPassos(resTrilha.data ?? []);
     setCarregando(false);
   }
 
@@ -332,11 +339,14 @@ export default function Personagem() {
   });
   const limiteRestanteParaMunicao = personagem.espaco_max - pesoItensAtual;
 
-  const itensMenuAbas = ABAS.map((a) => ({
-    label: a.label,
-    ativo: a.id === abaAtiva,
-    onClick: () => setAbaAtiva(a.id),
-  }));
+  const itensMenuAbas = [
+    ...ABAS.map((a) => ({
+      label: a.label,
+      ativo: a.id === abaAtiva,
+      onClick: () => setAbaAtiva(a.id),
+    })),
+    { label: 'Catálogo de Equipamento', onClick: () => setCatalogoAberto(true) },
+  ];
 
   return (
     <main className="ficha">
@@ -455,6 +465,16 @@ export default function Personagem() {
           <section>
             <h2 className="ficha-acento-geral">Habilidades</h2>
             <Habilidades personagemId={personagem.id} habilidades={habilidades} onMudar={setHabilidades} editavel={canEdit} />
+          </section>
+
+          <section>
+            <h2 className="ficha-acento-geral">Trilha de Redenção</h2>
+            <TrilhaPersonagem
+              personagemId={personagem.id}
+              passos={trilhaPassos}
+              onMudar={setTrilhaPassos}
+              editavel={canEdit}
+            />
           </section>
 
           <section>
@@ -613,6 +633,7 @@ export default function Personagem() {
         </p>
       )}
       <p className="marca-sacramento">Sacramento</p>
+      <LeitorCatalogo aberto={catalogoAberto} onFechar={() => setCatalogoAberto(false)} />
     </main>
   );
 }

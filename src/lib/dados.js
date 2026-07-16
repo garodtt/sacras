@@ -74,6 +74,12 @@ export function criarCampanha({ nome, descricao, criadoPor }) {
     .single();
 }
 
+// 13/07 — usado pelo turno/rodada do Rastreador de Combate
+// (combate_turno_index, combate_rodada).
+export function atualizarCampanha(id, campos) {
+  return supabase.from('campanhas').update(campos).eq('id', id).select().single();
+}
+
 // Admin: todas as campanhas do sistema, com o dono
 export function listarTodasCampanhas() {
   return supabase
@@ -431,4 +437,48 @@ export function removerTodasCombateEntradas(campanhaId) {
 // ---------------------------------------------------------------------
 export function atualizarProfile(userId, campos) {
   return supabase.from('profiles').update(campos).eq('id', userId).select().single();
+}
+
+// ---------------------------------------------------------------------
+// TRILHA DE REDENÇÃO (13/07) — 6 passos fixos por trilha escolhida.
+// ---------------------------------------------------------------------
+export function listarTrilhaPersonagem(personagemId) {
+  return supabase
+    .from('personagem_trilha_passos')
+    .select('*')
+    .eq('personagem_id', personagemId)
+    .order('numero', { ascending: true });
+}
+
+// Escolher uma trilha (ou trocar de trilha): apaga os passos da
+// trilha anterior (se houver) e insere os 6 novos, pré-preenchidos com
+// o texto padrão do livro — o jogador edita depois pra colocar nomes e
+// detalhes de verdade da própria história.
+export async function escolherTrilha(personagemId, trilhaId, passosTexto) {
+  const { error: erroLimpar } = await supabase
+    .from('personagem_trilha_passos')
+    .delete()
+    .eq('personagem_id', personagemId);
+  if (erroLimpar) return { data: null, error: erroLimpar };
+
+  return supabase
+    .from('personagem_trilha_passos')
+    .insert(
+      passosTexto.map((texto, i) => ({
+        personagem_id: personagemId,
+        trilha: trilhaId,
+        numero: i + 1,
+        texto,
+      }))
+    )
+    .select()
+    .order('numero', { ascending: true });
+}
+
+export function atualizarPassoTrilha(id, campos) {
+  return supabase.from('personagem_trilha_passos').update(campos).eq('id', id).select().single();
+}
+
+export function removerTrilhaPersonagem(personagemId) {
+  return supabase.from('personagem_trilha_passos').delete().eq('personagem_id', personagemId);
 }

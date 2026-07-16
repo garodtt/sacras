@@ -43,6 +43,14 @@ export default function TabelaItens({
   const [tentativas, setTentativas] = useState({});
   const [itemParaRemover, setItemParaRemover] = useState(null);
   const [confirmandoExcluirTodos, setConfirmandoExcluirTodos] = useState(false);
+  const [busca, setBusca] = useState('');
+
+  // Filtra só pra EXIBIÇÃO — carga usada e limite continuam somando
+  // TODOS os itens (filtrar a lista visível não pode mudar o peso
+  // usado, senão a busca "faz sumir" carga real da conta).
+  const itensExibidos = busca.trim()
+    ? itens.filter((i) => (i.nome || '').toLowerCase().includes(busca.trim().toLowerCase()))
+    : itens;
 
   const pesoTotal = (item) => Number(item.espaco ?? 0) * Number(item.quantidade ?? 1);
   const pesoItens = itens.reduce((soma, i) => soma + pesoTotal(i), 0);
@@ -119,6 +127,15 @@ export default function TabelaItens({
   return (
     <div className="bloco-tabela">
       {erro && <p className="erro">{erro}</p>}
+      {itens.length > 3 && (
+        <input
+          type="search"
+          className="campo-busca-itens"
+          placeholder="Buscar item..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+        />
+      )}
       <div className="tabela-scroll">
         <table className="tabela-ficha tabela-responsiva">
           <thead>
@@ -132,7 +149,7 @@ export default function TabelaItens({
             </tr>
           </thead>
           <tbody>
-            {itens.map((item) => (
+            {itensExibidos.map((item) => (
               <tr key={item.id}>
                 {personagemId && (
                   <td data-label="Foto">
@@ -195,6 +212,13 @@ export default function TabelaItens({
               <tr>
                 <td colSpan={(personagemId ? 1 : 0) + (editavel ? 5 : 4)} className="detalhe-secundario">
                   Nenhum item ainda.
+                </td>
+              </tr>
+            )}
+            {itens.length > 0 && itensExibidos.length === 0 && (
+              <tr>
+                <td colSpan={(personagemId ? 1 : 0) + (editavel ? 5 : 4)} className="detalhe-secundario">
+                  Nenhum item bate com "{busca}".
                 </td>
               </tr>
             )}

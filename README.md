@@ -85,6 +85,9 @@ tinha um projeto da v1, é mais simples criar outro do zero):
    10. `supabase/migrations/0010_fix_update_habilidades.sql` — **nova (13/07), importante**: corrige bug — reordenar habilidades não funcionava porque a tabela nunca teve política de UPDATE
    11. `supabase/migrations/0011_contadores_combate.sql` — **nova (13/07)**: contadores de Assistências e Mortes
    12. `supabase/migrations/0012_auditoria_rls.sql` — **nova (13/07), importante**: auditoria completa de RLS — fecha mais 2 lacunas (`campanha_personagens` sem UPDATE, `profiles` sem INSERT/DELETE)
+   13. `supabase/migrations/0013_combate_liga_personagem.sql` — **nova (13/07)**: liga o Rastreador de Combate a personagens de verdade — Vida/Dor ao vivo, sem cópia
+   14. `supabase/migrations/0014_combate_turno_rodada.sql` — **nova (13/07)**: turno atual e rodada do combate (guardado na campanha)
+   15. `supabase/migrations/0015_trilha_redencao.sql` — **nova (13/07)**: Trilha de Redenção do personagem (tabela nova `personagem_trilha_passos`)
 
 **4. Configure as variáveis de ambiente:**
 ```bash
@@ -103,6 +106,12 @@ npm run dev
 `icon-512.png` vão direto na pasta `public/` (raiz do projeto, ao lado
 de `index.html` — não dentro de `src/`). Sem eles o app funciona
 normal, só sem o botão de "instalar" e sem abrir o esqueleto offline.
+
+**7. Catálogo de Equipamento (13/07, novo)**: a pasta `public/catalogo/`
+(14 imagens, `pagina-01.jpg` a `pagina-14.jpg`) precisa ir junto,
+também dentro de `public/` — são as páginas do catálogo convertidas em
+imagem, servidas como arquivo estático. Sem elas, o botão "Catálogo de
+Equipamento" na ficha abre um popup com imagens quebradas.
 Abra http://localhost:5173 — agora deve aparecer a tela de **login**.
 
 **6. Configure a autenticação no Supabase** (2 ajustes no dashboard, sem
@@ -204,7 +213,10 @@ sacramento-rpg/
 │       ├── 0009_fotos_historia_ordem.sql   # ordem de habilidades, fotos, história, bucket Storage
 │       ├── 0010_fix_update_habilidades.sql   # corrige bug: faltava política de UPDATE em personagem_habilidades
 │       ├── 0011_contadores_combate.sql   # Assistências e Mortes
-│       └── 0012_auditoria_rls.sql   # audita e fecha lacunas de RLS (campanha_personagens, profiles)
+│       ├── 0012_auditoria_rls.sql   # audita e fecha lacunas de RLS (campanha_personagens, profiles)
+│       ├── 0013_combate_liga_personagem.sql   # Rastreador de Combate ligado a personagens (Vida/Dor ao vivo)
+│       ├── 0014_combate_turno_rodada.sql   # turno atual e rodada do combate
+│       └── 0015_trilha_redencao.sql   # Trilha de Redenção (tabela personagem_trilha_passos)
 └── src/
     ├── main.jsx
     ├── App.jsx                 # rotas (react-router-dom)
@@ -224,6 +236,7 @@ sacramento-rpg/
     │   ├── EstrelaXerife.jsx    # selo de estrela em SVG (não emoji) — novo 13/07
     │   ├── PopupConfirmar.jsx   # substitui window.confirm() em todo o app — novo 13/07
     │   ├── ToastHost.jsx        # feedback "Salvo"/erro reutilizável — novo 13/07
+    │   ├── LeitorCatalogo.jsx   # leitor do Catálogo de Equipamento (imagens estáticas) — novo 13/07
     │   ├── layout/
     │   │   ├── MenuLateral.jsx      # drawer reutilizável (navegação OU troca de aba) — novo 13/07
     │   │   ├── BotaoHamburguer.jsx  # botão de 3 barrinhas que abre o MenuLateral — novo 13/07
@@ -238,6 +251,7 @@ sacramento-rpg/
     │       ├── TabelaArmas.jsx     # armas (categoria leve/pesada, munição, recarregar)
     │       ├── MunicaoPool.jsx     # munição de reserva (leve/pesada) — novo 13/07
     │       ├── Habilidades.jsx     # catálogo + habilidade própria — novo 13/07
+    │       ├── TrilhaPersonagem.jsx  # Trilha de Redenção (6 passos, progressão) — novo 13/07
     │       ├── EfeitoDorPopup.jsx  # popup da tabela de Dor, marcado na mão — novo 13/07
     │       ├── Montaria.jsx        # bloco da montaria (vida/dor, carga, inventário próprio)
     │       └── LinhaCirculosAjustavel.jsx  # +/- dos lados de Vida/Dor atual, usa lib/regras.js
@@ -281,6 +295,8 @@ sacramento-rpg/
 - [x] **Reforço visual e sem emojis (13/07)** — botões com tratamento de carimbo, divisor de seção com losango, selo de estrela (SVG), marca "Sacramento" no rodapé; auditoria confirmou zero emoji de app (só os ícones pedidos: X e espada) — ver `docs/ARQUITETURA.md`
 - [x] **Painel-dashboard consolidado (13/07)** — tela inicial reúne perfil (foto, nome editável, e-mail com copiar) e contadores (convites/personagens/campanhas, só números, sem link) numa tela só; "Sair" saiu do cabeçalho comum e só existe aqui; tela separada de Editar Perfil foi removida (virou redundante) — ver `docs/ARQUITETURA.md`
 - [x] **Rodada de melhorias gerais (13/07)** — auditoria completa de RLS (mais 2 lacunas fechadas), `window.confirm()` trocado por popup em todo o app, tokens visuais unificados, toast reutilizável, tabela de Armas menos densa, acento de cor por categoria, badge de convite pendente, limpeza de foto órfã, tooltip de munição, PWA básico (app instalável, funciona offline pro shell — não pros dados), e "Última alteração" na ficha — ver `docs/ARQUITETURA.md`
+- [x] **Combate ligado a personagens de verdade (13/07)** — botão "Importar jogadores da campanha" no Rastreador; Vida/Dor de jogador importado leem/escrevem direto na ficha (mesma linha do banco, não uma cópia — sem como dessincronizar); armas mostradas como referência; corrigido também o desalinhamento ("escada") da tabela de Armas — ver `docs/ARQUITETURA.md`
+- [x] **Combate: turno/rodada/desfazer, busca no inventário, Catálogo e Trilha de Redenção (13/07)** — caído mais dramático, turno atual e rodada persistidos, desfazer de 6s pra Vida/Dor; busca no inventário; Catálogo de Equipamento (14 páginas do livro como imagem, popup de leitura); Trilha de Redenção (6 trilhas, 6 passos editáveis cada, recompensa celebrada ao completar) — ver `docs/ARQUITETURA.md`
 - [ ] **Fase 8** — Deploy no Netlify + variáveis de ambiente de produção
 - [ ] **Fase 9** *(opcional, sugerido)* — Histórico de alterações do personagem
 
