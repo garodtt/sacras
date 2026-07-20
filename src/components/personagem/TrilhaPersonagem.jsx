@@ -169,7 +169,13 @@ export default function TrilhaPersonagem({ personagemId, passos, onMudar, editav
 
       <ul className="trilha-passos">
         {passos.map((passo, i) => (
-          <li key={passo.id} className={passo.concluido ? 'trilha-passo-concluido' : ''}>
+          <li key={passo.id} className={`trilha-carta ${passo.concluido ? 'trilha-carta-concluida' : ''}`}>
+            <span className="trilha-carta-indice">{i + 1}</span>
+            {passo.concluido && (
+              <span className="trilha-carta-selo" title="Carta de Sina conquistada">
+                ✓
+              </span>
+            )}
             <label className="trilha-passo-checkbox">
               <input
                 type="checkbox"
@@ -177,7 +183,7 @@ export default function TrilhaPersonagem({ personagemId, passos, onMudar, editav
                 disabled={!editavel}
                 onChange={() => alternarConcluido(passo)}
               />
-              <span>Passo {i + 1}</span>
+              <span>{passo.concluido ? 'Carta de Sina conquistada' : `Passo ${i + 1}`}</span>
             </label>
             <textarea
               defaultValue={passo.texto}

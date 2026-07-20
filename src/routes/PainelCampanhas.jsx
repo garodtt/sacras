@@ -8,6 +8,8 @@ import {
   responderConvite,
 } from '../lib/dados.js';
 import PainelShell from '../components/layout/PainelShell.jsx';
+import { Esqueleto } from '../components/Esqueleto.jsx';
+import EstadoVazio from '../components/EstadoVazio.jsx';
 
 // "Minhas Campanhas" (13/07) — antes era 2-3 seções soltas dentro do
 // Painel único (criadas, que participo, convites); agora é uma tela só,
@@ -101,11 +103,14 @@ export default function PainelCampanhas() {
       <section>
         <h3>Que você criou</h3>
         {carregando ? (
-          <p>Carregando...</p>
+          <div className="esqueleto-lista">
+            <Esqueleto altura="2.4rem" />
+            <Esqueleto altura="2.4rem" />
+          </div>
         ) : campanhasCriadas.length === 0 ? (
-          <p className="detalhe-secundario">
+          <EstadoVazio>
             Você ainda não criou nenhuma campanha. Abra o menu e toque em "Criar Campanha".
-          </p>
+          </EstadoVazio>
         ) : (
           <ul className="lista-cards">
             {campanhasCriadas.map((c) => (

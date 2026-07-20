@@ -2,16 +2,21 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import PopupConfirmar from '../components/PopupConfirmar.jsx';
+import BarraVidaDor from '../components/BarraVidaDor.jsx';
+import EstadoVazio from '../components/EstadoVazio.jsx';
+import { Esqueleto } from '../components/Esqueleto.jsx';
+import { calcularCapacidadeMunicaoDeArmas } from '../lib/regras.js';
 import {
   buscarCampanha,
   listarPersonagensDaCampanha,
   listarMeusPersonagens,
   vincularPersonagem,
   desvincularPersonagem,
-  buscarUsuarioPorEmail,
+  buscarUsuarioPorNomeOuEmail,
   convidarParaCampanha,
   listarConvitesDaCampanha,
   meuAcessoNaCampanha,
+  listarArmas,
 } from '../lib/dados.js';
 
 // Substitui SessaoDetalhe.jsx. Quem vê o quê aqui muda conforme o papel
@@ -39,10 +44,15 @@ export default function CampanhaDetalhe() {
   const [personagemParaVincular, setPersonagemParaVincular] = useState('');
   const [vinculando, setVinculando] = useState(false);
 
-  const [buscaEmail, setBuscaEmail] = useState('');
+  const [buscaTermo, setBuscaTermo] = useState('');
   const [resultadosBusca, setResultadosBusca] = useState([]);
   const [buscando, setBuscando] = useState(false);
   const [buscaFeita, setBuscaFeita] = useState(false);
+
+  const [modoVisualizacao, setModoVisualizacao] = useState('cartoes');
+  const [expandidos, setExpandidos] = useState(() => new Set());
+  const [armasPorPersonagem, setArmasPorPersonagem] = useState({});
+  const [carregandoArmasDe, setCarregandoArmasDe] = useState(null);
 
   useEffect(() => {
     carregarTudo();
@@ -104,6 +114,27 @@ export default function CampanhaDetalhe() {
     }
   }
 
+  // Cartão expandido (13/07) — mostra dinheiro e última alteração
+  // (já vêm na mesma consulta) e o total de munição (leve/pesada),
+  // que exige buscar as armas daquele personagem — só quando expande
+  // pela primeira vez (não busca de antemão pra todo mundo, a maioria
+  // dos cartões talvez nunca seja aberta numa sessão).
+  async function alternarExpandido(personagemId) {
+    setExpandidos((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(personagemId)) novo.delete(personagemId);
+      else novo.add(personagemId);
+      return novo;
+    });
+
+    if (!armasPorPersonagem[personagemId]) {
+      setCarregandoArmasDe(personagemId);
+      const { data } = await listarArmas(personagemId);
+      setArmasPorPersonagem((atual) => ({ ...atual, [personagemId]: data ?? [] }));
+      setCarregandoArmasDe(null);
+    }
+  }
+
   async function handleDesvincular() {
     const vinculoId = vinculoParaRemover;
     setVinculoParaRemover(null);
@@ -114,11 +145,11 @@ export default function CampanhaDetalhe() {
 
   async function handleBuscarEmail(e) {
     e.preventDefault();
-    if (!buscaEmail.trim()) return;
+    if (!buscaTermo.trim()) return;
 
     setBuscando(true);
     setBuscaFeita(false);
-    const { data, error } = await buscarUsuarioPorEmail(buscaEmail);
+    const { data, error } = await buscarUsuarioPorNomeOuEmail(buscaTermo);
     setBuscando(false);
     setBuscaFeita(true);
 
@@ -134,7 +165,7 @@ export default function CampanhaDetalhe() {
       setErro(error.message);
     } else {
       setResultadosBusca([]);
-      setBuscaEmail('');
+      setBuscaTermo('');
       setBuscaFeita(false);
       carregarTudo();
     }
@@ -144,31 +175,151 @@ export default function CampanhaDetalhe() {
   if (!campanha) return <p style={{ padding: '2rem' }}>Campanha não encontrada (ou você não tem acesso a ela).</p>;
 
   return (
-    <main className="painel">
+    <main className="painel pagina-larga">
       <p><Link to="/painel">&larr; Voltar</Link></p>
       <h1>{campanha.nome}</h1>
       {campanha.descricao && <p>{campanha.descricao}</p>}
       {podeGerenciar && (
-        <p><Link to={`/campanha/${id}/combate`}>⚔ Rastreador de Combate</Link></p>
+        <p><Link to={`/campanha/${id}/combate`} className="botao-like-link">⚔ Abrir Rastreador de Combate</Link></p>
       )}
       {erro && <p className="erro">{erro}</p>}
 
       <section>
-        <h2>Personagens nesta campanha</h2>
-        <ul className="lista-cards">
-          {membros.map((m) => (
-            <li key={m.id}>
-              <div>
-                <Link to={`/personagem/${m.personagem.id}`}>{m.personagem.nome || '(sem nome)'}</Link>{' '}
-                <span className="detalhe-secundario">— {m.personagem.dono?.display_name}</span>
-              </div>
-              {(podeGerenciar || m.personagem.user_id === profile.id) && (
-                <button className="botao-remover" onClick={() => setVinculoParaRemover(m.id)}>Remover</button>
-              )}
-            </li>
-          ))}
-          {membros.length === 0 && <li>Nenhum personagem vinculado ainda.</li>}
-        </ul>
+        <div className="painel-header">
+          <h2>Personagens nesta campanha</h2>
+          {membros.length > 0 && (
+            <div className="toggle-visualizacao">
+              <button
+                type="button"
+                className={modoVisualizacao === 'cartoes' ? 'toggle-ativo' : 'botao-secundario'}
+                onClick={() => setModoVisualizacao('cartoes')}
+              >
+                Cartões
+              </button>
+              <button
+                type="button"
+                className={modoVisualizacao === 'tabela' ? 'toggle-ativo' : 'botao-secundario'}
+                onClick={() => setModoVisualizacao('tabela')}
+              >
+                Tabela
+              </button>
+            </div>
+          )}
+        </div>
+
+        {membros.length === 0 && <EstadoVazio>Nenhum personagem vinculado ainda.</EstadoVazio>}
+
+        {membros.length > 0 && modoVisualizacao === 'cartoes' && (
+          <div className="grade-personagens-campanha">
+            {membros.map((m) => {
+              const expandido = expandidos.has(m.personagem.id);
+              const armas = armasPorPersonagem[m.personagem.id];
+              const capacidade = armas ? calcularCapacidadeMunicaoDeArmas(armas) : null;
+              return (
+                <div className={`cartao-personagem-campanha ${expandido ? 'cartao-expandido' : ''}`} key={m.id}>
+                  <div className="cartao-personagem-topo">
+                    <div
+                      className="cartao-personagem-foto"
+                      style={m.personagem.foto_url ? { backgroundImage: `url("${m.personagem.foto_url}")` } : undefined}
+                    />
+                    <div className="cartao-personagem-corpo">
+                      <Link to={`/personagem/${m.personagem.id}`} className="cartao-personagem-nome">
+                        {m.personagem.nome || '(sem nome)'}
+                      </Link>
+                      <p className="detalhe-secundario">{m.personagem.dono?.display_name}</p>
+                      <BarraVidaDor
+                        vidaAtual={m.personagem.circulos_vida_atual}
+                        vidaMax={m.personagem.circulos_vida_max}
+                        dorAtual={m.personagem.circulos_dor_atual}
+                        dorMax={m.personagem.circulos_dor_max}
+                        compacta
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="botao-detalhes-toggle cartao-personagem-expandir"
+                    onClick={() => alternarExpandido(m.personagem.id)}
+                    aria-expanded={expandido}
+                  >
+                    {expandido ? 'Menos detalhes ▲' : 'Mais detalhes ▾'}
+                  </button>
+
+                  {expandido && (
+                    <div className="cartao-personagem-detalhes">
+                      <p>
+                        <span className="detalhe-secundario">Dinheiro:</span> ${m.personagem.dinheiro ?? 0}
+                      </p>
+                      {carregandoArmasDe === m.personagem.id ? (
+                        <Esqueleto altura="1.2rem" />
+                      ) : (
+                        capacidade && (
+                          <p>
+                            <span className="detalhe-secundario">Munição:</span> {capacidade.leve} leve / {capacidade.pesada} pesada
+                            {' '}(capacidade)
+                          </p>
+                        )
+                      )}
+                      {m.personagem.updated_at && (
+                        <p className="detalhe-secundario">
+                          Última alteração:{' '}
+                          {new Date(m.personagem.updated_at).toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {(podeGerenciar || m.personagem.user_id === profile.id) && (
+                    <button className="botao-remover" onClick={() => setVinculoParaRemover(m.id)}>
+                      Remover
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {membros.length > 0 && modoVisualizacao === 'tabela' && (
+          <div className="tabela-scroll">
+            <table className="tabela-ficha tabela-responsiva">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Jogador</th>
+                  <th>Vida</th>
+                  <th>Dor</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {membros.map((m) => (
+                  <tr key={m.id}>
+                    <td data-label="Nome">
+                      <Link to={`/personagem/${m.personagem.id}`}>{m.personagem.nome || '(sem nome)'}</Link>
+                    </td>
+                    <td data-label="Jogador" className="detalhe-secundario">{m.personagem.dono?.display_name}</td>
+                    <td data-label="Vida">{m.personagem.circulos_vida_atual}/{m.personagem.circulos_vida_max}</td>
+                    <td data-label="Dor">{m.personagem.circulos_dor_atual}/{m.personagem.circulos_dor_max}</td>
+                    <td data-label="">
+                      {(podeGerenciar || m.personagem.user_id === profile.id) && (
+                        <button className="botao-remover" onClick={() => setVinculoParaRemover(m.id)}>
+                          Remover
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {possoVincular && meusDisponiveisParaVincular.length > 0 && (
           <form onSubmit={handleVincular} className="form-inline">
@@ -214,19 +365,19 @@ export default function CampanhaDetalhe() {
           <h2>Convidar jogador</h2>
           <form onSubmit={handleBuscarEmail} className="form-inline">
             <label>
-              Adicionar jogador (e-mail exato)
+              Adicionar jogador (nome ou e-mail)
               <input
-                type="email"
-                value={buscaEmail}
-                onChange={(e) => setBuscaEmail(e.target.value)}
-                placeholder="email@exemplo.com"
+                type="text"
+                value={buscaTermo}
+                onChange={(e) => setBuscaTermo(e.target.value)}
+                placeholder="Nome de exibição ou e-mail..."
               />
             </label>
             <button type="submit" disabled={buscando}>{buscando ? 'Buscando...' : 'Buscar'}</button>
           </form>
 
           {buscaFeita && resultadosBusca.length === 0 && (
-            <p className="detalhe-secundario">Ninguém cadastrado com esse e-mail.</p>
+            <p className="detalhe-secundario">Ninguém encontrado com esse nome ou e-mail.</p>
           )}
           {resultadosBusca.length > 0 && (
             <ul className="lista-cards">

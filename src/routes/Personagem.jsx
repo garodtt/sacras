@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { supabase } from '../lib/supabaseClient.js';
 import {
   buscarPersonagem,
   atualizarPersonagem,
@@ -29,6 +30,7 @@ import MenuLateral from '../components/layout/MenuLateral.jsx';
 import BotaoHamburguer from '../components/layout/BotaoHamburguer.jsx';
 import UploadFoto from '../components/UploadFoto.jsx';
 import LeitorCatalogo from '../components/LeitorCatalogo.jsx';
+import { EsqueletoFicha } from '../components/Esqueleto.jsx';
 import {
   aplicarDano,
   calcularStatsDerivados,
@@ -113,6 +115,26 @@ export default function Personagem() {
 
   useEffect(() => {
     carregar();
+  }, [id]);
+
+  // Realtime (13/07) — espelha o que já existe em Combate.jsx, agora
+  // na outra direção: se o Mestre aplica dano (dano em área, ou
+  // ajustando a Vida/Dor direto no Rastreador — migration 0013 liga as
+  // duas telas na mesma linha do banco), o jogador com a própria ficha
+  // aberta vê a mudança sozinha, sem precisar de F5. Usa o payload do
+  // evento direto (`payload.new`) em vez de buscar de novo — mais
+  // rápido, e o Postgres já manda a linha inteira atualizada.
+  useEffect(() => {
+    const canal = supabase
+      .channel(`personagem-${id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'personagens', filter: `id=eq.${id}` },
+        (payload) => setPersonagem((atual) => (atual ? { ...atual, ...payload.new } : atual))
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(canal);
   }, [id]);
 
   async function carregar() {
@@ -321,7 +343,7 @@ export default function Personagem() {
     return { municaoAtual: resultado.municaoAtual };
   }
 
-  if (carregando) return <p style={{ padding: '2rem' }}>Carregando...</p>;
+  if (carregando) return <main className="ficha"><EsqueletoFicha /></main>;
   if (!personagem) return <p style={{ padding: '2rem' }}>Personagem não encontrado (ou sem acesso).</p>;
 
   const pontosAtributo =

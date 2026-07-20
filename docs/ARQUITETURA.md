@@ -1295,6 +1295,151 @@ com 6 passos fixos. Decisões:
   campanha vinculada, ou Admin) — auditoria (script da migration
   `0012`) reconfirmada depois, incluindo a tabela nova.
 
+### Realtime, Proteção, Explosivos, Convite por nome, e 3 ajustes visuais (13/07)
+
+**Realtime (migration `0016`)** — `alter publication supabase_realtime add table ...` pra `personagens` e
+`combate_entradas`. `Combate.jsx` se inscreve num canal que recarrega os
+dados (silenciosamente — sem piscar "Carregando...") quando:
+- Qualquer linha de `combate_entradas` desta campanha muda (`filter:
+  campanha_id=eq.{id}`).
+- Um `personagens` **especificamente ligado a este combate** é
+  atualizado (`filter: id=in.(...)`, construído a partir dos
+  `personagem_id` das entradas atuais — **não** um filtro vazio, que
+  recarregaria a tela toda vez que QUALQUER personagem do banco
+  mudasse, de qualquer campanha). O filtro só se reconstrói quando o
+  CONJUNTO de personagens ligados muda (import/remoção) — não a cada
+  ajuste de Vida/Dor. Debounce de 400ms evita recarregar em excesso se
+  vários campos mudarem quase juntos.
+- RLS continua valendo pra Realtime — só chega evento pra quem já teria
+  permissão de SELECT naquela linha.
+
+**Proteção (migration `0017`)** — `items` ganhou `reducao_dano`,
+`limite_dano_max`, `limite_dano_atual`. Seção "Proteção ▾" expansível
+por item (mesmo padrão de "Detalhes" da tabela de Armas), com botão de
+usar (−1 no limite) e "Consertar" (enche de volta). **Escopo
+deliberadamente contido**: só os campos existem e são editáveis —
+aplicar a redução automaticamente no dano recebido (e decrementar o
+limite sozinho) continuaria sendo uma automação de fluxo de combate
+maior, não construída agora; por ora é o jogador/Mestre que ajusta
+manualmente, igual outras mecânicas do app já funcionam.
+
+**Explosivos e Dano em área** — popup de referência (mesmo padrão de
+Iniciativa/Dor) com o texto de área de efeito, alcance da metralhadora
+por Ação de Combate, regra do "1 no dado" de explosivo, e Canhão.
+Ferramenta nova "Dano em área" no Rastreador: escolhe quem foi
+atingido (checkboxes) e um valor de dano, aplica em todos de uma vez
+(reaproveita `ajustarVida` pra cada alvo — mesma ramificação
+personagem-ligado/NPC, mesmo desfazer, só que o desfazer, como sempre,
+só lembra da ÚLTIMA mudança).
+
+**Convite por nome** — `buscarUsuarioPorNomeOuEmail` (`dados.js`) usa
+`.or('display_name.ilike.%termo%,email.ilike.%termo%')` em vez do
+antigo `.ilike('email', ...)` sem wildcard (só batia exato). RLS já
+permitia (`profiles_select_all_authenticated`, `using (true)`) — nenhuma
+policy nova precisou ser criada, só a consulta mudou.
+
+**Três ajustes visuais**:
+- **Trilha de Redenção com cara de "Carta de Sina"** (nome que o livro
+  usa pro marco de passo concluído) — cada passo ganhou um índice de
+  canto (como o número de uma carta) e um selo circular quando
+  concluído, com borda dupla lembrando uma carta/ficha em vez de um
+  formulário genérico.
+- **Esqueletos de carregamento** (`Esqueleto.jsx`, componente
+  reutilizável) — bloco cinza pulsando no lugar de "Carregando..." em
+  texto solto. `EsqueletoFicha` (composto) usado na ficha do
+  personagem (a tela com mais dado pra buscar de uma vez); as listas de
+  Personagens/Campanhas ganharam a versão simples (linhas soltas).
+- **Efeito de "livro de verdade" no Catálogo** — sombra em camadas
+  (simula uma pilha de páginas atrás da atual) + um degradê sutil na
+  borda esquerda da imagem (sugere a lombada) — tudo via CSS, sem
+  biblioteca de flip 3D.
+
+### Experiência do Mestre e reforço visual (13/07)
+
+Até aqui, todo o app era desenhado mobile-first, sem distinção entre
+quem joga (normalmente no celular) e quem mestre (normalmente no
+computador, com mais tela). Decisão consciente: o jogador continua
+exatamente igual — nada mudou pra ele. As DUAS telas que o Mestre mais
+usa (`CampanhaDetalhe.jsx` e `Combate.jsx`) ganharam tratamento
+diferente, condicionado ao tamanho da tela, não ao papel do usuário —
+ou seja, um jogador acessando essas mesmas telas num computador grande
+também vê a versão mais larga; a distinção é "tamanho de tela", que na
+prática coincide com "Mestre" a maior parte do tempo.
+
+- **`.pagina-larga`** — classe nova, `max-width: 720px` (igual sempre)
+  até 860px de largura; acima disso, `1100px`. Aplicada só nessas duas
+  telas.
+- **Cartões de personagem com vislumbre** — `CampanhaDetalhe.jsx`
+  trocou a lista simples de nomes por uma GRADE de cartões (foto +
+  nome + dono + barra de Vida/Dor), que reflui sozinha: 1 coluna no
+  celular, várias lado a lado em tela larga. `listarPersonagensDaCampanha`
+  (`dados.js`) foi estendida com `foto_url` e os 4 campos de Vida/Dor
+  pra alimentar isso sem precisar de uma consulta extra.
+- **`BarraVidaDor.jsx`** (componente novo) — barra visual em vez de só
+  o número "3/6", reaproveitada nos cartões da campanha E no
+  Rastreador de Combate (ali, como um complemento visual aos botões
+  −1/+1 que já existiam, não uma substituição).
+- **Rastreador de Combate em 2 colunas** em telas largas
+  (`.lista-combate`, media query) — cada combatente já é bem denso de
+  informação (Vida, Dor, munição, armas de referência); 2 colunas
+  aproveita a tela grande sem espremer demais cada cartão.
+- **"Rastreador de Combate" virou botão** (`.botao-like-link`) em vez
+  de link solto em texto — é a ação mais importante do Mestre nessa
+  tela, merecia mais destaque visual.
+- **Sombra sutil em todos os cartões de lista** (`.lista-cards li`,
+  já usada em várias telas) — mesmo toque de profundidade que os
+  cartões novos de personagem, pra ficar consistente em vez de só as
+  telas novas parecerem "mais bonitas".
+
+### Realtime bidirecional, testes, e mais melhorias pro Mestre (13/07)
+
+**Realtime na outra direção** — `Personagem.jsx` ganhou o espelho do
+que já existia em `Combate.jsx`: se inscreve num canal ouvindo UPDATE
+na própria linha (`filter: id=eq.{id}`) e aplica `payload.new` direto
+no estado (sem re-buscar) quando o Mestre mexe em algo (ex.: dano em
+área no Rastreador). Com isso as duas telas se atualizam sozinhas nos
+dois sentidos.
+
+**Primeira leva de testes automatizados** — Vitest instalado
+(`npm test` roda tudo), `src/lib/regras.test.js` com 44 casos cobrindo
+toda `regras.js`: quebra de resistência (incluindo quebra dupla numa
+tacada só, e o corte quando a Vida chega a 0), stats derivados,
+espaço/capacidade de montaria, limites de transporte de arma
+(inclusive o caso de borda de uma arma "trocar" pro mesmo meio que já
+tinha, sem contar a si mesma no limite), peso de munição excedente, e
+recarga. Cobre só `regras.js` de propósito — é onde a regra de negócio
+de verdade está concentrada; o resto do app é majoritariamente CRUD +
+RLS, que a auditoria de RLS (script à parte, não Vitest) já cobre
+melhor do que teste unitário cobriria.
+
+**Categoria de item (migration `0018`)** — `items.categoria` (enum:
+munição/arma branca/comida/roupa/remédio/ferramenta/outro).
+`IconeCategoria.jsx` — forma + cor por categoria, SVG desenhado (não
+emoji), ao lado do nome na tabela de Itens. Seletor de categoria só
+aparece quando editável.
+
+**Estado vazio com mais cuidado** — `EstadoVazio.jsx` (caixa
+tracejada + selo de estrela discreto) substitui o texto solto em Seus
+Personagens, Suas Campanhas, e no Rastreador de Combate.
+
+**Cartão de personagem expansível + visão em tabela** (`CampanhaDetalhe.jsx`)
+— toggle Cartões/Tabela (`modoVisualizacao`). No modo cartão, "Mais
+detalhes ▾" expande mostrando dinheiro, munição (leve/pesada, soma da
+capacidade das armas — buscada sob demanda, só quando expande pela
+primeira vez, não pra todo mundo de antemão) e última alteração.
+`listarPersonagensDaCampanha` ganhou `dinheiro` e `updated_at` na
+mesma consulta. Modo tabela: Nome/Jogador/Vida/Dor compactos, melhor
+pra campanhas com mais gente.
+
+**Atalhos de teclado no Rastreador de Combate** — espaço ou → avança o
+turno (mesma função do botão "Próximo turno", incluindo o
+incremento de rodada ao dar a volta); ← volta um turno (função nova,
+`voltarTurno`, que de propósito NÃO mexe na rodada — a ambiguidade de
+"voltar" também deveria descontar rodada não parecia valer a
+complexidade). Ignora os atalhos quando o foco está num campo de
+texto/número/select (senão apertar espaço editando o nome de uma arma
+"roubaria" o espaço do texto).
+
 ## 7. Fluxo de autenticação
 
 - **Cadastro aberto, sem escolha de papel**: qualquer pessoa pode se

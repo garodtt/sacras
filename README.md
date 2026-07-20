@@ -88,6 +88,9 @@ tinha um projeto da v1, é mais simples criar outro do zero):
    13. `supabase/migrations/0013_combate_liga_personagem.sql` — **nova (13/07)**: liga o Rastreador de Combate a personagens de verdade — Vida/Dor ao vivo, sem cópia
    14. `supabase/migrations/0014_combate_turno_rodada.sql` — **nova (13/07)**: turno atual e rodada do combate (guardado na campanha)
    15. `supabase/migrations/0015_trilha_redencao.sql` — **nova (13/07)**: Trilha de Redenção do personagem (tabela nova `personagem_trilha_passos`)
+   16. `supabase/migrations/0016_habilitar_realtime.sql` — **nova (13/07)**: habilita Realtime em `personagens` e `combate_entradas`
+   17. `supabase/migrations/0017_protecao_itens.sql` — **nova (13/07)**: campos de Proteção (armadura) nos itens
+   18. `supabase/migrations/0018_categoria_itens.sql` — **nova (13/07)**: categoria do item (pra ícone na lista)
 
 **4. Configure as variáveis de ambiente:**
 ```bash
@@ -112,6 +115,12 @@ normal, só sem o botão de "instalar" e sem abrir o esqueleto offline.
 também dentro de `public/` — são as páginas do catálogo convertidas em
 imagem, servidas como arquivo estático. Sem elas, o botão "Catálogo de
 Equipamento" na ficha abre um popup com imagens quebradas.
+
+**8. Testes automatizados (13/07, novo)**: `npm install` já traz o
+Vitest (`package.json` foi atualizado); `npm test` roda a suíte
+(`src/lib/regras.test.js`, 44 casos). Não é obrigatório rodar isso pra
+usar o app — é só uma rede de segurança pra futuras mudanças em
+`regras.js` não quebrarem a mecânica sem querer.
 Abra http://localhost:5173 — agora deve aparecer a tela de **login**.
 
 **6. Configure a autenticação no Supabase** (2 ajustes no dashboard, sem
@@ -216,14 +225,18 @@ sacramento-rpg/
 │       ├── 0012_auditoria_rls.sql   # audita e fecha lacunas de RLS (campanha_personagens, profiles)
 │       ├── 0013_combate_liga_personagem.sql   # Rastreador de Combate ligado a personagens (Vida/Dor ao vivo)
 │       ├── 0014_combate_turno_rodada.sql   # turno atual e rodada do combate
-│       └── 0015_trilha_redencao.sql   # Trilha de Redenção (tabela personagem_trilha_passos)
+│       ├── 0015_trilha_redencao.sql   # Trilha de Redenção (tabela personagem_trilha_passos)
+│       ├── 0016_habilitar_realtime.sql   # Realtime em personagens e combate_entradas
+│       ├── 0017_protecao_itens.sql   # campos de Proteção (armadura) nos itens
+│       └── 0018_categoria_itens.sql   # categoria do item (ícone na lista)
 └── src/
     ├── main.jsx
     ├── App.jsx                 # rotas (react-router-dom)
     ├── lib/
     │   ├── supabaseClient.js
     │   ├── dados.js             # consultas de campanhas/personagens/convites/itens/habilidades
-    │   └── regras.js            # regras de jogo puras (vida/dor, stats derivados, munição, montaria)
+    │   ├── regras.js            # regras de jogo puras (vida/dor, stats derivados, munição, montaria)
+    │   ├── regras.test.js       # 44 testes cobrindo regras.js (`npm test`) — novo 13/07
     │   └── toastBus.js           # barramento simples de toast (pub/sub) — novo 13/07
     ├── styles/
     │   └── global.css
@@ -237,6 +250,10 @@ sacramento-rpg/
     │   ├── PopupConfirmar.jsx   # substitui window.confirm() em todo o app — novo 13/07
     │   ├── ToastHost.jsx        # feedback "Salvo"/erro reutilizável — novo 13/07
     │   ├── LeitorCatalogo.jsx   # leitor do Catálogo de Equipamento (imagens estáticas) — novo 13/07
+    │   ├── Esqueleto.jsx        # esqueleto de carregamento reutilizável — novo 13/07
+    │   ├── BarraVidaDor.jsx     # barra visual de Vida/Dor (cartões de campanha, combate) — novo 13/07
+    │   ├── IconeCategoria.jsx   # ícone de categoria do item (SVG, não emoji) — novo 13/07
+    │   ├── EstadoVazio.jsx      # estado vazio com selo de estrela — novo 13/07
     │   ├── layout/
     │   │   ├── MenuLateral.jsx      # drawer reutilizável (navegação OU troca de aba) — novo 13/07
     │   │   ├── BotaoHamburguer.jsx  # botão de 3 barrinhas que abre o MenuLateral — novo 13/07
@@ -297,6 +314,9 @@ sacramento-rpg/
 - [x] **Rodada de melhorias gerais (13/07)** — auditoria completa de RLS (mais 2 lacunas fechadas), `window.confirm()` trocado por popup em todo o app, tokens visuais unificados, toast reutilizável, tabela de Armas menos densa, acento de cor por categoria, badge de convite pendente, limpeza de foto órfã, tooltip de munição, PWA básico (app instalável, funciona offline pro shell — não pros dados), e "Última alteração" na ficha — ver `docs/ARQUITETURA.md`
 - [x] **Combate ligado a personagens de verdade (13/07)** — botão "Importar jogadores da campanha" no Rastreador; Vida/Dor de jogador importado leem/escrevem direto na ficha (mesma linha do banco, não uma cópia — sem como dessincronizar); armas mostradas como referência; corrigido também o desalinhamento ("escada") da tabela de Armas — ver `docs/ARQUITETURA.md`
 - [x] **Combate: turno/rodada/desfazer, busca no inventário, Catálogo e Trilha de Redenção (13/07)** — caído mais dramático, turno atual e rodada persistidos, desfazer de 6s pra Vida/Dor; busca no inventário; Catálogo de Equipamento (14 páginas do livro como imagem, popup de leitura); Trilha de Redenção (6 trilhas, 6 passos editáveis cada, recompensa celebrada ao completar) — ver `docs/ARQUITETURA.md`
+- [x] **Realtime, Proteção, Explosivos, Convite por nome e ajustes visuais (13/07)** — Rastreador de Combate atualiza sozinho via Supabase Realtime quando a ficha do jogador muda; Proteção (armadura) nos itens; referência de Explosivos + ferramenta de Dano em área; convite por nome de exibição (não só e-mail exato); Trilha com visual de "Carta de Sina"; esqueletos de carregamento; efeito de livro no Catálogo — ver `docs/ARQUITETURA.md`
+- [x] **Experiência do Mestre e reforço visual geral (13/07)** — telas do Mestre (Campanha, Combate) ganham layout mais largo e denso em telas grandes; cartões de personagem com foto e barra visual de Vida/Dor; Rastreador de Combate em 2 colunas; sombra sutil em todos os cartões de lista — ver `docs/ARQUITETURA.md`
+- [x] **Realtime bidirecional, testes automatizados, e mais melhorias pro Mestre (13/07)** — ficha do jogador também escuta mudanças do Mestre (não só o contrário); primeira suíte de testes automatizados (Vitest, 44 casos em `regras.js`); categoria de item com ícone; estado vazio mais cuidado; cartão de personagem expansível (dinheiro, munição, última alteração) + visão em tabela alternativa na campanha; atalhos de teclado no Rastreador de Combate — ver `docs/ARQUITETURA.md`
 - [ ] **Fase 8** — Deploy no Netlify + variáveis de ambiente de produção
 - [ ] **Fase 9** *(opcional, sugerido)* — Histórico de alterações do personagem
 

@@ -93,10 +93,19 @@ export function listarTodasCampanhas() {
 // várias campanhas ao mesmo tempo)
 // ---------------------------------------------------------------------
 
+// 13/07 — estendida com foto e Vida/Dor: alimenta os cartões de
+// personagem na visão do Mestre (CampanhaDetalhe.jsx), que mostra um
+// resumo de cada um sem precisar entrar na ficha.
+// 13/07 — estendida com foto, Vida/Dor, dinheiro e updated_at:
+// alimenta os cartões de personagem na visão do Mestre
+// (CampanhaDetalhe.jsx), que mostra um resumo de cada um sem precisar
+// entrar na ficha.
 export function listarPersonagensDaCampanha(campanhaId) {
   return supabase
     .from('campanha_personagens')
-    .select('id, personagem:personagens(id, nome, user_id, dono:profiles(display_name))')
+    .select(
+      'id, personagem:personagens(id, nome, user_id, foto_url, circulos_vida_atual, circulos_vida_max, circulos_dor_atual, circulos_dor_max, dinheiro, updated_at, dono:profiles(display_name))'
+    )
     .eq('campanha_id', campanhaId);
 }
 
@@ -139,6 +148,40 @@ export function buscarUsuarioPorEmail(email) {
     .from('profiles')
     .select('id, display_name, email, role')
     .ilike('email', email.trim());
+}
+
+// 13/07 — busca por nome de exibição OU e-mail, com correspondência
+// PARCIAL (antes só existia por e-mail exato — travava se a pessoa não
+// soubesse o e-mail de cadastro de cor). RLS já permite ver qualquer
+// perfil (profiles_select_all_authenticated), então é só uma consulta
+// nova, sem policy nova.
+// 13/07, 2ª revisão — trocado de um único .or() pra duas consultas
+// simples (nome, depois e-mail) combinadas aqui — o .or() do
+// PostgREST tem regras de escape específicas pra caracteres especiais
+// dentro do valor, e prefiro não depender disso funcionar igual em
+// todo caso. Deduplica por id (uma pessoa pode bater nos dois
+// critérios) e limita a 10 no total.
+export async function buscarUsuarioPorNomeOuEmail(termo) {
+  const busca = `%${termo.trim()}%`;
+
+  const [porNome, porEmail] = await Promise.all([
+    supabase.from('profiles').select('id, display_name, email, role').ilike('display_name', busca).limit(10),
+    supabase.from('profiles').select('id, display_name, email, role').ilike('email', busca).limit(10),
+  ]);
+
+  if (porNome.error) return { data: null, error: porNome.error };
+  if (porEmail.error) return { data: null, error: porEmail.error };
+
+  const vistos = new Set();
+  const combinado = [];
+  for (const linha of [...(porNome.data ?? []), ...(porEmail.data ?? [])]) {
+    if (!vistos.has(linha.id)) {
+      vistos.add(linha.id);
+      combinado.push(linha);
+    }
+  }
+
+  return { data: combinado.slice(0, 10), error: null };
 }
 
 export function convidarParaCampanha({ campanhaId, usuarioId }) {

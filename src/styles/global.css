@@ -32,6 +32,11 @@
 
 * {
   box-sizing: border-box;
+  /* Tira o destaque escuro translúcido que o navegador do celular
+     mostra por padrão ao tocar em qualquer botão/link (mais visível
+     no Android) — em botões de fundo transparente com texto escuro, o
+     destaque escuro em cima deixava o texto ilegível durante o toque. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -53,6 +58,14 @@ h1, h2, h3, h4, h5 {
   line-height: 1.15;
   color: var(--cor-tinta);
   margin: 0 0 0.5rem;
+}
+
+/* Sub-títulos dentro de uma seção (ex.: "Convites enviados" depois do
+   formulário de busca) precisam de um respiro de cima — sem isso
+   ficam colados no que veio antes, porque h1-h5 não tem margem de
+   cima nenhuma por padrão (só embaixo). */
+section h3 {
+  margin-top: 1.2rem;
 }
 
 a {
@@ -190,6 +203,18 @@ button:focus-visible {
   padding: 2rem 1rem;
 }
 
+/* Telas do Mestre (CampanhaDetalhe, Combate) — 13/07. O jogador
+   continua mobile-first (não mudou nada pra ele); o Mestre normalmente
+   está no computador, então em telas largas essas duas telas ganham
+   mais espaço horizontal, pra caber os cartões de personagem lado a
+   lado em vez de empilhados um embaixo do outro. Em celular
+   (a maioria do resto do app), fica idêntico ao .painel comum. */
+@media (min-width: 860px) {
+  .pagina-larga {
+    max-width: 1100px;
+  }
+}
+
 .painel-header {
   display: flex;
   align-items: center;
@@ -219,6 +244,12 @@ button:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  box-shadow: 0 2px 6px rgba(34, 26, 16, 0.1);
+  transition: box-shadow 0.15s ease;
+}
+
+.lista-cards li:hover {
+  box-shadow: 0 3px 10px rgba(34, 26, 16, 0.16);
 }
 
 .lista-cards li p {
@@ -628,12 +659,16 @@ button:focus-visible {
 .tabela-ficha input,
 .tabela-ficha select {
   width: 100%;
-  padding: 0.35rem 0.4rem;
+  height: 2rem;
+  line-height: 2rem;
+  padding: 0 0.4rem;
   border: 1px solid transparent;
   border-radius: var(--radio-padrao);
   background: transparent;
   font-size: 0.95rem;
   color: var(--cor-tinta);
+  box-sizing: border-box;
+  vertical-align: middle;
 }
 
 .tabela-ficha input:not(:disabled):hover,
@@ -1176,6 +1211,14 @@ p.badge-caido {
   flex-direction: column;
   gap: 0.7rem;
   margin-top: 0.8rem;
+}
+
+@media (min-width: 860px) {
+  .lista-combate {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    align-items: start;
+  }
 }
 
 .lista-combate > li {
@@ -1739,10 +1782,10 @@ p.badge-caido {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  background: transparent;
+  background: transparent !important;
   border: none;
   padding: 0;
-  color: var(--cor-tinta);
+  color: var(--cor-tinta) !important;
   text-transform: none;
   letter-spacing: normal;
   font-weight: normal;
@@ -1750,9 +1793,13 @@ p.badge-caido {
   font-family: var(--fonte-ui);
 }
 
-.painel-contador-clicavel:hover {
-  background: transparent;
-  color: var(--cor-couro);
+.painel-contador-clicavel:hover,
+.painel-contador-clicavel:focus,
+.painel-contador-clicavel:focus-visible,
+.painel-contador-clicavel:active {
+  background: transparent !important;
+  color: var(--cor-couro) !important;
+  outline: none;
 }
 
 .painel-contador-clicavel strong {
@@ -1832,6 +1879,77 @@ p.badge-caido {
   font-size: 0.75rem;
   color: var(--cor-tinta-suave);
   flex: 1 1 100px;
+}
+
+.protecao-limite-atual {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-basis: 100%;
+  font-size: 0.85rem;
+}
+
+.area-lista-alvos {
+  list-style: none;
+  padding: 0;
+  margin: 0.6rem 0;
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.area-lista-alvos label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ---------------------------------------------------------------
+   Esqueleto de carregamento (13/07) — bloco cinza pulsando no lugar
+   de "Carregando..." solto em texto.
+------------------------------------------------------------------ */
+.esqueleto {
+  display: block;
+  background: linear-gradient(90deg, var(--cor-borda) 25%, var(--cor-papel) 50%, var(--cor-borda) 75%);
+  background-size: 200% 100%;
+  animation: esqueleto-pulsar 1.4s ease-in-out infinite;
+}
+
+@keyframes esqueleto-pulsar {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.esqueleto-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.esqueleto-ficha {
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.esqueleto-ficha-topo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.esqueleto-ficha-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.8rem;
 }
 
 /* ---------------------------------------------------------------
@@ -1980,6 +2098,7 @@ p.badge-caido {
 }
 
 .leitor-catalogo-pagina {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -1988,6 +2107,26 @@ p.badge-caido {
   background: #fff;
   display: flex;
   justify-content: center;
+  /* Sombra em camadas simula uma pilha de páginas por trás da atual;
+     o degradê na borda esquerda sugere a lombada do livro. */
+  box-shadow:
+    3px 3px 0 -1px var(--cor-fundo),
+    3px 3px 0 0 var(--cor-borda),
+    6px 6px 0 -1px var(--cor-fundo),
+    6px 6px 0 0 var(--cor-borda),
+    0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.leitor-catalogo-pagina::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 18px;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.12), transparent);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .leitor-catalogo-imagem {
@@ -2047,19 +2186,59 @@ p.badge-caido {
   margin: 0.8rem 0;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.9rem;
 }
 
-.trilha-passos li {
-  border: 1px solid var(--cor-borda);
+/* Visual de "Carta de Sina" (13/07) — o livro chama cada marco de
+   passo concluído assim; antes os passos eram só uma lista de
+   textareas genéricas, sem nada que lembrasse o nome do próprio
+   sistema. Borda dupla + índice de canto (como o número de uma carta
+   de baralho) + selo circular quando concluído. */
+.trilha-carta {
+  position: relative;
+  border: 2px solid var(--cor-borda);
+  outline: 1px solid var(--cor-papel);
+  outline-offset: -5px;
   border-radius: var(--radio-padrao);
-  padding: 0.6rem;
+  padding: 0.7rem 0.8rem 0.6rem 2.2rem;
   background: var(--cor-papel);
 }
 
-.trilha-passos li.trilha-passo-concluido {
+.trilha-carta.trilha-carta-concluida {
   border-color: var(--cor-couro);
   background: rgba(124, 83, 48, 0.08);
+}
+
+.trilha-carta-indice {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.6rem;
+  font-family: var(--fonte-titulo);
+  font-size: 1.3rem;
+  color: var(--cor-tinta-suave);
+  line-height: 1;
+}
+
+.trilha-carta-concluida .trilha-carta-indice {
+  color: var(--cor-couro);
+}
+
+.trilha-carta-selo {
+  position: absolute;
+  top: -0.6rem;
+  right: -0.6rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: var(--cor-couro);
+  color: var(--cor-papel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  border: 2px solid var(--cor-papel);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 .trilha-passo-checkbox {
@@ -2093,4 +2272,222 @@ p.badge-caido {
   font-family: var(--fonte-titulo);
   font-size: 1.2rem;
   color: var(--cor-couro);
+}
+
+/* ---------------------------------------------------------------
+   Cartões de personagem na visão do Mestre (13/07) — grade que
+   reflui sozinha: 1 coluna no celular, várias lado a lado em telas
+   largas (combinado com .pagina-larga, dá mais espaço ainda).
+------------------------------------------------------------------ */
+.grade-personagens-campanha {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 0.8rem 0;
+}
+
+.cartao-personagem-campanha {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--cor-papel);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--radio-padrao);
+  padding: 0.8rem;
+  box-shadow: 0 2px 6px rgba(34, 26, 16, 0.12);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.cartao-personagem-campanha:hover {
+  box-shadow: 0 4px 12px rgba(34, 26, 16, 0.2);
+  transform: translateY(-1px);
+}
+
+.cartao-personagem-topo {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.cartao-personagem-expandir {
+  align-self: flex-start;
+}
+
+.cartao-personagem-detalhes {
+  border-top: var(--divisor-sutil);
+  padding-top: 0.5rem;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.cartao-personagem-detalhes p {
+  margin: 0;
+}
+
+.cartao-personagem-foto {
+  flex-shrink: 0;
+  width: 3.6rem;
+  height: 3.6rem;
+  border-radius: var(--radio-padrao);
+  background-color: var(--cor-fundo);
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--cor-borda);
+}
+
+.cartao-personagem-corpo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.cartao-personagem-nome {
+  font-family: var(--fonte-titulo);
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+
+.cartao-personagem-campanha > .botao-remover {
+  align-self: flex-start;
+}
+
+/* Barra de Vida/Dor */
+.barra-vida-dor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.3rem 0;
+}
+
+.barra-vida-dor-linha {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  color: var(--cor-tinta-suave);
+}
+
+.barra-vida-dor-linha span:first-child {
+  width: 2rem;
+  flex-shrink: 0;
+}
+
+.barra-vida-dor-trilho {
+  flex: 1;
+  height: 0.5rem;
+  background: var(--cor-fundo);
+  border: 1px solid var(--cor-borda);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.barra-vida-dor-preenchimento {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.barra-vida-dor-preenchimento--vida {
+  background: var(--cor-sangue);
+}
+
+.barra-vida-dor-preenchimento--dor {
+  background: var(--cor-couro);
+}
+
+.barra-vida-dor-numero {
+  flex-shrink: 0;
+  min-width: 2.4ch;
+  text-align: right;
+  font-weight: 600;
+}
+
+.barra-vida-dor--compacta .barra-vida-dor-trilho {
+  height: 0.4rem;
+}
+
+/* Link estilizado como botão (o Rastreador de Combate merecia mais
+   destaque do que um link solto em texto) */
+.botao-like-link {
+  display: inline-block;
+  background: var(--cor-tinta);
+  color: var(--cor-papel);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radio-padrao);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.botao-like-link:hover {
+  background: var(--cor-couro);
+}
+
+/* Ícone de categoria do item (13/07) */
+.nome-com-categoria {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.icone-categoria {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex-shrink: 0;
+}
+
+.seletor-categoria {
+  width: auto !important;
+  max-width: 5.5rem;
+  height: 2rem !important;
+  flex-shrink: 0;
+  font-size: 0.7rem !important;
+  padding: 0 0.2rem !important;
+}
+
+/* Estado vazio (13/07) */
+.estado-vazio {
+  text-align: center;
+  padding: 1.6rem 1rem;
+  border: 2px dashed var(--cor-borda);
+  border-radius: var(--radio-padrao);
+  color: var(--cor-tinta-suave);
+}
+
+.estado-vazio-estrela {
+  width: 1.8rem;
+  height: 1.8rem;
+  color: var(--cor-borda);
+  margin-bottom: 0.4rem;
+}
+
+.estado-vazio p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Toggle Cartões/Tabela (13/07) */
+.toggle-visualizacao {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.toggle-visualizacao button {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.7rem;
+}
+
+.toggle-ativo {
+  background: var(--cor-couro) !important;
+  color: var(--cor-papel) !important;
+}
+
+.dica-teclado {
+  font-style: italic;
+  margin-top: -0.3rem;
 }

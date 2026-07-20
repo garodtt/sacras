@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { supabase } from '../lib/supabaseClient.js';
 import PopupConfirmar from '../components/PopupConfirmar.jsx';
 import {
   buscarCampanha,
@@ -18,6 +19,8 @@ import { aplicarDano, ajustarValorSimples } from '../lib/regras.js';
 import CampoEditavel from '../components/personagem/CampoEditavel.jsx';
 import { EFEITOS_DOR } from '../components/personagem/EfeitoDorPopup.jsx';
 import PopupReferencia from '../components/combate/PopupReferencia.jsx';
+import BarraVidaDor from '../components/BarraVidaDor.jsx';
+import EstadoVazio from '../components/EstadoVazio.jsx';
 
 const TIPO_LABEL = { npc: 'NPC', jogador: 'Jogador' };
 
@@ -97,11 +100,91 @@ export default function Combate() {
   const [balasMax, setBalasMax] = useState(0);
   const [mostrarTabelaIniciativa, setMostrarTabelaIniciativa] = useState(false);
   const [mostrarTabelaDor, setMostrarTabelaDor] = useState(false);
+  const [areaAberta, setAreaAberta] = useState(false);
+  const [mostrarExplosivos, setMostrarExplosivos] = useState(false);
+  const [alvosArea, setAlvosArea] = useState(() => new Set());
+  const [danoAreaValor, setDanoAreaValor] = useState(1);
+  const [aplicandoArea, setAplicandoArea] = useState(false);
 
   useEffect(() => {
     carregar();
     return () => clearTimeout(desfazerTimeoutRef.current);
   }, [id]);
+
+  // Chave estável derivada dos personagens ligados nesta lista — só
+  // muda quando alguém é importado/removido, não a cada ajuste de
+  // Vida/Dor (isso evita recriar a inscrição do Realtime sem
+  // necessidade a cada clique de −1/+1).
+  const personagemIdsLigados = entradas
+    .map((e) => e.personagem_id)
+    .filter(Boolean)
+    .sort()
+    .join(',');
+
+  // Realtime (13/07) — sem isso, uma mudança na ficha do jogador (ou
+  // outro Mestre mexendo no mesmo combate) só aparecia na próxima vez
+  // que a tela buscasse dados de novo (F5, reentrar, importar de
+  // novo). Recarga SILENCIOSA (não usa a `carregar()` que liga
+  // `carregando=true` — isso piscaria "Carregando..." na tela toda
+  // sempre que alguém mexesse na própria ficha); o filtro de
+  // `personagens` é restrito aos IDs realmente ligados a este combate
+  // (senão recarregaria toda vez que QUALQUER personagem do banco
+  // mudasse, de qualquer campanha). Debounce curto evita recarregar
+  // em excesso se vários campos mudarem quase juntos (Vida e Dor no
+  // mesmo clique de dano crítico, por exemplo).
+  useEffect(() => {
+    let timeoutRecarga = null;
+    function recarregarComDebounce() {
+      clearTimeout(timeoutRecarga);
+      timeoutRecarga = setTimeout(() => recarregarSilenciosamente(), 400);
+    }
+
+    const canal = supabase.channel(`combate-${id}`).on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'combate_entradas', filter: `campanha_id=eq.${id}` },
+      recarregarComDebounce
+    );
+
+    if (personagemIdsLigados) {
+      canal.on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'personagens', filter: `id=in.(${personagemIdsLigados})` },
+        recarregarComDebounce
+      );
+    }
+
+    canal.subscribe();
+
+    return () => {
+      clearTimeout(timeoutRecarga);
+      supabase.removeChannel(canal);
+    };
+  }, [id, personagemIdsLigados]);
+
+  // Atalhos de teclado (13/07) — o Mestre normalmente está no
+  // computador com teclado, faz sentido não depender só de clique pra
+  // ações repetitivas de mesa (avançar turno é a MAIS repetida de
+  // todas). Ignora quando o foco está num campo de texto/número/select
+  // (senão apertar espaço enquanto edita o nome de uma arma, por
+  // exemplo, "roubaria" o espaço do texto digitado).
+  useEffect(() => {
+    function handleTecla(e) {
+      const alvo = document.activeElement;
+      const editando = alvo && ['INPUT', 'TEXTAREA', 'SELECT'].includes(alvo.tagName);
+      if (editando) return;
+
+      if (e.code === 'Space' || e.code === 'ArrowRight') {
+        e.preventDefault();
+        avancarTurno();
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        voltarTurno();
+      }
+    }
+
+    window.addEventListener('keydown', handleTecla);
+    return () => window.removeEventListener('keydown', handleTecla);
+  }, [entradas, campanha]);
 
   async function carregar() {
     setCarregando(true);
@@ -113,6 +196,19 @@ export default function Combate() {
     setEntradas(listaEntradas);
     await carregarArmasLigadas(listaEntradas);
     setCarregando(false);
+  }
+
+  // Igual carregar(), mas NUNCA liga `carregando` — usado pelo
+  // Realtime, que não deve piscar "Carregando..." na tela toda toda
+  // vez que alguém mexe na própria ficha em outra aba.
+  async function recarregarSilenciosamente() {
+    const [resCampanha, resEntradas] = await Promise.all([buscarCampanha(id), listarCombateEntradas(id)]);
+    if (!resCampanha.error) setCampanha(resCampanha.data ?? null);
+    if (!resEntradas.error) {
+      const listaEntradas = resEntradas.data ?? [];
+      setEntradas(listaEntradas);
+      await carregarArmasLigadas(listaEntradas);
+    }
   }
 
   // Busca as armas de cada personagem LIGADO (uma vez por personagem,
@@ -240,6 +336,19 @@ export default function Combate() {
     else setCampanha(data);
   }
 
+  // Só pra navegar rápido pra trás (setas) — de propósito NÃO mexe na
+  // rodada (diferente de avançar, que soma 1 rodada ao dar a volta na
+  // lista). Travado em 0: não faz sentido "voltar" pro combatente
+  // anterior ao primeiro sem também decidir se isso desconta uma
+  // rodada, e essa ambiguidade não parecia valer a complexidade extra
+  // pra um atalho de navegação.
+  async function voltarTurno() {
+    if (entradas.length === 0 || campanha.combate_turno_index === 0) return;
+    const { data, error } = await atualizarCampanha(id, { combate_turno_index: campanha.combate_turno_index - 1 });
+    if (error) setErro(error.message);
+    else setCampanha(data);
+  }
+
   async function ajustarRodada(delta) {
     const nova = Math.max(1, campanha.combate_rodada + delta);
     const { data, error } = await atualizarCampanha(id, { combate_rodada: nova });
@@ -334,6 +443,30 @@ export default function Combate() {
     else atualizarPersonagemLocal(entrada.id, data);
   }
 
+  function alternarAlvoArea(entradaId) {
+    setAlvosArea((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(entradaId)) novo.delete(entradaId);
+      else novo.add(entradaId);
+      return novo;
+    });
+  }
+
+  // Dano em área (13/07) — explosivos/molotovs (1,5m de raio),
+  // metralhadora (atinge todos em linha) e canhão (3m de raio) afetam
+  // vários combatentes de uma vez; sem isso, o Mestre teria que clicar
+  // Vida −1 em cada um manualmente. Reaproveita ajustarVida (mesma
+  // ramificação personagem-ligado/NPC, mesmo desfazer) pra cada alvo
+  // selecionado — só que o "desfazer" só lembra do ÚLTIMO aplicado,
+  // igual já era o caso pra ajustes individuais.
+  function aplicarDanoArea() {
+    if (alvosArea.size === 0) return;
+    const alvos = entradas.filter((e) => alvosArea.has(e.id));
+    alvos.forEach((entrada) => ajustarVida(entrada, -Math.abs(danoAreaValor)));
+    setAreaAberta(false);
+    setAlvosArea(new Set());
+  }
+
   // Vida: ferimento direto, não passa pela Dor (mesma regra da ficha).
   // Ramifica: entrada ligada a um personagem escreve DIRETO na ficha de
   // verdade (`personagens`); NPC continua só na própria entrada.
@@ -399,7 +532,7 @@ export default function Combate() {
   if (!campanha) return <p style={{ padding: '2rem' }}>Campanha não encontrada (ou sem acesso).</p>;
   if (!podeGerenciar) {
     return (
-      <main className="painel">
+      <main className="painel pagina-larga">
         <p><Link to={`/campanha/${id}`}>&larr; Voltar</Link></p>
         <p className="aviso-somente-leitura">
           O rastreador de combate é uma ferramenta do Mestre — só quem criou a campanha (ou o Admin) usa esta tela.
@@ -409,7 +542,7 @@ export default function Combate() {
   }
 
   return (
-    <main className="painel">
+    <main className="painel pagina-larga">
       <p><Link to={`/campanha/${id}`}>&larr; Voltar pra {campanha.nome}</Link></p>
       <h1>⚔ Rastreador de Combate</h1>
       {erro && <p className="erro">{erro}</p>}
@@ -487,7 +620,24 @@ export default function Combate() {
           </div>
         )}
 
-        {entradas.length === 0 && <p className="detalhe-secundario">Nenhum combatente ainda — adicione acima.</p>}
+        {entradas.length > 0 && (
+          <p className="detalhe-secundario dica-teclado">
+            Atalhos: espaço ou → avança o turno, ← volta.
+          </p>
+        )}
+
+        {entradas.length > 1 && (
+          <div className="combate-rodada-controle">
+            <button type="button" onClick={() => setAreaAberta(true)}>
+              Dano em área
+            </button>
+            <button type="button" className="link-referencia detalhe-secundario" onClick={() => setMostrarExplosivos(true)}>
+              Explosivos e alcances
+            </button>
+          </div>
+        )}
+
+        {entradas.length === 0 && <EstadoVazio>Nenhum combatente ainda — adicione acima.</EstadoVazio>}
 
         <ul className="lista-combate">
           {entradas.map((entrada, index) => {
@@ -518,6 +668,8 @@ export default function Combate() {
                     Remover
                   </button>
                 </div>
+
+                <BarraVidaDor vidaAtual={vidaAtual} vidaMax={vidaMax} dorAtual={dorAtual} dorMax={dorMax} />
 
                 <div className="combatente-status">
                   <div className="status-linha">
@@ -743,6 +895,72 @@ export default function Combate() {
           </button>
         </div>
       )}
+
+      {areaAberta && (
+        <div className="popup-fundo" onClick={() => setAreaAberta(false)}>
+          <div className="popup-caixa" onClick={(e) => e.stopPropagation()}>
+            <h3>Dano em área</h3>
+            <p className="detalhe-secundario">
+              Escolha quem foi atingido e o dano de Vida a aplicar em todos de uma vez — explosivo, molotov,
+              metralhadora ou canhão.
+            </p>
+            <label className="campo-editavel">
+              Dano (Vida)
+              <input
+                type="number"
+                min="1"
+                value={danoAreaValor}
+                onChange={(e) => setDanoAreaValor(Math.max(1, Number(e.target.value) || 1))}
+              />
+            </label>
+            <ul className="area-lista-alvos">
+              {entradas.map((entrada) => (
+                <li key={entrada.id}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={alvosArea.has(entrada.id)}
+                      onChange={() => alternarAlvoArea(entrada.id)}
+                    />
+                    {nomeDe(entrada)}
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="popup-acoes">
+              <button type="button" onClick={aplicarDanoArea} disabled={alvosArea.size === 0}>
+                Aplicar em {alvosArea.size || 0}
+              </button>
+              <button type="button" className="botao-secundario" onClick={() => setAreaAberta(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <PopupReferencia titulo="Explosivos e Alcances" aberto={mostrarExplosivos} onFechar={() => setMostrarExplosivos(false)}>
+        <p>
+          Dinamite, TNT, molotov: dano em área de <strong>1,5m de raio</strong>. Canhão: funciona como explosivo, mas
+          com área de <strong>3m de raio</strong>. Metralhadora: atinge todos os alvos em linha reta (não é um raio).
+        </p>
+        <p>
+          Acender e jogar um explosivo custa <strong>1 Movimento + 1 Ação de Combate</strong>. No Teste de Violência
+          pra acertar, se o dado cair em <strong>1</strong>: faça um Teste de Resistência de Velocidade — falhando, a
+          bomba explode na mão de quem jogou.
+        </p>
+        <p>
+          Metralhadora: <strong>3 de Vida</strong> por Ação de Combate + Movimento gastos usando ela naquele turno
+          (ex.: 2 Ações + 2 Movimentos = 6 de Vida). Precisa recarregar no fim do turno.
+        </p>
+        <p>
+          Canhão: NA 7 de Violência em vez de rolar contra a Defesa do alvo. Falhou: erra por 3m numa direção
+          aleatória. Falha crítica: acerta um aliado e seus arredores.
+        </p>
+        <p className="detalhe-secundario">
+          Alcances (se usar mapa/miniatura): curto/perto = 9m; médio = 30m; longo = 90m.
+        </p>
+      </PopupReferencia>
     </main>
   );
 }
