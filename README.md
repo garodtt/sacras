@@ -91,6 +91,7 @@ tinha um projeto da v1, é mais simples criar outro do zero):
    16. `supabase/migrations/0016_habilitar_realtime.sql` — **nova (13/07)**: habilita Realtime em `personagens` e `combate_entradas`
    17. `supabase/migrations/0017_protecao_itens.sql` — **nova (13/07)**: campos de Proteção (armadura) nos itens
    18. `supabase/migrations/0018_categoria_itens.sql` — **nova (13/07)**: categoria do item (pra ícone na lista)
+   19. `supabase/migrations/0019_notas_mestre.sql` — **nova (13/07)**: anotações privadas do Mestre por campanha (tabela própria, RLS restrita)
 
 **4. Configure as variáveis de ambiente:**
 ```bash
@@ -228,7 +229,8 @@ sacramento-rpg/
 │       ├── 0015_trilha_redencao.sql   # Trilha de Redenção (tabela personagem_trilha_passos)
 │       ├── 0016_habilitar_realtime.sql   # Realtime em personagens e combate_entradas
 │       ├── 0017_protecao_itens.sql   # campos de Proteção (armadura) nos itens
-│       └── 0018_categoria_itens.sql   # categoria do item (ícone na lista)
+│       ├── 0018_categoria_itens.sql   # categoria do item (ícone na lista)
+│       └── 0019_notas_mestre.sql   # anotações privadas do Mestre (tabela própria)
 └── src/
     ├── main.jsx
     ├── App.jsx                 # rotas (react-router-dom)
@@ -242,6 +244,8 @@ sacramento-rpg/
     │   └── global.css
     ├── contexts/
     │   └── AuthContext.jsx      # sessão, profile, papel + ações de login/cadastro/senha
+    ├── hooks/
+    │   └── useTemaEscuro.js     # tema escuro (só telas do Mestre), lembrado via localStorage
     ├── components/
     │   ├── ProtectedRoute.jsx   # guarda de rota (exige login / exige papel)
     │   ├── UploadFoto.jsx       # upload de foto reutilizável (item/personagem/perfil) — novo 13/07
@@ -254,6 +258,8 @@ sacramento-rpg/
     │   ├── BarraVidaDor.jsx     # barra visual de Vida/Dor (cartões de campanha, combate) — novo 13/07
     │   ├── IconeCategoria.jsx   # ícone de categoria do item (SVG, não emoji) — novo 13/07
     │   ├── EstadoVazio.jsx      # estado vazio com selo de estrela — novo 13/07
+    │   ├── Breadcrumb.jsx       # trilha de navegação (Início/Campanha → Personagem → Aba)
+    │   ├── NotasMestre.jsx      # anotações privadas do Mestre por campanha — novo 13/07
     │   ├── layout/
     │   │   ├── MenuLateral.jsx      # drawer reutilizável (navegação OU troca de aba) — novo 13/07
     │   │   ├── BotaoHamburguer.jsx  # botão de 3 barrinhas que abre o MenuLateral — novo 13/07
@@ -317,6 +323,7 @@ sacramento-rpg/
 - [x] **Realtime, Proteção, Explosivos, Convite por nome e ajustes visuais (13/07)** — Rastreador de Combate atualiza sozinho via Supabase Realtime quando a ficha do jogador muda; Proteção (armadura) nos itens; referência de Explosivos + ferramenta de Dano em área; convite por nome de exibição (não só e-mail exato); Trilha com visual de "Carta de Sina"; esqueletos de carregamento; efeito de livro no Catálogo — ver `docs/ARQUITETURA.md`
 - [x] **Experiência do Mestre e reforço visual geral (13/07)** — telas do Mestre (Campanha, Combate) ganham layout mais largo e denso em telas grandes; cartões de personagem com foto e barra visual de Vida/Dor; Rastreador de Combate em 2 colunas; sombra sutil em todos os cartões de lista — ver `docs/ARQUITETURA.md`
 - [x] **Realtime bidirecional, testes automatizados, e mais melhorias pro Mestre (13/07)** — ficha do jogador também escuta mudanças do Mestre (não só o contrário); primeira suíte de testes automatizados (Vitest, 44 casos em `regras.js`); categoria de item com ícone; estado vazio mais cuidado; cartão de personagem expansível (dinheiro, munição, última alteração) + visão em tabela alternativa na campanha; atalhos de teclado no Rastreador de Combate — ver `docs/ARQUITETURA.md`
+- [x] **Estrutura e visual pro Mestre — modo Sessão/Preparação, notas, breadcrumb, tema escuro (13/07)** — toggle Sessão (enxuto)/Preparação (completo) na campanha; anotações privadas do Mestre (tabela própria, RLS restrita); breadcrumb inteligente no Personagem.jsx (mostra o nome da campanha quando vem de lá); tema escuro ligado nas telas do Mestre — ver `docs/ARQUITETURA.md`
 - [ ] **Fase 8** — Deploy no Netlify + variáveis de ambiente de produção
 - [ ] **Fase 9** *(opcional, sugerido)* — Histórico de alterações do personagem
 

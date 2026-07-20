@@ -30,6 +30,23 @@
   --divisor-sutil: 1px solid var(--cor-borda);
 }
 
+/* Tema escuro (13/07) — só pras telas do Mestre (Campanha, Combate),
+   por pedido: sessão à noite com a tela clara pode cansar. Troca só as
+   variáveis de cor — como todo o resto do CSS já usa var(--cor-x) em
+   vez de cor fixa, o tema se aplica sozinho em toda a tela sem
+   precisar duplicar nenhuma regra. Mantém a paleta "faroeste" (couro,
+   sangue, poeira), só invertida — fundo escuro, tinta clara. */
+.tema-escuro {
+  --cor-fundo: #1c1610;
+  --cor-papel: #2b2318;
+  --cor-tinta: #e8dcc0;
+  --cor-tinta-suave: #b8a888;
+  --cor-sangue: #d1493a;
+  --cor-couro: #b58a5c;
+  --cor-poeira: #c9974a;
+  --cor-borda: #4a3f2f;
+}
+
 * {
   box-sizing: border-box;
   /* Tira o destaque escuro translúcido que o navegador do celular
@@ -1266,6 +1283,75 @@ p.badge-caido {
   background: var(--cor-tinta);
 }
 
+/* Facção (13/07) — agrupar aliado/inimigo/neutro por cor, útil em
+   combates com várias gangues ao mesmo tempo. Verde pra aliado é a
+   única cor nova fora da paleta da Fase 7 — deliberado: é uma
+   convenção universal de jogo (verde=seguro, vermelho=perigo) que vale
+   mais que a pureza da paleta aqui. */
+.badge-faccao {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radio-padrao);
+  color: var(--cor-papel);
+}
+
+.badge-faccao--aliado {
+  background: #4a6741;
+}
+
+.badge-faccao--inimigo {
+  background: var(--cor-sangue);
+}
+
+.badge-faccao--neutro {
+  background: var(--cor-tinta-suave);
+}
+
+.lista-combate > li.combatente-faccao--aliado {
+  border-left: 4px solid #4a6741;
+}
+
+.lista-combate > li.combatente-faccao--inimigo {
+  border-left: 4px solid var(--cor-sangue);
+}
+
+.lista-combate > li.combatente-faccao--neutro {
+  border-left: 4px solid var(--cor-tinta-suave);
+}
+
+/* Log de ações (13/07) — resumo das últimas jogadas, só em memória
+   (não é histórico permanente). */
+.log-acoes {
+  margin: 0.6rem 0;
+  font-size: 0.85rem;
+}
+
+.log-acoes summary {
+  cursor: pointer;
+  color: var(--cor-tinta-suave);
+}
+
+.log-acoes ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.log-acoes li {
+  padding: 0.3rem 0.5rem;
+  border-bottom: var(--divisor-sutil);
+}
+
+.log-acoes li:last-child {
+  border-bottom: none;
+}
+
 .combatente-status {
   display: flex;
   gap: 1.2rem;
@@ -1603,6 +1689,8 @@ p.badge-caido {
   max-width: none;
   transform-origin: center;
   -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
   user-select: none;
   pointer-events: none;
 }
@@ -2028,6 +2116,12 @@ p.badge-caido {
   border-radius: var(--radio-padrao);
   padding: 0.6rem 0.8rem;
   margin: 0.8rem 0;
+}
+
+.combate-rodada-controle--fixo {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 50;
 }
 
 .combate-rodada-controle span {
@@ -2490,4 +2584,168 @@ p.badge-caido {
 .dica-teclado {
   font-style: italic;
   margin-top: -0.3rem;
+}
+
+/* Breadcrumb (13/07) */
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--cor-tinta-suave);
+  margin-bottom: 0.8rem;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.breadcrumb-item a {
+  color: var(--cor-couro);
+}
+
+.breadcrumb-atual {
+  color: var(--cor-tinta-suave);
+  font-weight: 600;
+}
+
+.breadcrumb-separador {
+  color: var(--cor-borda);
+}
+
+/* ---------------------------------------------------------------
+   Controles do Mestre no topo (13/07) — modo Sessão/Preparação e
+   alternador de tema escuro, em CampanhaDetalhe.jsx e Combate.jsx.
+------------------------------------------------------------------ */
+.controles-mestre-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.8rem 0;
+  padding-bottom: 0.8rem;
+  border-bottom: var(--divisor-sutil);
+}
+
+/* Bloco de anotações do Mestre — rascunho sempre visível, não popup */
+.notas-mestre {
+  margin: 1.2rem 0;
+  padding: 0.8rem;
+  background: var(--cor-papel);
+  border: 1px dashed var(--cor-couro);
+  border-radius: var(--radio-padrao);
+}
+
+.notas-mestre h3 {
+  margin-bottom: 0.4rem;
+  font-size: 1rem;
+}
+
+.notas-mestre textarea {
+  width: 100%;
+  font-family: var(--fonte-ui);
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+/* Botão flutuante de tema (13/07) — único, global, em qualquer tela.
+   z-index alto o bastante pra ficar acima de conteúdo normal, mas
+   abaixo de popups (z-index: 100) e toast/barra-desfazer (500) — não
+   deveria competir com nada que já esteja aberto. */
+.botao-tema-flutuante {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 90;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  background: var(--cor-tinta);
+  color: var(--cor-papel);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.botao-tema-flutuante:hover {
+  background: var(--cor-couro);
+}
+
+.pasta-npcs {
+  margin-bottom: 1rem;
+}
+
+.pasta-npcs h3 {
+  font-size: 0.95rem;
+  color: var(--cor-couro);
+  margin-bottom: 0.4rem;
+}
+
+/* ---------------------------------------------------------------
+   Seções recolhíveis (13/07) — convites/biblioteca/vincular ocupavam
+   bastante espaço vertical; <details> nativo, sem JS extra pra
+   controlar aberto/fechado.
+------------------------------------------------------------------ */
+.secao-recolhivel {
+  margin: 1.5rem 0;
+}
+
+.secao-recolhivel summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.secao-recolhivel summary::-webkit-details-marker {
+  display: none;
+}
+
+.secao-recolhivel summary h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.secao-recolhivel summary h2::before {
+  content: '▾';
+  font-size: 0.8em;
+  color: var(--cor-couro);
+  transition: transform 0.15s ease;
+}
+
+.secao-recolhivel:not([open]) summary h2::before {
+  transform: rotate(-90deg);
+}
+
+/* Checkbox de seleção em lote (13/07) */
+.checkbox-selecao {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 0.2rem;
+}
+
+/* Nota privada por personagem (13/07) */
+.nota-personagem-campanha {
+  margin-top: 0.5rem;
+}
+
+.nota-personagem-campanha label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+}
+
+.nota-personagem-campanha textarea {
+  font-size: 0.85rem;
+  font-family: var(--fonte-ui);
+  resize: vertical;
+  border: 1px dashed var(--cor-couro);
 }

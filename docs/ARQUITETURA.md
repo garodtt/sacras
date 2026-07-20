@@ -1440,6 +1440,57 @@ complexidade). Ignora os atalhos quando o foco está num campo de
 texto/número/select (senão apertar espaço editando o nome de uma arma
 "roubaria" o espaço do texto).
 
+### Estrutura e visual pro Mestre — modo Sessão/Preparação, notas, breadcrumb, tema escuro (13/07)
+
+Nota sobre esta seção: ao começar essa rodada, encontrei o componente
+`Breadcrumb.jsx` e o hook `useTemaEscuro.js` (com o CSS do tema escuro
+completo em `global.css`) **já existindo** no projeto, prontos mas o
+tema escuro ainda não estava ligado em nenhuma tela — sinal de que
+parte desse trabalho já tinha sido feita numa rodada anterior sem
+constar no resumo entregue na hora. Achei um bug de import duplicado
+causado por isso (corrigido) e completei o que faltava.
+
+**Modo Sessão / Modo Preparação** (`CampanhaDetalhe.jsx`) — dois jeitos
+de ver a mesma campanha, alternados por um toggle visível só pra quem
+gerencia:
+- **Preparação** (padrão): tudo visível — convidar jogador, vincular
+  personagem, convites enviados — igual sempre foi.
+- **Sessão**: esconde a parte administrativa (não faz sentido mexer em
+  convite no meio de uma mesa rodando); mostra as anotações do Mestre
+  em destaque.
+- Os personagens da campanha (cartões/tabela) continuam visíveis nos
+  dois modos — a diferença é só a parte de gestão/convite.
+
+**Anotações do Mestre** (migration `0019`, tabela `campanha_notas_mestre`)
+— rascunho persistente, sempre visível (não popup), nos dois modos.
+**Tabela própria de propósito, não uma coluna em `campanhas`**: RLS é
+por linha, não por coluna — se fosse uma coluna solta, todo jogador que
+pudesse ver a campanha receberia esse campo também na resposta da
+consulta (mesmo escondido na tela, dá pra ver no painel de rede do
+navegador). Tabela separada com RLS própria (só dono da campanha ou
+Admin) resolve isso de verdade. `salvarNotasMestre` usa upsert — não
+precisa criar uma linha vazia pra toda campanha nova.
+
+**Breadcrumb estendido pro Personagem.jsx** — o componente já existia
+e já era usado em `CampanhaDetalhe.jsx`/`Combate.jsx`; faltava ligar
+em `Personagem.jsx` de um jeito CONSCIENTE DO CONTEXTO. Quando o link
+pra ficha vem de dentro de uma campanha (`CampanhaDetalhe.jsx` agora
+manda `?campanha={id}` na URL), o breadcrumb mostra o NOME da campanha
+no lugar de "Seus Personagens" genérico, e linka de volta pra ela — lê
+`campanhasVinculadas` (já buscado pra outro propósito, o cálculo de
+"é Mestre desta campanha") em vez de fazer uma consulta nova só pra
+isso.
+
+**Tema escuro** — hook `useTemaEscuro.js` (já existia) aplica/remove a
+classe `.tema-escuro` no `<body>` inteiro (não só numa tela — o
+fundo/textura da página é pintado no body) e lembra a escolha via
+`localStorage`. Como todo o CSS já usa `var(--cor-x)`, o tema se aplica
+sozinho em tudo sem duplicar regra nenhuma. Só ficou faltando CHAMAR o
+hook e mostrar o botão — feito agora em `CampanhaDetalhe.jsx` e
+`Combate.jsx` (as duas telas do Mestre). Sai sozinho ao trocar de tela
+(o efeito limpa a classe ao desmontar) — uma tela de jogador aberta
+depois não herda o tema escuro por engano.
+
 ## 7. Fluxo de autenticação
 
 - **Cadastro aberto, sem escolha de papel**: qualquer pessoa pode se

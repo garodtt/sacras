@@ -525,3 +525,88 @@ export function atualizarPassoTrilha(id, campos) {
 export function removerTrilhaPersonagem(personagemId) {
   return supabase.from('personagem_trilha_passos').delete().eq('personagem_id', personagemId);
 }
+
+// ---------------------------------------------------------------------
+// NOTAS DO MESTRE (13/07) — privadas, uma linha por campanha. RLS
+// (migration 0019) já garante que só o dono da campanha (ou Admin)
+// consegue ver/mexer — nunca chega no navegador de um jogador.
+// ---------------------------------------------------------------------
+export function buscarNotasMestre(campanhaId) {
+  return supabase.from('campanha_notas_mestre').select('*').eq('campanha_id', campanhaId).maybeSingle();
+}
+
+// upsert: cria a linha na primeira vez que o Mestre escreve algo,
+// atualiza depois — evita ter que criar a linha vazia toda vez que uma
+// campanha nova é feita (a maioria pode nunca usar isso).
+export function salvarNotasMestre(campanhaId, notas) {
+  return supabase
+    .from('campanha_notas_mestre')
+    .upsert({ campanha_id: campanhaId, notas, updated_at: new Date().toISOString() })
+    .select()
+    .single();
+}
+
+// ---------------------------------------------------------------------
+// BIBLIOTECA DE NPCs DA CAMPANHA (13/07) — moldes reutilizáveis (só
+// Vida/Dor/Balas MÁXIMOS), organizados por pasta. Puxar um pro
+// Rastreador de Combate cria uma linha independente em
+// combate_entradas (ver Combate.jsx) — não é um vínculo ao vivo.
+// ---------------------------------------------------------------------
+export function listarNpcsCampanha(campanhaId) {
+  return supabase
+    .from('campanha_npcs')
+    .select('*')
+    .eq('campanha_id', campanhaId)
+    .order('pasta', { ascending: true })
+    .order('nome', { ascending: true });
+}
+
+export function criarNpcCampanha(campanhaId, dados) {
+  return supabase
+    .from('campanha_npcs')
+    .insert({ campanha_id: campanhaId, ...dados })
+    .select()
+    .single();
+}
+
+export function atualizarNpcCampanha(id, campos) {
+  return supabase.from('campanha_npcs').update(campos).eq('id', id).select().single();
+}
+
+export function removerNpcCampanha(id) {
+  return supabase.from('campanha_npcs').delete().eq('id', id);
+}
+
+// ---------------------------------------------------------------------
+// NOTA PRIVADA DO MESTRE POR PERSONAGEM (13/07) — por VÍNCULO
+// (campanha_personagens.id), não pelo personagem direto: o mesmo
+// personagem pode estar em mais de uma campanha, com segredos
+// diferentes em cada uma. RLS (migration 0021) garante que só quem
+// gerencia a campanha vê — nunca o dono do personagem.
+// ---------------------------------------------------------------------
+
+// Busca todas de uma vez (uma linha por vínculo já carregado na tela),
+// em vez de uma consulta por cartão — mais barato.
+export function listarNotasPersonagensCampanha(campanhaPersonagemIds) {
+  if (!campanhaPersonagemIds || campanhaPersonagemIds.length === 0) {
+    return Promise.resolve({ data: [], error: null });
+  }
+  return supabase.from('campanha_personagem_notas').select('*').in('campanha_personagem_id', campanhaPersonagemIds);
+}
+
+export function salvarNotaPersonagemCampanha(campanhaPersonagemId, notas) {
+  return supabase
+    .from('campanha_personagem_notas')
+    .upsert({ campanha_personagem_id: campanhaPersonagemId, notas, updated_at: new Date().toISOString() })
+    .select()
+    .single();
+}
+
+// ---------------------------------------------------------------------
+// AÇÕES EM LOTE (13/07) — remover vários vínculos de campanha_personagens
+// de uma vez (mesmo padrão do "Dano em área" do Combate: seleciona
+// vários, aplica uma vez).
+// ---------------------------------------------------------------------
+export function removerVinculosEmLote(ids) {
+  return supabase.from('campanha_personagens').delete().in('id', ids);
+}

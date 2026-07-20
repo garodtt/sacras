@@ -5,7 +5,11 @@ import PopupConfirmar from '../components/PopupConfirmar.jsx';
 import BarraVidaDor from '../components/BarraVidaDor.jsx';
 import EstadoVazio from '../components/EstadoVazio.jsx';
 import { Esqueleto } from '../components/Esqueleto.jsx';
+import Breadcrumb from '../components/Breadcrumb.jsx';
+import NotasMestre from '../components/NotasMestre.jsx';
+import NotaPersonagemCampanha from '../components/NotaPersonagemCampanha.jsx';
 import { calcularCapacidadeMunicaoDeArmas } from '../lib/regras.js';
+import { MODELOS_NPC } from '../lib/modelosNpc.js';
 import {
   buscarCampanha,
   listarPersonagensDaCampanha,
@@ -17,6 +21,13 @@ import {
   listarConvitesDaCampanha,
   meuAcessoNaCampanha,
   listarArmas,
+  buscarNotasMestre,
+  listarNpcsCampanha,
+  criarNpcCampanha,
+  atualizarNpcCampanha,
+  removerNpcCampanha,
+  listarNotasPersonagensCampanha,
+  removerVinculosEmLote,
 } from '../lib/dados.js';
 
 // Substitui SessaoDetalhe.jsx. Quem vê o quê aqui muda conforme o papel
@@ -54,6 +65,20 @@ export default function CampanhaDetalhe() {
   const [armasPorPersonagem, setArmasPorPersonagem] = useState({});
   const [carregandoArmasDe, setCarregandoArmasDe] = useState(null);
 
+  const [modo, setModo] = useState('preparacao'); // 'preparacao' | 'sessao'
+  const [notasMestre, setNotasMestre] = useState(null);
+
+  const [npcs, setNpcs] = useState([]);
+  const [npcParaRemover, setNpcParaRemover] = useState(null);
+  const [modeloNpc, setModeloNpc] = useState('');
+  const [novoNpc, setNovoNpc] = useState({ pasta: 'Geral', nome: '', vida_max: 6, dor_max: 6, balas_max: 6 });
+  const [criandoNpc, setCriandoNpc] = useState(false);
+
+  const [notasPersonagens, setNotasPersonagens] = useState({});
+  const [selecionados, setSelecionados] = useState(() => new Set());
+  const [confirmandoRemoverLote, setConfirmandoRemoverLote] = useState(false);
+  const [removendoLote, setRemovendoLote] = useState(false);
+
   useEffect(() => {
     carregarTudo();
   }, [id]);
@@ -85,8 +110,21 @@ export default function CampanhaDetalhe() {
     setPossoVincular(souCriadorAgora || ehAdminAgora || Boolean(resAcesso.data?.length));
 
     if (souCriadorAgora || ehAdminAgora) {
-      const resConvites = await listarConvitesDaCampanha(id);
+      const idsVinculos = (resMembros.data ?? []).map((m) => m.id);
+      const [resConvites, resNotas, resNpcs, resNotasPersonagens] = await Promise.all([
+        listarConvitesDaCampanha(id),
+        buscarNotasMestre(id),
+        listarNpcsCampanha(id),
+        listarNotasPersonagensCampanha(idsVinculos),
+      ]);
       setConvitesEnviados(resConvites.data ?? []);
+      setNotasMestre(resNotas.data?.notas ?? '');
+      setNpcs(resNpcs.data ?? []);
+      const mapaNotas = {};
+      (resNotasPersonagens.data ?? []).forEach((n) => {
+        mapaNotas[n.campanha_personagem_id] = n.notas;
+      });
+      setNotasPersonagens(mapaNotas);
     }
 
     setCarregando(false);
@@ -135,12 +173,67 @@ export default function CampanhaDetalhe() {
     }
   }
 
+  function aplicarModeloNpc(nomeModelo) {
+    setModeloNpc(nomeModelo);
+    const modelo = MODELOS_NPC.find((m) => m.nome === nomeModelo);
+    if (modelo) setNovoNpc((atual) => ({ ...atual, ...modelo }));
+  }
+
+  async function handleCriarNpc(e) {
+    e.preventDefault();
+    if (!novoNpc.nome.trim()) return;
+
+    setErro('');
+    setCriandoNpc(true);
+    const { data, error } = await criarNpcCampanha(id, { ...novoNpc, nome: novoNpc.nome.trim() });
+    setCriandoNpc(false);
+
+    if (error) setErro(error.message);
+    else {
+      setNpcs((atual) => [...atual, data].sort((a, b) => a.pasta.localeCompare(b.pasta) || a.nome.localeCompare(b.nome)));
+      setNovoNpc({ pasta: novoNpc.pasta, nome: '', vida_max: 6, dor_max: 6, balas_max: 6 });
+      setModeloNpc('');
+    }
+  }
+
+  async function handleRemoverNpc() {
+    const npcId = npcParaRemover;
+    setNpcParaRemover(null);
+    const { error } = await removerNpcCampanha(npcId);
+    if (error) setErro(error.message);
+    else setNpcs((atual) => atual.filter((n) => n.id !== npcId));
+  }
+
   async function handleDesvincular() {
     const vinculoId = vinculoParaRemover;
     setVinculoParaRemover(null);
     const { error } = await desvincularPersonagem(vinculoId);
     if (error) setErro(error.message);
     else carregarTudo();
+  }
+
+  // Ações em lote (13/07) — mesmo padrão do "Dano em área" do Combate:
+  // seleciona vários, aplica uma vez. Só faz sentido pra quem gerencia
+  // (checkbox nem aparece pro jogador comum).
+  function alternarSelecionado(vinculoId) {
+    setSelecionados((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(vinculoId)) novo.delete(vinculoId);
+      else novo.add(vinculoId);
+      return novo;
+    });
+  }
+
+  async function removerLote() {
+    setConfirmandoRemoverLote(false);
+    setRemovendoLote(true);
+    const { error } = await removerVinculosEmLote([...selecionados]);
+    setRemovendoLote(false);
+    if (error) setErro(error.message);
+    else {
+      setSelecionados(new Set());
+      carregarTudo();
+    }
   }
 
   async function handleBuscarEmail(e) {
@@ -176,17 +269,56 @@ export default function CampanhaDetalhe() {
 
   return (
     <main className="painel pagina-larga">
-      <p><Link to="/painel">&larr; Voltar</Link></p>
+      <Breadcrumb itens={[{ label: 'Início', to: '/painel' }, { label: 'Suas Campanhas', to: '/painel/campanhas' }, { label: campanha.nome }]} />
       <h1>{campanha.nome}</h1>
       {campanha.descricao && <p>{campanha.descricao}</p>}
       {podeGerenciar && (
         <p><Link to={`/campanha/${id}/combate`} className="botao-like-link">⚔ Abrir Rastreador de Combate</Link></p>
       )}
+
+      {podeGerenciar && (
+        <div className="controles-mestre-topo">
+          <div className="toggle-visualizacao">
+            <button
+              type="button"
+              className={modo === 'sessao' ? 'toggle-ativo' : 'botao-secundario'}
+              onClick={() => setModo('sessao')}
+              title="Enxuto — só o essencial pra rodar a mesa"
+            >
+              Modo Sessão
+            </button>
+            <button
+              type="button"
+              className={modo === 'preparacao' ? 'toggle-ativo' : 'botao-secundario'}
+              onClick={() => setModo('preparacao')}
+              title="Completo — convites, vínculos, tudo aberto"
+            >
+              Modo Preparação
+            </button>
+          </div>
+        </div>
+      )}
+
       {erro && <p className="erro">{erro}</p>}
 
-      <section>
-        <div className="painel-header">
+      <details className="secao-recolhivel" open>
+        <summary>
           <h2>Personagens nesta campanha</h2>
+        </summary>
+        <div className="painel-header">
+          {selecionados.size > 0 ? (
+            <span>
+              <strong>{selecionados.size}</strong> selecionado(s){' '}
+              <button type="button" className="botao-remover" onClick={() => setConfirmandoRemoverLote(true)}>
+                Remover selecionados
+              </button>{' '}
+              <button type="button" className="botao-secundario" onClick={() => setSelecionados(new Set())}>
+                Cancelar seleção
+              </button>
+            </span>
+          ) : (
+            <span />
+          )}
           {membros.length > 0 && (
             <div className="toggle-visualizacao">
               <button
@@ -215,15 +347,25 @@ export default function CampanhaDetalhe() {
               const expandido = expandidos.has(m.personagem.id);
               const armas = armasPorPersonagem[m.personagem.id];
               const capacidade = armas ? calcularCapacidadeMunicaoDeArmas(armas) : null;
+              const podeRemoverEste = podeGerenciar || m.personagem.user_id === profile.id;
               return (
                 <div className={`cartao-personagem-campanha ${expandido ? 'cartao-expandido' : ''}`} key={m.id}>
                   <div className="cartao-personagem-topo">
+                    {podeGerenciar && (
+                      <input
+                        type="checkbox"
+                        className="checkbox-selecao"
+                        checked={selecionados.has(m.id)}
+                        onChange={() => alternarSelecionado(m.id)}
+                        aria-label={`Selecionar ${m.personagem.nome}`}
+                      />
+                    )}
                     <div
                       className="cartao-personagem-foto"
                       style={m.personagem.foto_url ? { backgroundImage: `url("${m.personagem.foto_url}")` } : undefined}
                     />
                     <div className="cartao-personagem-corpo">
-                      <Link to={`/personagem/${m.personagem.id}`} className="cartao-personagem-nome">
+                      <Link to={`/personagem/${m.personagem.id}?campanha=${id}`} className="cartao-personagem-nome">
                         {m.personagem.nome || '(sem nome)'}
                       </Link>
                       <p className="detalhe-secundario">{m.personagem.dono?.display_name}</p>
@@ -272,10 +414,16 @@ export default function CampanhaDetalhe() {
                           })}
                         </p>
                       )}
+                      {podeGerenciar && (
+                        <NotaPersonagemCampanha
+                          campanhaPersonagemId={m.id}
+                          notaInicial={notasPersonagens[m.id] ?? ''}
+                        />
+                      )}
                     </div>
                   )}
 
-                  {(podeGerenciar || m.personagem.user_id === profile.id) && (
+                  {podeRemoverEste && (
                     <button className="botao-remover" onClick={() => setVinculoParaRemover(m.id)}>
                       Remover
                     </button>
@@ -291,6 +439,7 @@ export default function CampanhaDetalhe() {
             <table className="tabela-ficha tabela-responsiva">
               <thead>
                 <tr>
+                  {podeGerenciar && <th></th>}
                   <th>Nome</th>
                   <th>Jogador</th>
                   <th>Vida</th>
@@ -301,8 +450,19 @@ export default function CampanhaDetalhe() {
               <tbody>
                 {membros.map((m) => (
                   <tr key={m.id}>
+                    {podeGerenciar && (
+                      <td data-label="">
+                        <input
+                          type="checkbox"
+                          className="checkbox-selecao"
+                          checked={selecionados.has(m.id)}
+                          onChange={() => alternarSelecionado(m.id)}
+                          aria-label={`Selecionar ${m.personagem.nome}`}
+                        />
+                      </td>
+                    )}
                     <td data-label="Nome">
-                      <Link to={`/personagem/${m.personagem.id}`}>{m.personagem.nome || '(sem nome)'}</Link>
+                      <Link to={`/personagem/${m.personagem.id}?campanha=${id}`}>{m.personagem.nome || '(sem nome)'}</Link>
                     </td>
                     <td data-label="Jogador" className="detalhe-secundario">{m.personagem.dono?.display_name}</td>
                     <td data-label="Vida">{m.personagem.circulos_vida_atual}/{m.personagem.circulos_vida_max}</td>
@@ -321,7 +481,7 @@ export default function CampanhaDetalhe() {
           </div>
         )}
 
-        {possoVincular && meusDisponiveisParaVincular.length > 0 && (
+        {modo === 'preparacao' && possoVincular && meusDisponiveisParaVincular.length > 0 && (
           <form onSubmit={handleVincular} className="form-inline">
             <label>
               Vincular um dos seus personagens
@@ -342,27 +502,133 @@ export default function CampanhaDetalhe() {
           </form>
         )}
 
-        {possoVincular && meusPersonagens.length === 0 && (
+        {modo === 'preparacao' && possoVincular && meusPersonagens.length === 0 && (
           <p className="detalhe-secundario">
             Você ainda não tem nenhum personagem. Crie um no <Link to="/painel">seu painel</Link> pra vincular aqui.
           </p>
         )}
 
-        {possoVincular && meusPersonagens.length > 0 && meusDisponiveisParaVincular.length === 0 && (
+        {modo === 'preparacao' && possoVincular && meusPersonagens.length > 0 && meusDisponiveisParaVincular.length === 0 && (
           <p className="detalhe-secundario">Todos os seus personagens já estão nesta campanha.</p>
         )}
 
-        {!possoVincular && (
+        {modo === 'preparacao' && !possoVincular && (
           <p className="detalhe-secundario">
             Você ainda não participa desta campanha. Se recebeu um convite,
             responda em <Link to="/painel">seu painel</Link>.
           </p>
         )}
-      </section>
+      </details>
 
       {podeGerenciar && (
-        <section>
-          <h2>Convidar jogador</h2>
+        <NotasMestre campanhaId={id} notasIniciais={notasMestre ?? ''} />
+      )}
+
+      {podeGerenciar && modo === 'preparacao' && (
+        <details className="secao-recolhivel" open>
+          <summary>
+            <h2>Biblioteca de NPCs</h2>
+          </summary>
+          <p className="detalhe-secundario">
+            Crie de antemão — depois é só puxar pro Rastreador de Combate na hora da luta ("Importar NPC da
+            biblioteca"), sem digitar tudo de novo.
+          </p>
+
+          {npcs.length === 0 ? (
+            <EstadoVazio>Nenhum NPC criado ainda.</EstadoVazio>
+          ) : (
+            Object.entries(
+              npcs.reduce((porPasta, npc) => {
+                (porPasta[npc.pasta] ??= []).push(npc);
+                return porPasta;
+              }, {})
+            ).map(([pasta, npcsDaPasta]) => (
+              <div key={pasta} className="pasta-npcs">
+                <h3>{pasta}</h3>
+                <ul className="lista-cards">
+                  {npcsDaPasta.map((npc) => (
+                    <li key={npc.id}>
+                      <div>
+                        <strong>{npc.nome}</strong>
+                        <p className="detalhe-secundario">
+                          Vida {npc.vida_max} · Dor {npc.dor_max} · Balas {npc.balas_max}
+                        </p>
+                      </div>
+                      <button className="botao-remover" onClick={() => setNpcParaRemover(npc.id)}>
+                        Remover
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          )}
+
+          <form onSubmit={handleCriarNpc} className="form-inline">
+            <label>
+              Modelo rápido (opcional)
+              <select value={modeloNpc} onChange={(e) => aplicarModeloNpc(e.target.value)}>
+                <option value="">Do zero...</option>
+                {MODELOS_NPC.map((m) => (
+                  <option key={m.nome} value={m.nome}>{m.nome}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Pasta
+              <input
+                value={novoNpc.pasta}
+                onChange={(e) => setNovoNpc({ ...novoNpc, pasta: e.target.value })}
+                placeholder="Geral, Gangue do Rio..."
+              />
+            </label>
+            <label>
+              Nome
+              <input
+                value={novoNpc.nome}
+                onChange={(e) => setNovoNpc({ ...novoNpc, nome: e.target.value })}
+                required
+              />
+            </label>
+            <label>
+              Vida
+              <input
+                type="number"
+                min="1"
+                value={novoNpc.vida_max}
+                onChange={(e) => setNovoNpc({ ...novoNpc, vida_max: Number(e.target.value) || 1 })}
+              />
+            </label>
+            <label>
+              Dor
+              <input
+                type="number"
+                min="1"
+                value={novoNpc.dor_max}
+                onChange={(e) => setNovoNpc({ ...novoNpc, dor_max: Number(e.target.value) || 1 })}
+              />
+            </label>
+            <label>
+              Balas
+              <input
+                type="number"
+                min="0"
+                value={novoNpc.balas_max}
+                onChange={(e) => setNovoNpc({ ...novoNpc, balas_max: Number(e.target.value) || 0 })}
+              />
+            </label>
+            <button type="submit" disabled={criandoNpc}>
+              {criandoNpc ? 'Criando...' : '+ Criar NPC'}
+            </button>
+          </form>
+        </details>
+      )}
+
+      {podeGerenciar && modo === 'preparacao' && (
+        <details className="secao-recolhivel">
+          <summary>
+            <h2>Convidar jogador</h2>
+          </summary>
           <form onSubmit={handleBuscarEmail} className="form-inline">
             <label>
               Adicionar jogador (nome ou e-mail)
@@ -403,7 +669,7 @@ export default function CampanhaDetalhe() {
               </ul>
             </>
           )}
-        </section>
+        </details>
       )}
 
       <PopupConfirmar
@@ -411,6 +677,19 @@ export default function CampanhaDetalhe() {
         mensagem="Remover este personagem da campanha?"
         onConfirmar={handleDesvincular}
         onCancelar={() => setVinculoParaRemover(null)}
+      />
+      <PopupConfirmar
+        aberto={confirmandoRemoverLote}
+        mensagem={`Remover ${selecionados.size} personagem(ns) selecionado(s) da campanha?`}
+        textoConfirmar={removendoLote ? 'Removendo...' : 'Remover todos'}
+        onConfirmar={removerLote}
+        onCancelar={() => setConfirmandoRemoverLote(false)}
+      />
+      <PopupConfirmar
+        aberto={Boolean(npcParaRemover)}
+        mensagem="Remover este NPC da biblioteca?"
+        onConfirmar={handleRemoverNpc}
+        onCancelar={() => setNpcParaRemover(null)}
       />
     </main>
   );

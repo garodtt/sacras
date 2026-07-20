@@ -14,15 +14,24 @@ import {
   listarPersonagensDaCampanha,
   listarArmas,
   atualizarPersonagem,
+  listarNpcsCampanha,
 } from '../lib/dados.js';
+import { MODELOS_NPC } from '../lib/modelosNpc.js';
 import { aplicarDano, ajustarValorSimples } from '../lib/regras.js';
 import CampoEditavel from '../components/personagem/CampoEditavel.jsx';
 import { EFEITOS_DOR } from '../components/personagem/EfeitoDorPopup.jsx';
 import PopupReferencia from '../components/combate/PopupReferencia.jsx';
 import BarraVidaDor from '../components/BarraVidaDor.jsx';
 import EstadoVazio from '../components/EstadoVazio.jsx';
+import Breadcrumb from '../components/Breadcrumb.jsx';
 
 const TIPO_LABEL = { npc: 'NPC', jogador: 'Jogador' };
+
+// Facção (13/07) — agrupar por cor em combates com várias gangues ao
+// mesmo tempo. Só 3 opções fixas (não texto livre) — simples de
+// escanear rápido numa lista grande; "aliado" existe pro caso raro de
+// um NPC lutando do lado dos jogadores.
+const FACCAO_LABEL = { aliado: 'Aliado', inimigo: 'Inimigo', neutro: 'Neutro' };
 
 // Bônus por carta na Iniciativa — texto vem direto do livro. O ícone da
 // carta J é a caveira (Vida), igual às outras habilidades do catálogo.
@@ -94,10 +103,12 @@ export default function Combate() {
 
   const [nome, setNome] = useState('');
   const [tipo, setTipo] = useState('npc');
+  const [faccao, setFaccao] = useState('inimigo');
   const [iniciativa, setIniciativa] = useState('');
   const [vidaMax, setVidaMax] = useState(6);
   const [dorMax, setDorMax] = useState(6);
   const [balasMax, setBalasMax] = useState(0);
+  const [modeloSelecionado, setModeloSelecionado] = useState('');
   const [mostrarTabelaIniciativa, setMostrarTabelaIniciativa] = useState(false);
   const [mostrarTabelaDor, setMostrarTabelaDor] = useState(false);
   const [areaAberta, setAreaAberta] = useState(false);
@@ -105,6 +116,11 @@ export default function Combate() {
   const [alvosArea, setAlvosArea] = useState(() => new Set());
   const [danoAreaValor, setDanoAreaValor] = useState(1);
   const [aplicandoArea, setAplicandoArea] = useState(false);
+  const [logAcoes, setLogAcoes] = useState([]);
+  const [bibliotecaNpcs, setBibliotecaNpcs] = useState([]);
+  const [importarNpcAberto, setImportarNpcAberto] = useState(false);
+  const [npcsParaImportar, setNpcsParaImportar] = useState(() => new Set());
+  const [importandoNpcs, setImportandoNpcs] = useState(false);
 
   useEffect(() => {
     carregar();
@@ -189,11 +205,16 @@ export default function Combate() {
   async function carregar() {
     setCarregando(true);
     setErro('');
-    const [resCampanha, resEntradas] = await Promise.all([buscarCampanha(id), listarCombateEntradas(id)]);
+    const [resCampanha, resEntradas, resNpcs] = await Promise.all([
+      buscarCampanha(id),
+      listarCombateEntradas(id),
+      listarNpcsCampanha(id),
+    ]);
     if (resCampanha.error || resEntradas.error) setErro((resCampanha.error || resEntradas.error).message);
     setCampanha(resCampanha.data ?? null);
     const listaEntradas = resEntradas.data ?? [];
     setEntradas(listaEntradas);
+    setBibliotecaNpcs(resNpcs.data ?? []);
     await carregarArmasLigadas(listaEntradas);
     setCarregando(false);
   }
@@ -252,6 +273,17 @@ export default function Combate() {
   // explicitamente o que precisa reverter) — editar Iniciativa/Máximos
   // não passa por aqui, então não teria o que "desfazer" com um clique
   // só mesmo.
+  // Log de ações (13/07) — diferente do desfazer (que só lembra da
+  // ÚLTIMA mudança pra reverter), isso é só um resumo pra lembrar o que
+  // aconteceu nas últimas jogadas, sem precisar confiar na memória.
+  // Só em memória (não salva no banco) — é uma ajuda pra ESSA sessão,
+  // não um histórico permanente; começa vazio a cada vez que a tela é
+  // aberta. Guarda só as últimas 8, mais que isso não cabe numa lista
+  // pequena e a mais antiga já não importa tanto.
+  function registrarLog(mensagem) {
+    setLogAcoes((atual) => [{ id: `${Date.now()}-${Math.random()}`, texto: mensagem }, ...atual].slice(0, 8));
+  }
+
   function registrarDesfazer(entrada, camposAnteriores) {
     clearTimeout(desfazerTimeoutRef.current);
     setDesfazerAcao({ entrada, camposAnteriores });
@@ -273,6 +305,19 @@ export default function Combate() {
     else atualizarLocal(data);
   }
 
+  // Modelo rápido (13/07) — mesma lista de src/lib/modelosNpc.js usada
+  // na Biblioteca de NPCs da campanha; aqui só pré-preenche o
+  // formulário (o jogador ainda pode ajustar antes de criar).
+  function aplicarModeloRapido(nomeModelo) {
+    setModeloSelecionado(nomeModelo);
+    const modelo = MODELOS_NPC.find((m) => m.nome === nomeModelo);
+    if (!modelo) return;
+    setNome(modelo.nome);
+    setVidaMax(modelo.vida_max);
+    setDorMax(modelo.dor_max);
+    setBalasMax(modelo.balas_max);
+  }
+
   async function adicionar(e) {
     e.preventDefault();
     if (!nome.trim()) return;
@@ -281,6 +326,7 @@ export default function Combate() {
     const { data, error } = await criarCombateEntrada(id, {
       nome: nome.trim(),
       tipo,
+      faccao,
       iniciativa: Number(iniciativa) || 0,
       vida_max: Math.max(1, Number(vidaMax) || 1),
       vida_atual: Math.max(1, Number(vidaMax) || 1),
@@ -295,7 +341,86 @@ export default function Combate() {
       setEntradas((atual) => reordenar([...atual, data]));
       setNome('');
       setIniciativa('');
+      setModeloSelecionado('');
     }
+  }
+
+  // Duplicar NPC (13/07) — spawnar o mesmo capanga várias vezes rápido
+  // em vez de digitar tudo de novo. Só faz sentido pra NPC (jogador é
+  // ligado a uma ficha real — "duplicar" um jogador não tem
+  // significado nenhum). Copia os MÁXIMOS e reseta os ATUAIS pro
+  // máximo (a cópia começa "fresca", não com o dano que o original já
+  // tomou) — e não copia Iniciativa (cada um rola a própria, ou o
+  // Mestre ajusta depois).
+  async function duplicarNpc(entrada) {
+    setErro('');
+    const { data, error } = await criarCombateEntrada(id, {
+      nome: entrada.nome,
+      tipo: 'npc',
+      faccao: entrada.faccao,
+      iniciativa: 0,
+      vida_max: entrada.vida_max,
+      vida_atual: entrada.vida_max,
+      dor_max: entrada.dor_max,
+      dor_atual: entrada.dor_max,
+      balas_max: entrada.balas_max,
+      balas_atual: entrada.balas_max,
+    });
+    if (error) setErro(error.message);
+    else {
+      registrarLog(`${entrada.nome} duplicado`);
+      setEntradas((atual) => reordenar([...atual, data]));
+    }
+  }
+
+  function alternarNpcParaImportar(npcId) {
+    setNpcsParaImportar((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(npcId)) novo.delete(npcId);
+      else novo.add(npcId);
+      return novo;
+    });
+  }
+
+  // Importar da biblioteca (13/07) — puxa NPCs pré-criados
+  // (CampanhaDetalhe.jsx, "Biblioteca de NPCs") pro combate de agora.
+  // Cria linhas NOVAS e independentes (não um vínculo vivo, diferente
+  // de personagem_id — ver comentário da migration 0020): o molde na
+  // biblioteca não deveria perder Vida só porque uma cópia dele morreu
+  // numa luta.
+  async function importarNpcsDaBiblioteca() {
+    if (npcsParaImportar.size === 0) return;
+    setImportandoNpcs(true);
+    const npcsEscolhidos = bibliotecaNpcs.filter((n) => npcsParaImportar.has(n.id));
+
+    const resultados = await Promise.all(
+      npcsEscolhidos.map((npc) =>
+        criarCombateEntrada(id, {
+          nome: npc.nome,
+          tipo: 'npc',
+          faccao: 'inimigo',
+          iniciativa: 0,
+          vida_max: npc.vida_max,
+          vida_atual: npc.vida_max,
+          dor_max: npc.dor_max,
+          dor_atual: npc.dor_max,
+          balas_max: npc.balas_max,
+          balas_atual: npc.balas_max,
+        })
+      )
+    );
+
+    const comErro = resultados.find((r) => r.error);
+    setImportandoNpcs(false);
+    if (comErro) {
+      setErro(comErro.error.message);
+      return;
+    }
+
+    registrarLog(`${npcsEscolhidos.length} NPC(s) importado(s) da biblioteca`);
+    setEntradas((atual) => reordenar([...atual, ...resultados.map((r) => r.data)]));
+    setImportarNpcAberto(false);
+    setNpcsParaImportar(new Set());
   }
 
   async function remover() {
@@ -462,6 +587,7 @@ export default function Combate() {
   function aplicarDanoArea() {
     if (alvosArea.size === 0) return;
     const alvos = entradas.filter((e) => alvosArea.has(e.id));
+    registrarLog(`Dano em área -${danoAreaValor} em ${alvos.length} combatente(s)`);
     alvos.forEach((entrada) => ajustarVida(entrada, -Math.abs(danoAreaValor)));
     setAreaAberta(false);
     setAlvosArea(new Set());
@@ -476,6 +602,7 @@ export default function Combate() {
     const nova = ajustarValorSimples({ atual, max, delta });
     if (nova === atual) return;
 
+    registrarLog(`Vida ${delta > 0 ? '+' : ''}${delta} em ${nomeDe(entrada)}`);
     if (entrada.personagem_id) {
       registrarDesfazer(entrada, { circulos_vida_atual: atual });
       persistirPersonagem(entrada, { circulos_vida_atual: nova });
@@ -496,6 +623,7 @@ export default function Combate() {
     if (delta > 0) {
       const nova = ajustarValorSimples({ atual: dorAtual, max: dorMax, delta });
       if (nova === dorAtual) return;
+      registrarLog(`Dor +${delta} em ${nomeDe(entrada)}`);
       if (entrada.personagem_id) {
         registrarDesfazer(entrada, { circulos_dor_atual: dorAtual });
         persistirPersonagem(entrada, { circulos_dor_atual: nova });
@@ -507,6 +635,11 @@ export default function Combate() {
     }
 
     const resultado = aplicarDano({ vidaAtual, vidaMax, dorAtual, dorMax, dano: 1 });
+    registrarLog(
+      resultado.quebras > 0
+        ? `Dor -1 em ${nomeDe(entrada)} (quebrou! Vida -${resultado.quebras})`
+        : `Dor -1 em ${nomeDe(entrada)}`
+    );
     if (entrada.personagem_id) {
       registrarDesfazer(entrada, { circulos_vida_atual: vidaAtual, circulos_dor_atual: dorAtual });
       persistirPersonagem(entrada, {
@@ -521,10 +654,14 @@ export default function Combate() {
 
   function ajustarBalas(entrada, delta) {
     const nova = Math.max(0, Math.min(entrada.balas_max, entrada.balas_atual + delta));
-    if (nova !== entrada.balas_atual) persistir(entrada, { balas_atual: nova });
+    if (nova !== entrada.balas_atual) {
+      registrarLog(`Balas ${delta > 0 ? '+' : ''}${delta} em ${nomeDe(entrada)}`);
+      persistir(entrada, { balas_atual: nova });
+    }
   }
 
   function recarregar(entrada) {
+    registrarLog(`${nomeDe(entrada)} recarregou`);
     persistir(entrada, { balas_atual: entrada.balas_max });
   }
 
@@ -543,13 +680,29 @@ export default function Combate() {
 
   return (
     <main className="painel pagina-larga">
-      <p><Link to={`/campanha/${id}`}>&larr; Voltar pra {campanha.nome}</Link></p>
+      <Breadcrumb
+        itens={[
+          { label: 'Início', to: '/painel' },
+          { label: 'Suas Campanhas', to: '/painel/campanhas' },
+          { label: campanha.nome, to: `/campanha/${id}` },
+          { label: 'Rastreador de Combate' },
+        ]}
+      />
       <h1>⚔ Rastreador de Combate</h1>
       {erro && <p className="erro">{erro}</p>}
 
       <section>
         <h2>Adicionar combatente</h2>
         <form onSubmit={adicionar} className="form-inline">
+          <label>
+            Modelo rápido
+            <select value={modeloSelecionado} onChange={(e) => aplicarModeloRapido(e.target.value)}>
+              <option value="">Do zero...</option>
+              {MODELOS_NPC.map((m) => (
+                <option key={m.nome} value={m.nome}>{m.nome}</option>
+              ))}
+            </select>
+          </label>
           <label>
             Nome
             <input value={nome} onChange={(e) => setNome(e.target.value)} required />
@@ -559,6 +712,14 @@ export default function Combate() {
             <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
               <option value="npc">NPC</option>
               <option value="jogador">Jogador</option>
+            </select>
+          </label>
+          <label>
+            Facção
+            <select value={faccao} onChange={(e) => setFaccao(e.target.value)}>
+              <option value="inimigo">Inimigo</option>
+              <option value="aliado">Aliado</option>
+              <option value="neutro">Neutro</option>
             </select>
           </label>
           <label>
@@ -590,6 +751,11 @@ export default function Combate() {
             <button type="button" onClick={importarJogadores} disabled={importando}>
               {importando ? 'Importando...' : 'Importar jogadores da campanha'}
             </button>{' '}
+            {bibliotecaNpcs.length > 0 && (
+              <button type="button" onClick={() => setImportarNpcAberto(true)}>
+                Importar NPC da biblioteca
+              </button>
+            )}{' '}
             {entradas.length > 0 && (
               <button type="button" className="botao-remover" onClick={() => setConfirmandoEncerrar(true)}>
                 Encerrar combate
@@ -603,7 +769,7 @@ export default function Combate() {
         </p>
 
         {entradas.length > 0 && (
-          <div className="combate-rodada-controle">
+          <div className="combate-rodada-controle combate-rodada-controle--fixo">
             <span>
               Rodada{' '}
               <button type="button" className="botao-ajuste-pequeno" onClick={() => ajustarRodada(-1)}>
@@ -637,6 +803,17 @@ export default function Combate() {
           </div>
         )}
 
+        {logAcoes.length > 0 && (
+          <details className="log-acoes">
+            <summary>Últimas ações ({logAcoes.length})</summary>
+            <ul>
+              {logAcoes.map((item) => (
+                <li key={item.id}>{item.texto}</li>
+              ))}
+            </ul>
+          </details>
+        )}
+
         {entradas.length === 0 && <EstadoVazio>Nenhum combatente ainda — adicione acima.</EstadoVazio>}
 
         <ul className="lista-combate">
@@ -651,9 +828,21 @@ export default function Combate() {
             const armasDoPersonagem = ligado ? armasPorPersonagem[entrada.personagem_id] ?? [] : [];
 
             return (
-              <li key={entrada.id} className={[caido && 'combatente-caido', turnoAtual && 'combatente-turno-atual'].filter(Boolean).join(' ')}>
+              <li
+                key={entrada.id}
+                className={[
+                  `combatente-faccao--${entrada.faccao || 'inimigo'}`,
+                  caido && 'combatente-caido',
+                  turnoAtual && 'combatente-turno-atual',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
                 <div className="combatente-cabecalho">
                   <span className={`badge-tipo badge-tipo--${entrada.tipo}`}>{TIPO_LABEL[entrada.tipo]}</span>
+                  <span className={`badge-faccao badge-faccao--${entrada.faccao || 'inimigo'}`}>
+                    {FACCAO_LABEL[entrada.faccao] ?? FACCAO_LABEL.inimigo}
+                  </span>
                   <strong>{nomeDe(entrada)}</strong>
                   {caido && <span className="badge-caido">Caído</span>}
                   {turnoAtual && <span className="badge-turno">Turno atual</span>}
@@ -664,6 +853,11 @@ export default function Combate() {
                   >
                     Iniciativa {entrada.iniciativa}
                   </button>
+                  {!ligado && (
+                    <button type="button" className="botao-secundario" onClick={() => duplicarNpc(entrada)}>
+                      Duplicar
+                    </button>
+                  )}
                   <button type="button" className="botao-remover" onClick={() => setEntradaParaRemover(entrada)}>
                     Remover
                   </button>
@@ -932,6 +1126,52 @@ export default function Combate() {
                 Aplicar em {alvosArea.size || 0}
               </button>
               <button type="button" className="botao-secundario" onClick={() => setAreaAberta(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {importarNpcAberto && (
+        <div className="popup-fundo" onClick={() => setImportarNpcAberto(false)}>
+          <div className="popup-caixa" onClick={(e) => e.stopPropagation()}>
+            <h3>Importar NPC da biblioteca</h3>
+            <p className="detalhe-secundario">
+              Cria uma cópia independente pra este combate — a Vida/Dor daqui não afeta o molde salvo na biblioteca.
+            </p>
+            {Object.entries(
+              bibliotecaNpcs.reduce((porPasta, npc) => {
+                (porPasta[npc.pasta] ??= []).push(npc);
+                return porPasta;
+              }, {})
+            ).map(([pasta, npcsDaPasta]) => (
+              <div key={pasta} className="pasta-npcs">
+                <h4>{pasta}</h4>
+                <ul className="area-lista-alvos">
+                  {npcsDaPasta.map((npc) => (
+                    <li key={npc.id}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={npcsParaImportar.has(npc.id)}
+                          onChange={() => alternarNpcParaImportar(npc.id)}
+                        />
+                        {npc.nome}{' '}
+                        <span className="detalhe-secundario">
+                          (Vida {npc.vida_max} · Dor {npc.dor_max} · Balas {npc.balas_max})
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            <div className="popup-acoes">
+              <button type="button" onClick={importarNpcsDaBiblioteca} disabled={npcsParaImportar.size === 0 || importandoNpcs}>
+                {importandoNpcs ? 'Importando...' : `Importar ${npcsParaImportar.size || ''}`}
+              </button>
+              <button type="button" className="botao-secundario" onClick={() => setImportarNpcAberto(false)}>
                 Cancelar
               </button>
             </div>

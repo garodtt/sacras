@@ -15,11 +15,20 @@ import Combate from './routes/Combate.jsx';
 import Personagem from './routes/Personagem.jsx';
 import AdminDashboard from './routes/AdminDashboard.jsx';
 import ToastHost from './components/ToastHost.jsx';
+import { useTemaEscuro } from './hooks/useTemaEscuro.js';
 
 // v2 (13/07): não existe mais separação Mestre/Jogador nem rota
 // "roteadora" por papel (PainelRedirect saiu) — todo usuário autenticado
 // cai no mesmo /painel. Só o Admin tem uma rota extra (/admin).
 export default function App() {
+  // 13/07 — tema escuro virou global (antes era só nas telas do
+  // Mestre, chamado uma vez em cada uma). Chamado AQUI, uma vez só, no
+  // topo de tudo — persiste em qualquer navegação (não é remontado a
+  // cada troca de rota, já que App.jsx não desmonta). O botão fica
+  // sempre visível (flutuante, canto inferior direito) em vez de
+  // espalhado pelo cabeçalho de cada tela — é só isso, um botão único.
+  const [temaEscuro, alternarTemaEscuro] = useTemaEscuro();
+
   // 13/07 — corrige "tela presa" ao voltar no celular: o Safari/Chrome
   // mobile às vezes restaura uma "foto" congelada da página anterior em
   // vez de deixar o React renderizar de novo (bfcache — back/forward
@@ -40,6 +49,9 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastHost />
+      <button type="button" className="botao-tema-flutuante" onClick={alternarTemaEscuro} title="Alternar tema claro/escuro">
+        {temaEscuro ? '☀' : '●'}
+      </button>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/login" element={<Login />} />

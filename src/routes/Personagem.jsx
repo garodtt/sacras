@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { supabase } from '../lib/supabaseClient.js';
 import {
@@ -31,6 +31,7 @@ import BotaoHamburguer from '../components/layout/BotaoHamburguer.jsx';
 import UploadFoto from '../components/UploadFoto.jsx';
 import LeitorCatalogo from '../components/LeitorCatalogo.jsx';
 import { EsqueletoFicha } from '../components/Esqueleto.jsx';
+import Breadcrumb from '../components/Breadcrumb.jsx';
 import {
   aplicarDano,
   calcularStatsDerivados,
@@ -97,6 +98,8 @@ const ABAS = [
 // banco, aqui só refletimos isso desabilitando os campos.
 export default function Personagem() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const campanhaContextoId = searchParams.get('campanha');
   const { user, role } = useAuth();
 
   const [personagem, setPersonagem] = useState(null);
@@ -374,8 +377,24 @@ export default function Personagem() {
     <main className="ficha">
       <header className="ficha-topo">
         <BotaoHamburguer onClick={() => setMenuAberto(true)} label="Abrir seções da ficha" />
-        <p className="ficha-voltar"><Link to="/painel/personagens">&larr; Voltar</Link></p>
       </header>
+
+      <Breadcrumb
+        itens={(() => {
+          const campanhaContexto = campanhaContextoId
+            ? campanhasVinculadas.find((c) => c.id === campanhaContextoId)
+            : null;
+          const segundoItem = campanhaContexto
+            ? { label: campanhaContexto.nome, to: `/campanha/${campanhaContexto.id}` }
+            : { label: 'Seus Personagens', to: '/painel/personagens' };
+          return [
+            { label: 'Início', to: '/painel' },
+            segundoItem,
+            { label: personagem.nome || '(sem nome)' },
+            { label: ABAS.find((a) => a.id === abaAtiva)?.label ?? '' },
+          ];
+        })()}
+      />
 
       <MenuLateral aberto={menuAberto} onFechar={() => setMenuAberto(false)} titulo="Seções da ficha" itens={itensMenuAbas} />
 
