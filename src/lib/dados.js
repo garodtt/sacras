@@ -557,8 +557,30 @@ export function listarNpcsCampanha(campanhaId) {
     .from('campanha_npcs')
     .select('*')
     .eq('campanha_id', campanhaId)
-    .order('pasta', { ascending: true })
     .order('nome', { ascending: true });
+}
+
+// ---------------------------------------------------------------------
+// PASTAS DE NPC (13/07) — entidade própria (nome + descrição), não só
+// texto solto repetido em cada NPC (migration 0023).
+// ---------------------------------------------------------------------
+export function listarPastasNpc(campanhaId) {
+  return supabase.from('campanha_pastas_npc').select('*').eq('campanha_id', campanhaId).order('nome', { ascending: true });
+}
+
+export function criarPastaNpc(campanhaId, { nome, descricao = '' }) {
+  return supabase.from('campanha_pastas_npc').insert({ campanha_id: campanhaId, nome, descricao }).select().single();
+}
+
+export function atualizarPastaNpc(id, campos) {
+  return supabase.from('campanha_pastas_npc').update(campos).eq('id', id).select().single();
+}
+
+// Remover uma pasta NÃO apaga os NPCs dentro dela — a coluna
+// `campanha_npcs.pasta_id` é `on delete set null`; eles só ficam
+// "sem pasta" (mostrados à parte, não perdidos).
+export function removerPastaNpc(id) {
+  return supabase.from('campanha_pastas_npc').delete().eq('id', id);
 }
 
 export function criarNpcCampanha(campanhaId, dados) {
@@ -609,4 +631,20 @@ export function salvarNotaPersonagemCampanha(campanhaPersonagemId, notas) {
 // ---------------------------------------------------------------------
 export function removerVinculosEmLote(ids) {
   return supabase.from('campanha_personagens').delete().in('id', ids);
+}
+
+// ---------------------------------------------------------------------
+// INVENTÁRIO DE NPC (13/07) — bem mais simples que o de personagem
+// (sem peso/espaço/mochila, só "o que ele tem").
+// ---------------------------------------------------------------------
+export function listarItensNpc(npcId) {
+  return supabase.from('campanha_npc_itens').select('*').eq('npc_id', npcId).order('created_at', { ascending: true });
+}
+
+export function criarItemNpc(npcId, { nome, quantidade = 1, descricao = '' }) {
+  return supabase.from('campanha_npc_itens').insert({ npc_id: npcId, nome, quantidade, descricao }).select().single();
+}
+
+export function removerItemNpc(id) {
+  return supabase.from('campanha_npc_itens').delete().eq('id', id);
 }

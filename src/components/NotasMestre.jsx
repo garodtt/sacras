@@ -24,14 +24,17 @@ export default function NotasMestre({ campanhaId, notasIniciais }) {
 
   return (
     <div className="notas-mestre">
-      <h3>Anotações (só você vê)</h3>
+      <div className="notas-mestre-cabecalho">
+        <h2>Anotações</h2>
+        <span className="selo-privado">Só você vê</span>
+      </div>
       {erro && <p className="erro">{erro}</p>}
       <textarea
         value={notas}
         onChange={(e) => setNotas(e.target.value)}
         onBlur={(e) => salvar(e.target.value)}
         placeholder="Ganchos de sessão, NPCs recorrentes, lembretes..."
-        rows={6}
+        rows={10}
       />
       {salvando && <p className="detalhe-secundario">Salvando...</p>}
     </div>

@@ -15,6 +15,7 @@ import {
   listarArmas,
   atualizarPersonagem,
   listarNpcsCampanha,
+  listarPastasNpc,
 } from '../lib/dados.js';
 import { MODELOS_NPC } from '../lib/modelosNpc.js';
 import { aplicarDano, ajustarValorSimples } from '../lib/regras.js';
@@ -118,6 +119,7 @@ export default function Combate() {
   const [aplicandoArea, setAplicandoArea] = useState(false);
   const [logAcoes, setLogAcoes] = useState([]);
   const [bibliotecaNpcs, setBibliotecaNpcs] = useState([]);
+  const [pastasNpcCombate, setPastasNpcCombate] = useState([]);
   const [importarNpcAberto, setImportarNpcAberto] = useState(false);
   const [npcsParaImportar, setNpcsParaImportar] = useState(() => new Set());
   const [importandoNpcs, setImportandoNpcs] = useState(false);
@@ -205,16 +207,18 @@ export default function Combate() {
   async function carregar() {
     setCarregando(true);
     setErro('');
-    const [resCampanha, resEntradas, resNpcs] = await Promise.all([
+    const [resCampanha, resEntradas, resNpcs, resPastas] = await Promise.all([
       buscarCampanha(id),
       listarCombateEntradas(id),
       listarNpcsCampanha(id),
+      listarPastasNpc(id),
     ]);
     if (resCampanha.error || resEntradas.error) setErro((resCampanha.error || resEntradas.error).message);
     setCampanha(resCampanha.data ?? null);
     const listaEntradas = resEntradas.data ?? [];
     setEntradas(listaEntradas);
     setBibliotecaNpcs(resNpcs.data ?? []);
+    setPastasNpcCombate(resPastas.data ?? []);
     await carregarArmasLigadas(listaEntradas);
     setCarregando(false);
   }
@@ -1142,12 +1146,15 @@ export default function Combate() {
             </p>
             {Object.entries(
               bibliotecaNpcs.reduce((porPasta, npc) => {
-                (porPasta[npc.pasta] ??= []).push(npc);
+                const chave = npc.pasta_id ?? '__sem_pasta__';
+                (porPasta[chave] ??= []).push(npc);
                 return porPasta;
               }, {})
-            ).map(([pasta, npcsDaPasta]) => (
-              <div key={pasta} className="pasta-npcs">
-                <h4>{pasta}</h4>
+            ).map(([chave, npcsDaPasta]) => {
+              const nomePasta = chave === '__sem_pasta__' ? 'Sem pasta' : pastasNpcCombate.find((p) => p.id === chave)?.nome ?? 'Sem pasta';
+              return (
+              <div key={chave} className="pasta-npcs">
+                <h4>{nomePasta}</h4>
                 <ul className="area-lista-alvos">
                   {npcsDaPasta.map((npc) => (
                     <li key={npc.id}>
@@ -1161,12 +1168,14 @@ export default function Combate() {
                         <span className="detalhe-secundario">
                           (Vida {npc.vida_max} · Dor {npc.dor_max} · Balas {npc.balas_max})
                         </span>
+                        {npc.descricao && <p className="detalhe-secundario campo-dica">{npc.descricao}</p>}
                       </label>
                     </li>
                   ))}
                 </ul>
               </div>
-            ))}
+              );
+            })}
             <div className="popup-acoes">
               <button type="button" onClick={importarNpcsDaBiblioteca} disabled={npcsParaImportar.size === 0 || importandoNpcs}>
                 {importandoNpcs ? 'Importando...' : `Importar ${npcsParaImportar.size || ''}`}

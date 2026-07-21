@@ -1491,6 +1491,116 @@ hook e mostrar o botão — feito agora em `CampanhaDetalhe.jsx` e
 (o efeito limpa a classe ao desmontar) — uma tela de jogador aberta
 depois não herda o tema escuro por engano.
 
+### Ferramentas de combate — facção, biblioteca de NPCs, duplicar, log (13/07)
+
+Nota igual às últimas vezes: bastante disso (migration `0020` inteira —
+`faccao` + tabela `campanha_npcs`, as 4 funções em `dados.js`, a seção
+completa "Biblioteca de NPCs" em `CampanhaDetalhe.jsx`, e
+`src/lib/modelosNpc.js`) já existia no projeto de uma rodada anterior
+não relatada direito. O que fiz agora foi o lado que faltava: usar
+tudo isso DENTRO do Rastreador de Combate.
+
+**Facção** (`combate_entradas.faccao`, enum fixo: aliado/inimigo/
+neutro — não texto livre, de propósito, pra ficar simples de escanear)
+— campo no formulário de adicionar, badge colorido no cabeçalho de
+cada combatente, e uma borda lateral colorida no card inteiro (verde
+pra aliado, vermelho pra inimigo, cinza pra neutro). O verde é a única
+cor fora da paleta da Fase 7 no projeto inteiro — deliberado: é uma
+convenção universal (verde=seguro/vermelho=perigo) que vale mais aqui
+do que a pureza da paleta.
+
+**Duplicar NPC** — botão por combatente, só aparece pra NPC (jogador é
+ligado a uma ficha real, "duplicar" não faz sentido nesse caso). Copia
+os máximos, reseta os atuais pro máximo (a cópia começa "fresca", sem
+o dano que o original já tomou), zera a Iniciativa (cada cópia rola a
+própria, ou o Mestre ajusta).
+
+**Modelo rápido no Combate** — mesmo `MODELOS_NPC` já usado na
+Biblioteca de NPCs, agora também disponível direto no formulário de
+"Adicionar combatente" — pré-preenche os campos, ainda editável antes
+de criar.
+
+**Importar NPC da biblioteca** — botão + popup (mesmo padrão do "Dano
+em área": lista com checkbox, agrupada por pasta) que puxa NPCs
+salvos na Biblioteca de NPCs da campanha pro combate de agora. Cria
+linhas NOVAS e independentes em `combate_entradas` (não um vínculo
+vivo, diferente de `personagem_id` — migration 0013): o molde na
+biblioteca não deveria perder Vida só porque uma cópia dele morreu
+numa luta.
+
+**Log de ações** — painel recolhível com as últimas 8 ações
+("Vida -1 em Pistoleiro", "Dor -1 em NPC (quebrou! Vida -1)", "3
+NPC(s) importado(s) da biblioteca"). Só em memória (estado do React,
+não salvo no banco) — é uma ajuda de leitura pra ESSA sessão, não um
+histórico permanente; começa vazio toda vez que a tela é reaberta.
+Diferente do "Desfazer" (que só lembra da ÚLTIMA mudança pra reverter
+de verdade), isso é só um resumo de leitura.
+
+**Cabeçalho fixo (sticky)** — o controle de Rodada/Próximo turno
+(`.combate-rodada-controle--fixo`) fica grudado no topo ao rolar uma
+lista de combatentes grande — só esse controle específico, não a tela
+inteira nem o segundo bloco (Dano em área/Explosivos).
+
+### Gestão de campanha — nota por personagem, ações em lote, acordeões (13/07)
+
+**Nota privada do Mestre por personagem** (migration `0021`, tabela
+`campanha_personagem_notas`) — chave é `campanha_personagens.id` (o
+VÍNCULO), não `personagens.id` direto: o mesmo personagem pode estar
+em mais de uma campanha, com segredos diferentes em cada uma. Mesmo
+motivo de sempre pra ser tabela própria (`campanha_notas_mestre`,
+migration 0019): RLS por linha, não por coluna — numa coluna solta em
+`personagens`, o JOGADOR (dono do personagem) receberia ela também
+numa consulta normal da própria ficha, mesmo se a tela nunca
+mostrasse. Aparece dentro do "Mais detalhes ▾" do cartão, só quando
+`podeGerenciar`. `listarNotasPersonagensCampanha` busca todas de uma
+vez (uma consulta com `.in(...)`), não uma por cartão.
+
+**Ações em lote** — checkbox por cartão/linha (só aparece quando
+`podeGerenciar`), barra "N selecionado(s) → Remover selecionados"
+aparece assim que a seleção não está vazia. `removerVinculosEmLote`
+(`dados.js`) usa `.in('id', ids)` num `.delete()` só — uma chamada,
+não N.
+
+**Seções recolhíveis** — "Personagens nesta campanha" e "Biblioteca de
+NPCs" abertas por padrão (`<details open>`); "Convidar jogador"
+começa fechada (é a seção mais ocasional). `<details>`/`<summary>`
+nativos — sem JS de estado próprio pra abrir/fechar, e sem quebrar se
+o JavaScript falhar por qualquer motivo. Setinha (▾/▸) desenhada via
+CSS (`content: '▾'` com `transform: rotate(-90deg)` quando fechado),
+já que o marcador nativo do navegador (`::-webkit-details-marker`)
+tem aparência inconsistente entre navegadores.
+
+### Ficha de NPC mais detalhada — descrição, foto, inventário, pastas (13/07)
+
+**`campanha_npcs` ganhou `descricao` e `foto_url`** (migration `0022`)
+— igual foto de personagem/item, usa o mesmo `UploadFoto.jsx`
+(`caminho: campanha_npc/{id}`). Só disponível DEPOIS de criar o NPC
+(não no formulário de criação — não existe ID ainda pra organizar o
+Storage); aparece no "Mais ▾" de cada NPC já existente.
+
+**Inventário de NPC** (tabela nova `campanha_npc_itens`,
+`InventarioNpc.jsx`) — DELIBERADAMENTE mais simples que o do
+personagem: sem peso/espaço/mochila, só "o que ele tem" (chave da
+cadeia, carta comprometedora, pertence notável). Busca só quando o
+card expande.
+
+**Pastas — mover e criar de verdade** — "pasta" continua sendo texto
+livre (não virou uma entidade própria com tabela/FK) — decisão
+deliberada: serve tanto pra "Sacramento" (cidade) quanto "Subtrama: A
+Vingança do Xerife", e quem decide o que faz sentido é o Mestre, não
+um esquema rígido de categorias. O que mudou: um `<datalist>`
+(`lista-pastas-existentes`, construído a partir das pastas já usadas)
+alimenta tanto o campo de criação quanto um campo "Mover pra pasta"
+dentro de cada NPC expandido — digita uma pasta existente (autocomplete)
+ou uma nova, sem precisar lembrar o nome exato de cabeça.
+
+**Modelos prontos expandidos** (`modelosNpc.js`) — de 5 pra 13
+arquétipos (Comerciante, Fazendeiro, Caçador de recompensas,
+Curandeiro(a), Bêbado da cidade, Padre/Pastor, Cavaleiro solitário,
+Ferroviário, além dos 5 que já existiam), cada um agora com uma
+`descricao` padrão de partida (reescrita pelo Mestre depois com os
+detalhes da própria história).
+
 ## 7. Fluxo de autenticação
 
 - **Cadastro aberto, sem escolha de papel**: qualquer pessoa pode se

@@ -92,6 +92,9 @@ tinha um projeto da v1, é mais simples criar outro do zero):
    17. `supabase/migrations/0017_protecao_itens.sql` — **nova (13/07)**: campos de Proteção (armadura) nos itens
    18. `supabase/migrations/0018_categoria_itens.sql` — **nova (13/07)**: categoria do item (pra ícone na lista)
    19. `supabase/migrations/0019_notas_mestre.sql` — **nova (13/07)**: anotações privadas do Mestre por campanha (tabela própria, RLS restrita)
+   20. `supabase/migrations/0020_faccao_biblioteca_npcs.sql` — **nova (13/07)**: facção nos combatentes (aliado/inimigo/neutro) e biblioteca de NPCs por campanha (organizados em pastas)
+   21. `supabase/migrations/0021_notas_personagem_campanha.sql` — **nova (13/07)**: nota privada do Mestre por personagem vinculado (tabela própria, RLS restrita)
+   22. `supabase/migrations/0022_ficha_npc_detalhada.sql` — **nova (13/07)**: descrição e foto no NPC, inventário simples de NPC (tabela nova)
 
 **4. Configure as variáveis de ambiente:**
 ```bash
@@ -230,7 +233,10 @@ sacramento-rpg/
 │       ├── 0016_habilitar_realtime.sql   # Realtime em personagens e combate_entradas
 │       ├── 0017_protecao_itens.sql   # campos de Proteção (armadura) nos itens
 │       ├── 0018_categoria_itens.sql   # categoria do item (ícone na lista)
-│       └── 0019_notas_mestre.sql   # anotações privadas do Mestre (tabela própria)
+│       ├── 0019_notas_mestre.sql   # anotações privadas do Mestre (tabela própria)
+│       ├── 0020_faccao_biblioteca_npcs.sql   # facção + biblioteca de NPCs por campanha
+│       ├── 0021_notas_personagem_campanha.sql   # nota privada do Mestre por personagem vinculado
+│       └── 0022_ficha_npc_detalhada.sql   # descrição/foto no NPC + inventário simples de NPC
 └── src/
     ├── main.jsx
     ├── App.jsx                 # rotas (react-router-dom)
@@ -239,6 +245,7 @@ sacramento-rpg/
     │   ├── dados.js             # consultas de campanhas/personagens/convites/itens/habilidades
     │   ├── regras.js            # regras de jogo puras (vida/dor, stats derivados, munição, montaria)
     │   ├── regras.test.js       # 44 testes cobrindo regras.js (`npm test`) — novo 13/07
+    │   ├── modelosNpc.js        # modelos prontos de NPC (Capanga, Xerife, etc.)
     │   └── toastBus.js           # barramento simples de toast (pub/sub) — novo 13/07
     ├── styles/
     │   └── global.css
@@ -260,6 +267,8 @@ sacramento-rpg/
     │   ├── EstadoVazio.jsx      # estado vazio com selo de estrela — novo 13/07
     │   ├── Breadcrumb.jsx       # trilha de navegação (Início/Campanha → Personagem → Aba)
     │   ├── NotasMestre.jsx      # anotações privadas do Mestre por campanha — novo 13/07
+    │   ├── NotaPersonagemCampanha.jsx  # nota privada do Mestre por personagem vinculado — novo 13/07
+    │   ├── InventarioNpc.jsx    # inventário simples de NPC (sem peso/espaço) — novo 13/07
     │   ├── layout/
     │   │   ├── MenuLateral.jsx      # drawer reutilizável (navegação OU troca de aba) — novo 13/07
     │   │   ├── BotaoHamburguer.jsx  # botão de 3 barrinhas que abre o MenuLateral — novo 13/07
@@ -323,7 +332,10 @@ sacramento-rpg/
 - [x] **Realtime, Proteção, Explosivos, Convite por nome e ajustes visuais (13/07)** — Rastreador de Combate atualiza sozinho via Supabase Realtime quando a ficha do jogador muda; Proteção (armadura) nos itens; referência de Explosivos + ferramenta de Dano em área; convite por nome de exibição (não só e-mail exato); Trilha com visual de "Carta de Sina"; esqueletos de carregamento; efeito de livro no Catálogo — ver `docs/ARQUITETURA.md`
 - [x] **Experiência do Mestre e reforço visual geral (13/07)** — telas do Mestre (Campanha, Combate) ganham layout mais largo e denso em telas grandes; cartões de personagem com foto e barra visual de Vida/Dor; Rastreador de Combate em 2 colunas; sombra sutil em todos os cartões de lista — ver `docs/ARQUITETURA.md`
 - [x] **Realtime bidirecional, testes automatizados, e mais melhorias pro Mestre (13/07)** — ficha do jogador também escuta mudanças do Mestre (não só o contrário); primeira suíte de testes automatizados (Vitest, 44 casos em `regras.js`); categoria de item com ícone; estado vazio mais cuidado; cartão de personagem expansível (dinheiro, munição, última alteração) + visão em tabela alternativa na campanha; atalhos de teclado no Rastreador de Combate — ver `docs/ARQUITETURA.md`
-- [x] **Estrutura e visual pro Mestre — modo Sessão/Preparação, notas, breadcrumb, tema escuro (13/07)** — toggle Sessão (enxuto)/Preparação (completo) na campanha; anotações privadas do Mestre (tabela própria, RLS restrita); breadcrumb inteligente no Personagem.jsx (mostra o nome da campanha quando vem de lá); tema escuro ligado nas telas do Mestre — ver `docs/ARQUITETURA.md`
+- [x] **Estrutura e visual pro Mestre — modo Sessão/Preparação, notas, breadcrumb, tema escuro (13/07)** — toggle Sessão (enxuto)/Preparação (completo) na campanha; anotações privadas do Mestre (tabela própria, RLS restrita); breadcrumb inteligente no Personagem.jsx (mostra o nome da campanha quando vem de lá); tema escuro global (um botão único, flutuante, todas as telas) — ver `docs/ARQUITETURA.md`
+- [x] **Ferramentas de combate — facção, biblioteca de NPCs, duplicar, log (13/07)** — combatentes agrupados por facção (cor); Biblioteca de NPCs por campanha (pastas) + "Importar NPC da biblioteca" no Rastreador; Duplicar NPC; Modelo rápido também no Combate; log das últimas ações; cabeçalho fixo (Rodada/Turno) — ver `docs/ARQUITETURA.md`
+- [x] **Gestão de campanha — nota por personagem, ações em lote, acordeões (13/07)** — nota privada do Mestre por personagem vinculado (tabela própria, RLS restrita); seleção múltipla + remoção em lote de vínculos (cartão e tabela); seções recolhíveis (Personagens/Biblioteca de NPCs/Convidar jogador) — ver `docs/ARQUITETURA.md`
+- [x] **Ficha de NPC mais detalhada (13/07)** — descrição e foto no NPC; inventário simples (sem peso/espaço); mover/criar pasta com autocomplete (serve pra cidade, subtrama, gangue — o que fizer sentido); modelos prontos expandidos de 5 pra 13 arquétipos, cada um com descrição de partida — ver `docs/ARQUITETURA.md`
 - [ ] **Fase 8** — Deploy no Netlify + variáveis de ambiente de produção
 - [ ] **Fase 9** *(opcional, sugerido)* — Histórico de alterações do personagem
 

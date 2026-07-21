@@ -8,6 +8,8 @@ import { Esqueleto } from '../components/Esqueleto.jsx';
 import Breadcrumb from '../components/Breadcrumb.jsx';
 import NotasMestre from '../components/NotasMestre.jsx';
 import NotaPersonagemCampanha from '../components/NotaPersonagemCampanha.jsx';
+import InventarioNpc from '../components/InventarioNpc.jsx';
+import UploadFoto from '../components/UploadFoto.jsx';
 import { calcularCapacidadeMunicaoDeArmas } from '../lib/regras.js';
 import { MODELOS_NPC } from '../lib/modelosNpc.js';
 import {
@@ -26,9 +28,28 @@ import {
   criarNpcCampanha,
   atualizarNpcCampanha,
   removerNpcCampanha,
+  listarPastasNpc,
+  criarPastaNpc,
+  atualizarPastaNpc,
+  removerPastaNpc,
   listarNotasPersonagensCampanha,
   removerVinculosEmLote,
 } from '../lib/dados.js';
+
+// Abas (13/07) — antes tudo ficava empilhado numa página só rolando
+// pra sempre (Personagens + Notas + Biblioteca de NPCs + Convidar,
+// tudo visível ao mesmo tempo). Trocado por abas: só uma seção por
+// vez, mesma ideia de "diminuir a quantidade de coisa visual por vez".
+// Isso também tornou o antigo "Modo Sessão/Preparação" redundante —
+// não abrir a aba de Convidar durante a mesa já resolve o mesmo
+// problema que aquele toggle tentava resolver, sem precisar de mais
+// uma camada de estado.
+const ABAS_CAMPANHA = [
+  { id: 'personagens', label: 'Personagens' },
+  { id: 'notas', label: 'Anotações' },
+  { id: 'npcs', label: 'Biblioteca de NPCs' },
+  { id: 'convites', label: 'Convidar Jogador' },
+];
 
 // Substitui SessaoDetalhe.jsx. Quem vê o quê aqui muda conforme o papel
 // do visitante em relação a ESTA campanha específica:
@@ -65,14 +86,29 @@ export default function CampanhaDetalhe() {
   const [armasPorPersonagem, setArmasPorPersonagem] = useState({});
   const [carregandoArmasDe, setCarregandoArmasDe] = useState(null);
 
-  const [modo, setModo] = useState('preparacao'); // 'preparacao' | 'sessao'
+  const [abaAtiva, setAbaAtiva] = useState('personagens');
   const [notasMestre, setNotasMestre] = useState(null);
 
   const [npcs, setNpcs] = useState([]);
   const [npcParaRemover, setNpcParaRemover] = useState(null);
   const [modeloNpc, setModeloNpc] = useState('');
-  const [novoNpc, setNovoNpc] = useState({ pasta: 'Geral', nome: '', vida_max: 6, dor_max: 6, balas_max: 6 });
+  const [novoNpc, setNovoNpc] = useState({
+    pasta_id: '',
+    nome: '',
+    descricao: '',
+    foto_url: null,
+    vida_max: 6,
+    dor_max: 6,
+    balas_max: 6,
+  });
   const [criandoNpc, setCriandoNpc] = useState(false);
+  const [npcsExpandidos, setNpcsExpandidos] = useState(() => new Set());
+
+  const [pastasNpc, setPastasNpc] = useState([]);
+  const [pastaParaRemover, setPastaParaRemover] = useState(null);
+  const [novaPasta, setNovaPasta] = useState({ nome: '', descricao: '' });
+  const [criandoPasta, setCriandoPasta] = useState(false);
+  const [buscaNpc, setBuscaNpc] = useState('');
 
   const [notasPersonagens, setNotasPersonagens] = useState({});
   const [selecionados, setSelecionados] = useState(() => new Set());
@@ -111,15 +147,17 @@ export default function CampanhaDetalhe() {
 
     if (souCriadorAgora || ehAdminAgora) {
       const idsVinculos = (resMembros.data ?? []).map((m) => m.id);
-      const [resConvites, resNotas, resNpcs, resNotasPersonagens] = await Promise.all([
+      const [resConvites, resNotas, resNpcs, resNotasPersonagens, resPastas] = await Promise.all([
         listarConvitesDaCampanha(id),
         buscarNotasMestre(id),
         listarNpcsCampanha(id),
         listarNotasPersonagensCampanha(idsVinculos),
+        listarPastasNpc(id),
       ]);
       setConvitesEnviados(resConvites.data ?? []);
       setNotasMestre(resNotas.data?.notas ?? '');
       setNpcs(resNpcs.data ?? []);
+      setPastasNpc(resPastas.data ?? []);
       const mapaNotas = {};
       (resNotasPersonagens.data ?? []).forEach((n) => {
         mapaNotas[n.campanha_personagem_id] = n.notas;
@@ -185,14 +223,91 @@ export default function CampanhaDetalhe() {
 
     setErro('');
     setCriandoNpc(true);
-    const { data, error } = await criarNpcCampanha(id, { ...novoNpc, nome: novoNpc.nome.trim() });
+    const { data, error } = await criarNpcCampanha(id, {
+      ...novoNpc,
+      nome: novoNpc.nome.trim(),
+      pasta_id: novoNpc.pasta_id || null,
+    });
     setCriandoNpc(false);
 
     if (error) setErro(error.message);
     else {
-      setNpcs((atual) => [...atual, data].sort((a, b) => a.pasta.localeCompare(b.pasta) || a.nome.localeCompare(b.nome)));
-      setNovoNpc({ pasta: novoNpc.pasta, nome: '', vida_max: 6, dor_max: 6, balas_max: 6 });
+      setNpcs((atual) => [...atual, data].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setNovoNpc({
+        pasta_id: novoNpc.pasta_id,
+        nome: '',
+        descricao: '',
+        foto_url: null,
+        vida_max: 6,
+        dor_max: 6,
+        balas_max: 6,
+      });
       setModeloNpc('');
+    }
+  }
+
+  function alternarNpcExpandido(npcId) {
+    setNpcsExpandidos((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(npcId)) novo.delete(npcId);
+      else novo.add(npcId);
+      return novo;
+    });
+  }
+
+  // Mover NPC de pasta (13/07) — agora é escolher entre as pastas que
+  // JÁ EXISTEM (select), não mais digitar um texto livre — pasta virou
+  // uma entidade de verdade (migration 0023), então "mover" é só
+  // trocar a referência.
+  async function moverNpcParaPasta(npc, novaPastaId) {
+    const valorFinal = novaPastaId || null;
+    if (valorFinal === npc.pasta_id) return;
+    const { data, error } = await atualizarNpcCampanha(npc.id, { pasta_id: valorFinal });
+    if (error) setErro(error.message);
+    else setNpcs((atual) => atual.map((n) => (n.id === npc.id ? data : n)));
+  }
+
+  async function salvarDescricaoNpc(npc, descricao) {
+    if (descricao === npc.descricao) return;
+    const { data, error } = await atualizarNpcCampanha(npc.id, { descricao });
+    if (error) setErro(error.message);
+    else setNpcs((atual) => atual.map((n) => (n.id === npc.id ? data : n)));
+  }
+
+  // Pastas de NPC (13/07) — criar uma pasta é uma ação própria, com
+  // nome E descrição (ex.: "Subtrama: A Vingança do Xerife" com um
+  // resumo do gancho) — acompanhada como sua própria lista, separada
+  // dos NPCs que ela agrupa.
+  async function handleCriarPasta(e) {
+    e.preventDefault();
+    if (!novaPasta.nome.trim()) return;
+    setErro('');
+    setCriandoPasta(true);
+    const { data, error } = await criarPastaNpc(id, { nome: novaPasta.nome.trim(), descricao: novaPasta.descricao });
+    setCriandoPasta(false);
+    if (error) setErro(error.message);
+    else {
+      setPastasNpc((atual) => [...atual, data].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setNovaPasta({ nome: '', descricao: '' });
+    }
+  }
+
+  async function salvarDescricaoPasta(pasta, descricao) {
+    if (descricao === pasta.descricao) return;
+    const { data, error } = await atualizarPastaNpc(pasta.id, { descricao });
+    if (error) setErro(error.message);
+    else setPastasNpc((atual) => atual.map((p) => (p.id === pasta.id ? data : p)));
+  }
+
+  async function handleRemoverPasta() {
+    const pastaId = pastaParaRemover;
+    setPastaParaRemover(null);
+    const { error } = await removerPastaNpc(pastaId);
+    if (error) setErro(error.message);
+    else {
+      setPastasNpc((atual) => atual.filter((p) => p.id !== pastaId));
+      // NPCs que estavam nela ficam "sem pasta" — não some da lista.
+      setNpcs((atual) => atual.map((n) => (n.pasta_id === pastaId ? { ...n, pasta_id: null } : n)));
     }
   }
 
@@ -277,34 +392,25 @@ export default function CampanhaDetalhe() {
       )}
 
       {podeGerenciar && (
-        <div className="controles-mestre-topo">
-          <div className="toggle-visualizacao">
+        <nav className="abas-campanha" aria-label="Seções da campanha">
+          {ABAS_CAMPANHA.map((aba) => (
             <button
+              key={aba.id}
               type="button"
-              className={modo === 'sessao' ? 'toggle-ativo' : 'botao-secundario'}
-              onClick={() => setModo('sessao')}
-              title="Enxuto — só o essencial pra rodar a mesa"
+              className={`aba-campanha-botao ${abaAtiva === aba.id ? 'aba-campanha-botao--ativa' : ''}`}
+              onClick={() => setAbaAtiva(aba.id)}
             >
-              Modo Sessão
+              {aba.label}
             </button>
-            <button
-              type="button"
-              className={modo === 'preparacao' ? 'toggle-ativo' : 'botao-secundario'}
-              onClick={() => setModo('preparacao')}
-              title="Completo — convites, vínculos, tudo aberto"
-            >
-              Modo Preparação
-            </button>
-          </div>
-        </div>
+          ))}
+        </nav>
       )}
 
       {erro && <p className="erro">{erro}</p>}
 
-      <details className="secao-recolhivel" open>
-        <summary>
-          <h2>Personagens nesta campanha</h2>
-        </summary>
+      {(abaAtiva === 'personagens' || !podeGerenciar) && (
+      <section className="secao-aba-campanha">
+        <h2 className="oculto-visualmente">Personagens nesta campanha</h2>
         <div className="painel-header">
           {selecionados.size > 0 ? (
             <span>
@@ -481,7 +587,7 @@ export default function CampanhaDetalhe() {
           </div>
         )}
 
-        {modo === 'preparacao' && possoVincular && meusDisponiveisParaVincular.length > 0 && (
+        {possoVincular && meusDisponiveisParaVincular.length > 0 && (
           <form onSubmit={handleVincular} className="form-inline">
             <label>
               Vincular um dos seus personagens
@@ -502,69 +608,200 @@ export default function CampanhaDetalhe() {
           </form>
         )}
 
-        {modo === 'preparacao' && possoVincular && meusPersonagens.length === 0 && (
+        {possoVincular && meusPersonagens.length === 0 && (
           <p className="detalhe-secundario">
             Você ainda não tem nenhum personagem. Crie um no <Link to="/painel">seu painel</Link> pra vincular aqui.
           </p>
         )}
 
-        {modo === 'preparacao' && possoVincular && meusPersonagens.length > 0 && meusDisponiveisParaVincular.length === 0 && (
+        {possoVincular && meusPersonagens.length > 0 && meusDisponiveisParaVincular.length === 0 && (
           <p className="detalhe-secundario">Todos os seus personagens já estão nesta campanha.</p>
         )}
 
-        {modo === 'preparacao' && !possoVincular && (
+        {!possoVincular && (
           <p className="detalhe-secundario">
             Você ainda não participa desta campanha. Se recebeu um convite,
             responda em <Link to="/painel">seu painel</Link>.
           </p>
         )}
-      </details>
-
-      {podeGerenciar && (
-        <NotasMestre campanhaId={id} notasIniciais={notasMestre ?? ''} />
+      </section>
       )}
 
-      {podeGerenciar && modo === 'preparacao' && (
-        <details className="secao-recolhivel" open>
-          <summary>
-            <h2>Biblioteca de NPCs</h2>
-          </summary>
+      {podeGerenciar && abaAtiva === 'notas' && (
+        <section className="secao-aba-campanha">
+          <NotasMestre campanhaId={id} notasIniciais={notasMestre ?? ''} />
+        </section>
+      )}
+
+      {podeGerenciar && abaAtiva === 'npcs' && (
+        <section className="secao-aba-campanha">
+          <h2>Biblioteca de NPCs</h2>
           <p className="detalhe-secundario">
             Crie de antemão — depois é só puxar pro Rastreador de Combate na hora da luta ("Importar NPC da
-            biblioteca"), sem digitar tudo de novo.
+            biblioteca"), sem digitar tudo de novo. Pastas têm descrição própria — uma cidade, uma subtrama, uma
+            gangue — o que fizer sentido pra sua campanha.
           </p>
 
-          {npcs.length === 0 ? (
-            <EstadoVazio>Nenhum NPC criado ainda.</EstadoVazio>
-          ) : (
-            Object.entries(
-              npcs.reduce((porPasta, npc) => {
-                (porPasta[npc.pasta] ??= []).push(npc);
-                return porPasta;
-              }, {})
-            ).map(([pasta, npcsDaPasta]) => (
-              <div key={pasta} className="pasta-npcs">
-                <h3>{pasta}</h3>
-                <ul className="lista-cards">
-                  {npcsDaPasta.map((npc) => (
-                    <li key={npc.id}>
-                      <div>
-                        <strong>{npc.nome}</strong>
-                        <p className="detalhe-secundario">
-                          Vida {npc.vida_max} · Dor {npc.dor_max} · Balas {npc.balas_max}
-                        </p>
-                      </div>
-                      <button className="botao-remover" onClick={() => setNpcParaRemover(npc.id)}>
-                        Remover
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))
+          {npcs.length > 3 && (
+            <input
+              type="search"
+              className="campo-busca-itens"
+              placeholder="Buscar NPC pelo nome..."
+              value={buscaNpc}
+              onChange={(e) => setBuscaNpc(e.target.value)}
+            />
           )}
 
-          <form onSubmit={handleCriarNpc} className="form-inline">
+          {(() => {
+            const termo = buscaNpc.trim().toLowerCase();
+            const npcsFiltrados = termo ? npcs.filter((n) => n.nome.toLowerCase().includes(termo)) : npcs;
+
+            if (npcs.length > 0 && npcsFiltrados.length === 0) {
+              return <p className="detalhe-secundario">Nenhum NPC bate com "{buscaNpc}".</p>;
+            }
+
+            const porPasta = {};
+            npcsFiltrados.forEach((npc) => {
+              const chave = npc.pasta_id ?? '__sem_pasta__';
+              (porPasta[chave] ??= []).push(npc);
+            });
+
+            // Mostra TODA pasta cadastrada (mesmo vazia, ou zerada pela busca) — "acompanhar as pastas" da
+            // campanha é ver a lista inteira, não só as que têm NPC batendo com o filtro agora.
+            const gruposOrdenados = [
+              ...pastasNpc.map((p) => ({ id: p.id, nome: p.nome, descricao: p.descricao, npcsDoGrupo: porPasta[p.id] ?? [] })),
+              ...(porPasta.__sem_pasta__
+                ? [{ id: null, nome: 'Sem pasta', descricao: '', npcsDoGrupo: porPasta.__sem_pasta__ }]
+                : []),
+            ];
+
+            return gruposOrdenados.map((grupo) => (
+              <details key={grupo.id ?? 'sem-pasta'} className="pasta-npcs" open>
+                <summary className="pasta-npcs-cabecalho">
+                  <h3>{grupo.nome}</h3>
+                  {grupo.id && (
+                    <button
+                      type="button"
+                      className="botao-remover"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setPastaParaRemover(grupo.id);
+                      }}
+                    >
+                      Remover pasta
+                    </button>
+                  )}
+                </summary>
+                {grupo.id && (
+                  <textarea
+                    className="descricao-pasta"
+                    defaultValue={grupo.descricao}
+                    rows={2}
+                    placeholder="Do que se trata essa pasta (gancho da subtrama, contexto da cidade)..."
+                    onBlur={(e) => salvarDescricaoPasta(pastasNpc.find((p) => p.id === grupo.id), e.target.value)}
+                  />
+                )}
+                {grupo.npcsDoGrupo.length === 0 && <p className="detalhe-secundario">Nenhum NPC aqui ainda.</p>}
+                {grupo.npcsDoGrupo.length > 0 && (
+                  <ul className="lista-cards lista-cards--vertical">
+                    {grupo.npcsDoGrupo.map((npc) => {
+                      const expandidoNpc = npcsExpandidos.has(npc.id);
+                      return (
+                        <li key={npc.id} className="cartao-npc-biblioteca">
+                          <div className="cartao-npc-topo">
+                            {npc.foto_url && (
+                              <div className="cartao-personagem-foto" style={{ backgroundImage: `url("${npc.foto_url}")` }} />
+                            )}
+                            <div className="cartao-personagem-corpo">
+                              <strong>{npc.nome}</strong>
+                              <p className="detalhe-secundario">
+                                Vida {npc.vida_max} · Dor {npc.dor_max} · Balas {npc.balas_max}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="botao-detalhes-toggle"
+                              onClick={() => alternarNpcExpandido(npc.id)}
+                              aria-expanded={expandidoNpc}
+                            >
+                              {expandidoNpc ? 'Menos ▲' : 'Mais ▾'}
+                            </button>
+                            <button className="botao-remover" onClick={() => setNpcParaRemover(npc.id)}>
+                              Remover
+                            </button>
+                          </div>
+
+                          {expandidoNpc && (
+                            <div className="cartao-personagem-detalhes cartao-npc-detalhes">
+                              <div className="npc-detalhes-linha-superior">
+                                <UploadFoto
+                                  caminho={`campanha_npc/${npc.id}`}
+                                  fotoAtual={npc.foto_url}
+                                  editavel
+                                  variante="pequena"
+                                  alt={npc.nome}
+                                  onSalvar={(url) => atualizarNpcCampanha(npc.id, { foto_url: url }).then(({ data }) => data && setNpcs((atual) => atual.map((n) => (n.id === npc.id ? data : n))))}
+                                />
+                                <label className="campo-editavel-rotulo npc-descricao-campo">
+                                  Descrição
+                                  <textarea
+                                    defaultValue={npc.descricao}
+                                    rows={3}
+                                    placeholder="Aparência, personalidade, segredos..."
+                                    onBlur={(e) => salvarDescricaoNpc(npc, e.target.value)}
+                                  />
+                                </label>
+                              </div>
+
+                              <label className="campo-editavel-rotulo npc-pasta-campo">
+                                Mover pra pasta
+                                <select value={npc.pasta_id ?? ''} onChange={(e) => moverNpcParaPasta(npc, e.target.value)}>
+                                  <option value="">Sem pasta</option>
+                                  {pastasNpc.map((p) => (
+                                    <option key={p.id} value={p.id}>{p.nome}</option>
+                                  ))}
+                                </select>
+                              </label>
+
+                              <div className="npc-inventario-secao">
+                                <h4>Inventário</h4>
+                                <InventarioNpc npcId={npc.id} />
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </details>
+            ));
+          })()}
+
+          <form onSubmit={handleCriarPasta} className="form-inline">
+            <label>
+              Nova pasta
+              <input
+                value={novaPasta.nome}
+                onChange={(e) => setNovaPasta({ ...novaPasta, nome: e.target.value })}
+                placeholder="Sacramento, Subtrama do Xerife..."
+              />
+            </label>
+            <label className="campo-largura-total">
+              Descrição da pasta (opcional)
+              <input
+                value={novaPasta.descricao}
+                onChange={(e) => setNovaPasta({ ...novaPasta, descricao: e.target.value })}
+                placeholder="Do que se trata..."
+              />
+            </label>
+            <button type="submit" disabled={criandoPasta}>
+              {criandoPasta ? 'Criando...' : '+ Criar pasta'}
+            </button>
+          </form>
+
+          <form onSubmit={handleCriarNpc} className="form-grade">
             <label>
               Modelo rápido (opcional)
               <select value={modeloNpc} onChange={(e) => aplicarModeloNpc(e.target.value)}>
@@ -576,11 +813,12 @@ export default function CampanhaDetalhe() {
             </label>
             <label>
               Pasta
-              <input
-                value={novoNpc.pasta}
-                onChange={(e) => setNovoNpc({ ...novoNpc, pasta: e.target.value })}
-                placeholder="Geral, Gangue do Rio..."
-              />
+              <select value={novoNpc.pasta_id} onChange={(e) => setNovoNpc({ ...novoNpc, pasta_id: e.target.value })}>
+                <option value="">Sem pasta</option>
+                {pastasNpc.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
+              </select>
             </label>
             <label>
               Nome
@@ -617,18 +855,25 @@ export default function CampanhaDetalhe() {
                 onChange={(e) => setNovoNpc({ ...novoNpc, balas_max: Number(e.target.value) || 0 })}
               />
             </label>
+            <label className="campo-largura-total">
+              Descrição (opcional)
+              <textarea
+                value={novoNpc.descricao}
+                onChange={(e) => setNovoNpc({ ...novoNpc, descricao: e.target.value })}
+                placeholder="Aparência, personalidade, segredos..."
+                rows={2}
+              />
+            </label>
             <button type="submit" disabled={criandoNpc}>
               {criandoNpc ? 'Criando...' : '+ Criar NPC'}
             </button>
           </form>
-        </details>
+        </section>
       )}
 
-      {podeGerenciar && modo === 'preparacao' && (
-        <details className="secao-recolhivel">
-          <summary>
-            <h2>Convidar jogador</h2>
-          </summary>
+      {podeGerenciar && abaAtiva === 'convites' && (
+        <section className="secao-aba-campanha">
+          <h2>Convidar jogador</h2>
           <form onSubmit={handleBuscarEmail} className="form-inline">
             <label>
               Adicionar jogador (nome ou e-mail)
@@ -669,7 +914,7 @@ export default function CampanhaDetalhe() {
               </ul>
             </>
           )}
-        </details>
+        </section>
       )}
 
       <PopupConfirmar
@@ -690,6 +935,12 @@ export default function CampanhaDetalhe() {
         mensagem="Remover este NPC da biblioteca?"
         onConfirmar={handleRemoverNpc}
         onCancelar={() => setNpcParaRemover(null)}
+      />
+      <PopupConfirmar
+        aberto={Boolean(pastaParaRemover)}
+        mensagem="Remover esta pasta? Os NPCs dentro dela não são apagados, só ficam sem pasta."
+        onConfirmar={handleRemoverPasta}
+        onCancelar={() => setPastaParaRemover(null)}
       />
     </main>
   );

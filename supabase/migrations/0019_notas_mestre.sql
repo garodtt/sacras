@@ -59,3 +59,4 @@ create policy "campanha_notas_delete" on public.campanha_notas_mestre for delete
       where c.id = campanha_id and (c.criado_por = (select auth.uid()) or (select public.is_admin()))
     )
   );
+  
