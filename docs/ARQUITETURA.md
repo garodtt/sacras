@@ -1601,6 +1601,129 @@ Ferroviário, além dos 5 que já existiam), cada um agora com uma
 `descricao` padrão de partida (reescrita pelo Mestre depois com os
 detalhes da própria história).
 
+### Layout do formulário, busca na Biblioteca de NPCs, pasta como entidade (13/07)
+
+**`.form-grade`** (nova classe) — o formulário de Criar NPC (6+ campos)
+usava `.form-inline` (flex-wrap sem largura definida), que quebrava de
+um jeito imprevisível: um campo sozinho numa linha, o resto espremido.
+`.form-grade` usa CSS grid com colunas mínimas fixas
+(`repeat(auto-fit, minmax(140px, 1fr))`) — reflui de forma previsível
+em qualquer largura de tela.
+
+**Busca na Biblioteca de NPCs** — mesmo padrão já usado no inventário
+do personagem: campo de busca só aparece com mais de 3 NPCs, filtra
+por nome (case-insensitive), mantém a estrutura de pastas visível
+mesmo com filtro ativo (pastas sem resultado aparecem vazias, não
+somem — "acompanhar as pastas" inclui ver que uma está zerada agora).
+
+**Pasta virou entidade de verdade** (migration `0023`, tabela
+`campanha_pastas_npc`) — antes era só um texto solto repetido em cada
+NPC (sem lugar pra descrição, sem lista própria pra "acompanhar").
+Agora: nome + descrição próprios, um formulário dedicado "Criar
+pasta", e cada pasta some description editável (o gancho da subtrama,
+o contexto da cidade) aparece ACIMA da lista de NPCs dela, não misturada
+com a descrição de nenhum NPC específico.
+- **Migration com backfill de verdade**: cria uma pasta pra cada valor
+  de texto já em uso na base (`insert ... select distinct`), aponta
+  cada NPC pra ela (`update ... from`), só então remove a coluna de
+  texto antiga — sem perder nenhuma organização que já existia.
+- **`pasta_id` é `on delete set null`** — remover uma pasta não apaga
+  os NPCs dela, só tira a referência (viram "Sem pasta", continuam na
+  lista).
+- **"Mover pra pasta" e a criação de NPC** agora usam `<select>` das
+  pastas que JÁ EXISTEM (não mais texto livre/datalist) — criar uma
+  pasta nova é uma ação separada e intencional ("Criar pasta"), não
+  algo que acontece sem querer ao digitar um nome novo no campo errado.
+- `Combate.jsx` (popup "Importar NPC da biblioteca") também precisou
+  ajustar o agrupamento — buscava por `npc.pasta` (texto), que não
+  existe mais; agora busca `listarPastasNpc` também e agrupa por
+  `pasta_id`.
+
+### Redesenho da tela de campanha — abas, NPC, notas (13/07)
+
+**Abas substituem Modo Sessão/Preparação + seções recolhíveis** —
+antes tudo ficava empilhado numa página só rolando pra sempre
+(Personagens + Notas + Biblioteca de NPCs + Convidar, tudo visível ao
+mesmo tempo, ou escondido atrás de `<details>` que ainda deixava tudo
+"ali", só fechado). Agora é uma barra de abas (`ABAS_CAMPANHA`,
+`abaAtiva`) — só uma seção por vez, igual o padrão já usado em
+`Personagem.jsx`. Isso tornou o "Modo Sessão/Preparação" redundante
+(não abrir a aba de Convidar durante a mesa já resolve o mesmo
+problema que aquele toggle tentava resolver) — removido. Jogador
+comum não vê a barra de abas — só tem acesso à seção de Personagens
+mesmo, então mostrar uma barra de 1 aba só não faria sentido.
+
+**Cartão de NPC reorganizado** — antes a foto ficava isolada acima da
+descrição (um quadrado "+" solto, deixando um vão estranho antes do
+campo de texto); agora foto e descrição ficam lado a lado numa linha,
+"Mover pra pasta" logo abaixo, e o Inventário fica numa seção separada
+por uma divisória, com seu próprio título — cada bloco de informação
+visualmente distinto do outro, não tudo empilhado sem hierarquia.
+
+**Notas do Mestre com visual de painel de verdade** — trocou a borda
+tracejada (que lia como "provisório"/placeholder) por um acento de cor
+na borda esquerda (mesma linguagem visual dos acentos por categoria na
+ficha do personagem) + um selo "Só você vê" ao lado do título, em vez
+do texto "(só você vê)" solto dentro do `<h3>`.
+
+**Pastas de NPC recolhíveis** (13/07) — cada pasta na Biblioteca de
+NPCs virou `<details>` (abertas por padrão, botão "Remover pasta"
+dentro do `<summary>` usa `preventDefault`/`stopPropagation` pra não
+alternar o recolher junto) — útil quando a campanha acumula várias
+pastas e só uma ou duas importam na sessão de hoje.
+
+### Aba Compras (13/07)
+
+Nova aba na ficha (`ABAS`, entre Montaria e o fim), só pro dono da
+ficha ou Mestre (`canEdit`). Não precisou de migration nem tabela
+nova — reaproveita `items`, `weapons` e `personagens` que já existiam,
+só estendeu `criarArma`/`criarItem` (`dados.js`) pra aceitarem um
+terceiro parâmetro opcional `camposExtras` (compatível com todo lugar
+que já chamava essas funções pra criar linha em branco).
+
+**`src/lib/catalogoCompras.js`** — todo o conteúdo do Grande Catálogo
+de Equipamento (~150 itens: armas de fogo, armas brancas, acessórios,
+munição, proteção, mercearia, roupa, ferramentas), com preço como
+faixa (`precoMin`/`precoMax` — o livro é explícito que é negociável) e
+`espaco` na mesma unidade "linhas" já usada em `items.espaco`. Armas
+têm `meioTransporte` sugerido — coldre pra revólveres/pistolas, bandoleira
+pra fuzil/espingarda/carabina, bainha pra arma branca — baseado na
+própria descrição do livro de qual guarnição carrega qual tipo de arma;
+é só o PONTO DE PARTIDA pra tentativa automática de equipar na compra.
+
+**Fluxo de compra** (`Compras.jsx`):
+1. Busca por nome + catálogo organizado por categoria (cada categoria
+   é um `<details>` recolhível).
+2. Carrinho com quantidade ajustável, subtotal pela média da faixa de
+   preço.
+3. Desconto: ou define um valor final customizado, ou marca como
+   "Presente" (grátis) — pensado pra quando o item foi achado, ganho,
+   ou o Mestre quer vender mais barato.
+4. Ao confirmar, **simula a compra inteira antes de gravar qualquer
+   coisa** (`simularDestinos`): decide o destino de cada item
+   (arma equipável → `weapons` com `meio_transporte`; arma que não
+   coube no limite → `items` comum; munição → soma direto em
+   `municao_leve_atual`/`municao_pesada_atual`; resto → `items`
+   comum), soma o peso adicional que isso geraria, e resolve a
+   capacidade de munição DEPOIS da compra (uma arma nova de
+   coldre/bandoleira pode abrir mais capacidade, o que às vezes reduz
+   o excedente de munição em vez de aumentar).
+5. **Dinheiro insuficiente bloqueia** — sem "colocar na conta", tem
+   que ajustar o carrinho ou aplicar desconto.
+6. **Peso excedido não bloqueia** — mostra quanto excedeu e oferece
+   colocar os itens novos na montaria (`local_montaria: 'bolsa'`, se
+   houver montaria cadastrada) ou voltar e ajustar o carrinho.
+7. Só EFETIVAMENTE grava no banco depois de resolver (ou ignorar) o
+   aviso de peso — nunca deixa a ficha num estado "só metade
+   comprado" por causa do aviso em si (a limitação real de
+   atomicidade — mesma do resto do app, que também não usa
+   transações — é só se a REDE cair no meio das escritas sequenciais).
+
+Mapeamento pra `items.categoria` (ícone — migration 0018): arma que
+não coube no slot → `arma_branca`; comida/roupa/ferramenta mantêm a
+própria categoria; proteção e acessório (bainha/bandoleira/coldre
+avulsos) caem em `outro`, já que não têm ícone específico.
+
 ## 7. Fluxo de autenticação
 
 - **Cadastro aberto, sem escolha de papel**: qualquer pessoa pode se

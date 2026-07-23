@@ -95,6 +95,7 @@ tinha um projeto da v1, é mais simples criar outro do zero):
    20. `supabase/migrations/0020_faccao_biblioteca_npcs.sql` — **nova (13/07)**: facção nos combatentes (aliado/inimigo/neutro) e biblioteca de NPCs por campanha (organizados em pastas)
    21. `supabase/migrations/0021_notas_personagem_campanha.sql` — **nova (13/07)**: nota privada do Mestre por personagem vinculado (tabela própria, RLS restrita)
    22. `supabase/migrations/0022_ficha_npc_detalhada.sql` — **nova (13/07)**: descrição e foto no NPC, inventário simples de NPC (tabela nova)
+   23. `supabase/migrations/0023_pastas_npc_entidade.sql` — **nova (13/07)**: pasta de NPC vira entidade própria (nome + descrição), com backfill dos dados existentes
 
 **4. Configure as variáveis de ambiente:**
 ```bash
@@ -236,7 +237,8 @@ sacramento-rpg/
 │       ├── 0019_notas_mestre.sql   # anotações privadas do Mestre (tabela própria)
 │       ├── 0020_faccao_biblioteca_npcs.sql   # facção + biblioteca de NPCs por campanha
 │       ├── 0021_notas_personagem_campanha.sql   # nota privada do Mestre por personagem vinculado
-│       └── 0022_ficha_npc_detalhada.sql   # descrição/foto no NPC + inventário simples de NPC
+│       ├── 0022_ficha_npc_detalhada.sql   # descrição/foto no NPC + inventário simples de NPC
+│       └── 0023_pastas_npc_entidade.sql   # pasta de NPC vira entidade própria (nome + descrição)
 └── src/
     ├── main.jsx
     ├── App.jsx                 # rotas (react-router-dom)
@@ -246,6 +248,7 @@ sacramento-rpg/
     │   ├── regras.js            # regras de jogo puras (vida/dor, stats derivados, munição, montaria)
     │   ├── regras.test.js       # 44 testes cobrindo regras.js (`npm test`) — novo 13/07
     │   ├── modelosNpc.js        # modelos prontos de NPC (Capanga, Xerife, etc.)
+    │   ├── catalogoCompras.js   # Grande Catálogo de Equipamento em dados (~150 itens) — novo 13/07
     │   └── toastBus.js           # barramento simples de toast (pub/sub) — novo 13/07
     ├── styles/
     │   └── global.css
@@ -284,6 +287,7 @@ sacramento-rpg/
     │       ├── MunicaoPool.jsx     # munição de reserva (leve/pesada) — novo 13/07
     │       ├── Habilidades.jsx     # catálogo + habilidade própria — novo 13/07
     │       ├── TrilhaPersonagem.jsx  # Trilha de Redenção (6 passos, progressão) — novo 13/07
+    │       ├── Compras.jsx      # catálogo + carrinho + compra (aba Compras) — novo 13/07
     │       ├── EfeitoDorPopup.jsx  # popup da tabela de Dor, marcado na mão — novo 13/07
     │       ├── Montaria.jsx        # bloco da montaria (vida/dor, carga, inventário próprio)
     │       └── LinhaCirculosAjustavel.jsx  # +/- dos lados de Vida/Dor atual, usa lib/regras.js
@@ -336,6 +340,9 @@ sacramento-rpg/
 - [x] **Ferramentas de combate — facção, biblioteca de NPCs, duplicar, log (13/07)** — combatentes agrupados por facção (cor); Biblioteca de NPCs por campanha (pastas) + "Importar NPC da biblioteca" no Rastreador; Duplicar NPC; Modelo rápido também no Combate; log das últimas ações; cabeçalho fixo (Rodada/Turno) — ver `docs/ARQUITETURA.md`
 - [x] **Gestão de campanha — nota por personagem, ações em lote, acordeões (13/07)** — nota privada do Mestre por personagem vinculado (tabela própria, RLS restrita); seleção múltipla + remoção em lote de vínculos (cartão e tabela); seções recolhíveis (Personagens/Biblioteca de NPCs/Convidar jogador) — ver `docs/ARQUITETURA.md`
 - [x] **Ficha de NPC mais detalhada (13/07)** — descrição e foto no NPC; inventário simples (sem peso/espaço); mover/criar pasta com autocomplete (serve pra cidade, subtrama, gangue — o que fizer sentido); modelos prontos expandidos de 5 pra 13 arquétipos, cada um com descrição de partida — ver `docs/ARQUITETURA.md`
+- [x] **Layout do formulário, busca, pasta como entidade (13/07)** — formulário de Criar NPC em grade organizada (não quebra mais de forma imprevisível); busca por nome na Biblioteca de NPCs; pasta virou entidade própria com nome+descrição (migration com backfill dos dados existentes), formulário dedicado "Criar pasta", "Mover pra pasta" agora é seleção entre pastas existentes — ver `docs/ARQUITETURA.md`
+- [x] **Redesenho da tela de campanha — abas, NPC, notas (13/07)** — Modo Sessão/Preparação e seções recolhíveis substituídos por abas (Personagens/Anotações/Biblioteca de NPCs/Convidar Jogador); cartão de NPC reorganizado (foto e descrição lado a lado, inventário em seção própria); Notas do Mestre com visual de painel (acento de cor, selo "Só você vê") — ver `docs/ARQUITETURA.md`
+- [x] **Aba Compras (13/07)** — catálogo completo do livro (~150 itens) com busca e carrinho; desconto (valor customizado ou presente/grátis); ao concluir, arma equipável vira arma de verdade já equipada (coldre/bandoleira/bainha), munição entra direto no pool, resto vira item; avisa e trava se faltar dinheiro; avisa e oferece montaria se estourar o peso — ver `docs/ARQUITETURA.md`
 - [ ] **Fase 8** — Deploy no Netlify + variáveis de ambiente de produção
 - [ ] **Fase 9** *(opcional, sugerido)* — Histórico de alterações do personagem
 

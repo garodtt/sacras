@@ -263,10 +263,12 @@ export function listarItens(personagemId) {
     .order('ordem', { ascending: true });
 }
 
-export function criarItem(personagemId, ordem) {
+// `camposExtras` opcional (13/07) — mesmo motivo de criarArma, usado
+// pela aba Compras.
+export function criarItem(personagemId, ordem, camposExtras = {}) {
   return supabase
     .from('items')
-    .insert({ personagem_id: personagemId, ordem })
+    .insert({ personagem_id: personagemId, ordem, ...camposExtras })
     .select()
     .single();
 }
@@ -293,10 +295,14 @@ export function listarArmas(personagemId) {
     .order('ordem', { ascending: true });
 }
 
-export function criarArma(personagemId, ordem) {
+// `camposExtras` opcional (13/07) — usado pela aba Compras pra criar a
+// arma já preenchida (nome, dano, munição...) em vez de em branco.
+// Chamadas existentes (botão "+ Adicionar arma" em branco) continuam
+// funcionando iguais, sem passar esse parâmetro.
+export function criarArma(personagemId, ordem, camposExtras = {}) {
   return supabase
     .from('weapons')
-    .insert({ personagem_id: personagemId, ordem })
+    .insert({ personagem_id: personagemId, ordem, ...camposExtras })
     .select()
     .single();
 }
@@ -353,10 +359,13 @@ export function listarItensMontaria(mountId) {
     .order('ordem', { ascending: true });
 }
 
-export function criarItemMontaria(mountId, ordem, localMontaria) {
+// `camposExtras` opcional (13/07) — mesmo motivo de criarArma/criarItem,
+// usado pela aba Compras quando o excedente de peso vai pra montaria
+// em vez da mochila.
+export function criarItemMontaria(mountId, ordem, localMontaria, camposExtras = {}) {
   return supabase
     .from('items')
-    .insert({ mount_id: mountId, ordem, local_montaria: localMontaria })
+    .insert({ mount_id: mountId, ordem, local_montaria: localMontaria, ...camposExtras })
     .select()
     .single();
 }
@@ -365,6 +374,37 @@ export function criarItemMontaria(mountId, ordem, localMontaria) {
 // da montaria (mesma tabela, filtro diferente).
 export function removerTodosItensPersonagem(personagemId) {
   return supabase.from('items').delete().eq('personagem_id', personagemId);
+}
+
+// ---------------------------------------------------------------------
+// AÇÕES EM LOTE NO INVENTÁRIO (13/07) — selecionar vários itens de uma
+// vez: excluir, mover pra montaria (escolhendo cavalo/bolsa/carro/
+// carroça), ou transferir pra outro personagem.
+// ---------------------------------------------------------------------
+export function removerItensEmLote(ids) {
+  return supabase.from('items').delete().in('id', ids);
+}
+
+// Move da mochila do personagem pra montaria — precisa limpar
+// personagem_id (não só setar mount_id) por causa da constraint
+// items_dono_unico, que exige exatamente um dos dois preenchido.
+export function moverItensParaMontaria(ids, mountId, localMontaria) {
+  return supabase
+    .from('items')
+    .update({ mount_id: mountId, personagem_id: null, local_montaria: localMontaria })
+    .in('id', ids)
+    .select();
+}
+
+// Transfere pra mochila de OUTRO personagem — limpa mount_id/
+// local_montaria (mesmo que estivesse na montaria antes, chega na
+// mochila do destinatário, não na montaria dele).
+export function transferirItensParaPersonagem(ids, personagemDestinoId) {
+  return supabase
+    .from('items')
+    .update({ personagem_id: personagemDestinoId, mount_id: null, local_montaria: null })
+    .in('id', ids)
+    .select();
 }
 
 export function removerTodosItensMontaria(mountId) {

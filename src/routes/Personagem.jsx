@@ -14,6 +14,7 @@ import {
   listarHabilidadesPersonagem,
   listarTrilhaPersonagem,
   listarCampanhasDoPersonagem,
+  listarPersonagensDaCampanha,
 } from '../lib/dados.js';
 import CampoEditavel from '../components/personagem/CampoEditavel.jsx';
 import CampoStepper from '../components/personagem/CampoStepper.jsx';
@@ -24,6 +25,7 @@ import TabelaArmas from '../components/personagem/TabelaArmas.jsx';
 import MunicaoPool from '../components/personagem/MunicaoPool.jsx';
 import Habilidades from '../components/personagem/Habilidades.jsx';
 import TrilhaPersonagem from '../components/personagem/TrilhaPersonagem.jsx';
+import Compras from '../components/personagem/Compras.jsx';
 import EfeitoDorPopup from '../components/personagem/EfeitoDorPopup.jsx';
 import Montaria from '../components/personagem/Montaria.jsx';
 import MenuLateral from '../components/layout/MenuLateral.jsx';
@@ -71,6 +73,7 @@ const ABAS = [
   { id: 'combate', label: 'Combate e Armas' },
   { id: 'inventario', label: 'Inventário' },
   { id: 'montaria', label: 'Montaria' },
+  { id: 'compras', label: 'Compras' },
 ];
 
 // Editor completo do personagem (Fases 5, 6 e regras de 13/07):
@@ -109,6 +112,7 @@ export default function Personagem() {
   const [habilidades, setHabilidades] = useState([]);
   const [trilhaPassos, setTrilhaPassos] = useState([]);
   const [campanhasVinculadas, setCampanhasVinculadas] = useState([]);
+  const [outrosPersonagensDaCampanha, setOutrosPersonagensDaCampanha] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [mensagemDor, setMensagemDor] = useState('');
@@ -165,6 +169,24 @@ export default function Personagem() {
     setHabilidades(resHabilidades.data ?? []);
     setCampanhasVinculadas((resCampanhas.data ?? []).map((row) => row.campanha).filter(Boolean));
     setTrilhaPassos(resTrilha.data ?? []);
+
+    // "Transferir pra outro jogador" (13/07) — só faz sentido quando
+    // dá pra saber QUAIS outros personagens existem; só sabemos isso
+    // quando a ficha foi aberta a partir de uma campanha específica
+    // (?campanha=... na URL, ver Breadcrumb). Sem contexto de
+    // campanha, o botão de transferir simplesmente não aparece — não
+    // dá pra "adivinhar" pra quem transferir.
+    if (campanhaContextoId) {
+      const { data: membrosCampanha } = await listarPersonagensDaCampanha(campanhaContextoId);
+      setOutrosPersonagensDaCampanha(
+        (membrosCampanha ?? [])
+          .map((m) => m.personagem)
+          .filter((p) => p && p.id !== id)
+      );
+    } else {
+      setOutrosPersonagensDaCampanha([]);
+    }
+
     setCarregando(false);
   }
 
@@ -634,6 +656,8 @@ export default function Personagem() {
               onAdicionar={() => criarItem(personagem.id, itens.length)}
               onExcluirTodos={() => removerTodosItensPersonagem(personagem.id)}
               personagemId={personagem.id}
+              montaria={montaria}
+              outrosPersonagens={outrosPersonagensDaCampanha}
             />
           </section>
 
@@ -659,6 +683,19 @@ export default function Personagem() {
             onMudar={setMontaria}
             editavel={canEdit}
             secao="stats"
+          />
+        </section>
+      )}
+      {abaAtiva === 'compras' && (
+        <section>
+          <h2 className="ficha-acento-geral">Compras</h2>
+          <Compras
+            personagem={personagem}
+            itens={itens}
+            armas={armas}
+            montaria={montaria}
+            editavel={canEdit}
+            onCompraConcluida={carregar}
           />
         </section>
       )}

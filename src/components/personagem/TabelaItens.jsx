@@ -1,5 +1,14 @@
 import { Fragment, useState } from 'react';
-import { atualizarItem, removerItem } from '../../lib/dados.js';
+import {
+  atualizarItem,
+  removerItem,
+  removerItensEmLote,
+  moverItensParaMontaria,
+  transferirItensParaPersonagem,
+  buscarPersonagem,
+  listarItens,
+  buscarMontaria,
+} from '../../lib/dados.js';
 import UploadFoto from '../UploadFoto.jsx';
 import PopupConfirmar from '../PopupConfirmar.jsx';
 import IconeCategoria, { OPCOES_CATEGORIA } from '../IconeCategoria.jsx';
@@ -38,6 +47,8 @@ export default function TabelaItens({
   onAdicionar,
   onExcluirTodos,
   personagemId,
+  montaria,
+  outrosPersonagens,
 }) {
   const [adicionando, setAdicionando] = useState(false);
   const [erro, setErro] = useState('');
@@ -46,6 +57,28 @@ export default function TabelaItens({
   const [confirmandoExcluirTodos, setConfirmandoExcluirTodos] = useState(false);
   const [busca, setBusca] = useState('');
   const [protecaoExpandida, setProtecaoExpandida] = useState(() => new Set());
+
+  const [selecionados, setSelecionados] = useState(() => new Set());
+  const [confirmandoExcluirLote, setConfirmandoExcluirLote] = useState(false);
+  const [montariaAberta, setMontariaAberta] = useState(false);
+  const [localEscolhido, setLocalEscolhido] = useState('bolsa');
+  const [jogadorAberto, setJogadorAberto] = useState(false);
+  const [personagemDestino, setPersonagemDestino] = useState('');
+  const [avisoTransferencia, setAvisoTransferencia] = useState(null);
+  const [processandoLote, setProcessandoLote] = useState(false);
+
+  function alternarSelecionado(itemId) {
+    setSelecionados((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(itemId)) novo.delete(itemId);
+      else novo.add(itemId);
+      return novo;
+    });
+  }
+
+  function alternarSelecionarTodos() {
+    setSelecionados((atual) => (atual.size === itensExibidos.length ? new Set() : new Set(itensExibidos.map((i) => i.id))));
+  }
 
   function alternarProtecao(itemId) {
     setProtecaoExpandida((atual) => {
@@ -135,6 +168,97 @@ export default function TabelaItens({
     else onMudar(itens.filter((i) => i.id !== item.id));
   }
 
+  // Ações em lote (13/07) — mesmo padrão do "Dano em área"/remoção em
+  // lote de vínculos: seleciona vários, aplica uma vez.
+  async function excluirLote() {
+    setConfirmandoExcluirLote(false);
+    setProcessandoLote(true);
+    const ids = [...selecionados];
+    const { error } = await removerItensEmLote(ids);
+    setProcessandoLote(false);
+    if (error) setErro(error.message);
+    else {
+      onMudar(itens.filter((i) => !selecionados.has(i.id)));
+      setSelecionados(new Set());
+    }
+  }
+
+  async function transferirParaMontaria() {
+    if (!montaria) return;
+    setProcessandoLote(true);
+    const ids = [...selecionados];
+    const { error } = await moverItensParaMontaria(ids, montaria.id, localEscolhido);
+    setProcessandoLote(false);
+    if (error) setErro(error.message);
+    else {
+      // Saem da mochila do personagem (mudaram de dono) — some da
+      // lista atual, igual "excluir" pra essa tela específica.
+      onMudar(itens.filter((i) => !selecionados.has(i.id)));
+      setSelecionados(new Set());
+      setMontariaAberta(false);
+    }
+  }
+
+  // Transferir pra outro personagem (13/07) — confere o peso do
+  // DESTINATÁRIO antes de mover (mesmo espírito do aviso de peso da
+  // aba Compras): se estourar a mochila dele, oferece colocar na
+  // montaria DELE em vez de bloquear, ou cancelar.
+  async function tentarTransferirParaJogador() {
+    if (!personagemDestino) return;
+    setErro('');
+    setProcessandoLote(true);
+
+    const [resPersonagem, resItensDestino, resMontariaDestino] = await Promise.all([
+      buscarPersonagem(personagemDestino),
+      listarItens(personagemDestino),
+      buscarMontaria(personagemDestino),
+    ]);
+    setProcessandoLote(false);
+
+    if (resPersonagem.error) {
+      setErro(resPersonagem.error.message);
+      return;
+    }
+
+    const itensSelecionados = itens.filter((i) => selecionados.has(i.id));
+    const pesoTransferido = itensSelecionados.reduce((s, i) => s + Number(i.espaco ?? 0) * Number(i.quantidade ?? 1), 0);
+    const pesoDestinoAtual = (resItensDestino.data ?? []).reduce((s, i) => s + Number(i.espaco ?? 0) * Number(i.quantidade ?? 1), 0);
+    const excedente = pesoDestinoAtual + pesoTransferido - Number(resPersonagem.data?.espaco_max ?? 0);
+
+    if (excedente > 0) {
+      setAvisoTransferencia({
+        excedente,
+        nomeDestino: resPersonagem.data?.nome || '(sem nome)',
+        montariaDestino: resMontariaDestino.data ?? null,
+      });
+      return;
+    }
+
+    finalizarTransferenciaJogador(false);
+  }
+
+  async function finalizarTransferenciaJogador(paraMontariaDestino) {
+    setProcessandoLote(true);
+    setAvisoTransferencia(null);
+    const ids = [...selecionados];
+
+    let error;
+    if (paraMontariaDestino && avisoTransferencia?.montariaDestino) {
+      ({ error } = await moverItensParaMontaria(ids, avisoTransferencia.montariaDestino.id, 'bolsa'));
+    } else {
+      ({ error } = await transferirItensParaPersonagem(ids, personagemDestino));
+    }
+
+    setProcessandoLote(false);
+    if (error) setErro(error.message);
+    else {
+      onMudar(itens.filter((i) => !selecionados.has(i.id)));
+      setSelecionados(new Set());
+      setJogadorAberto(false);
+      setPersonagemDestino('');
+    }
+  }
+
   // Proteção (13/07) — cada uso reduzindo dano custa 1 do limite (não
   // do valor de redução); ao chegar em 0, quebra e para de reduzir até
   // ser "consertada" (ajustar o limite atual de volta pra cima
@@ -157,10 +281,41 @@ export default function TabelaItens({
           onChange={(e) => setBusca(e.target.value)}
         />
       )}
+      {selecionados.size > 0 && (
+        <div className="barra-acoes-lote">
+          <span><strong>{selecionados.size}</strong> selecionado(s)</span>
+          <button type="button" className="botao-remover" onClick={() => setConfirmandoExcluirLote(true)}>
+            Excluir
+          </button>
+          {montaria && (
+            <button type="button" onClick={() => setMontariaAberta(true)}>
+              Transferir pra montaria
+            </button>
+          )}
+          {outrosPersonagens && outrosPersonagens.length > 0 && (
+            <button type="button" onClick={() => setJogadorAberto(true)}>
+              Transferir pra outro jogador
+            </button>
+          )}
+          <button type="button" className="botao-secundario" onClick={() => setSelecionados(new Set())}>
+            Cancelar seleção
+          </button>
+        </div>
+      )}
       <div className="tabela-scroll">
         <table className="tabela-ficha tabela-responsiva">
           <thead>
             <tr>
+              {editavel && (
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={itensExibidos.length > 0 && selecionados.size === itensExibidos.length}
+                    onChange={alternarSelecionarTodos}
+                    aria-label="Selecionar todos"
+                  />
+                </th>
+              )}
               {personagemId && <th>Foto</th>}
               <th>Nome</th>
               <th>Peso (un.)</th>
@@ -177,6 +332,16 @@ export default function TabelaItens({
               return (
                 <Fragment key={item.id}>
                   <tr>
+                    {editavel && (
+                      <td data-label="">
+                        <input
+                          type="checkbox"
+                          checked={selecionados.has(item.id)}
+                          onChange={() => alternarSelecionado(item.id)}
+                          aria-label={`Selecionar ${item.nome}`}
+                        />
+                      </td>
+                    )}
                     {personagemId && (
                       <td data-label="Foto">
                         <UploadFoto
@@ -262,7 +427,7 @@ export default function TabelaItens({
                   </tr>
                   {protecaoExpandida.has(item.id) && (
                     <tr className="linha-detalhes-arma">
-                      <td colSpan={(personagemId ? 1 : 0) + (editavel ? 6 : 5)} data-label="">
+                      <td colSpan={(personagemId ? 1 : 0) + (editavel ? 7 : 5)} data-label="">
                         <div className="detalhes-arma-grade">
                           <label>
                             Redução de dano
@@ -334,14 +499,14 @@ export default function TabelaItens({
             })}
             {itens.length === 0 && (
               <tr>
-                <td colSpan={(personagemId ? 1 : 0) + (editavel ? 6 : 5)} className="detalhe-secundario">
+                <td colSpan={(personagemId ? 1 : 0) + (editavel ? 7 : 5)} className="detalhe-secundario">
                   Nenhum item ainda.
                 </td>
               </tr>
             )}
             {itens.length > 0 && itensExibidos.length === 0 && (
               <tr>
-                <td colSpan={(personagemId ? 1 : 0) + (editavel ? 6 : 5)} className="detalhe-secundario">
+                <td colSpan={(personagemId ? 1 : 0) + (editavel ? 7 : 5)} className="detalhe-secundario">
                   Nenhum item bate com "{busca}".
                 </td>
               </tr>
@@ -378,6 +543,95 @@ export default function TabelaItens({
         onConfirmar={excluirTodos}
         onCancelar={() => setConfirmandoExcluirTodos(false)}
       />
+      <PopupConfirmar
+        aberto={confirmandoExcluirLote}
+        mensagem={`Excluir ${selecionados.size} item(ns) selecionado(s)?`}
+        textoConfirmar={processandoLote ? 'Excluindo...' : 'Excluir'}
+        onConfirmar={excluirLote}
+        onCancelar={() => setConfirmandoExcluirLote(false)}
+      />
+
+      {montariaAberta && (
+        <div className="popup-fundo" onClick={() => setMontariaAberta(false)}>
+          <div className="popup-caixa" onClick={(e) => e.stopPropagation()}>
+            <h3>Transferir pra montaria</h3>
+            <label className="campo-editavel-rotulo">
+              Guardar em
+              <select value={localEscolhido} onChange={(e) => setLocalEscolhido(e.target.value)}>
+                <option value="cavalo">Cavalo</option>
+                <option value="bolsa">Bolsa de Montaria</option>
+                <option value="carro">Carro</option>
+                <option value="carroca">Carroça</option>
+              </select>
+            </label>
+            <div className="popup-acoes">
+              <button type="button" onClick={transferirParaMontaria} disabled={processandoLote}>
+                {processandoLote ? 'Transferindo...' : `Transferir ${selecionados.size}`}
+              </button>
+              <button type="button" className="botao-secundario" onClick={() => setMontariaAberta(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {jogadorAberto && (
+        <div className="popup-fundo" onClick={() => setJogadorAberto(false)}>
+          <div className="popup-caixa" onClick={(e) => e.stopPropagation()}>
+            <h3>Transferir pra outro jogador</h3>
+            <label className="campo-editavel-rotulo">
+              Personagem de destino
+              <select value={personagemDestino} onChange={(e) => setPersonagemDestino(e.target.value)}>
+                <option value="">Selecione...</option>
+                {(outrosPersonagens ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>{p.nome || '(sem nome)'}</option>
+                ))}
+              </select>
+            </label>
+            <div className="popup-acoes">
+              <button type="button" onClick={tentarTransferirParaJogador} disabled={!personagemDestino || processandoLote}>
+                {processandoLote ? 'Verificando...' : `Transferir ${selecionados.size}`}
+              </button>
+              <button type="button" className="botao-secundario" onClick={() => setJogadorAberto(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {avisoTransferencia && (
+        <div className="popup-fundo" onClick={() => setAvisoTransferencia(null)}>
+          <div className="popup-caixa" onClick={(e) => e.stopPropagation()}>
+            <h3>Peso excedido</h3>
+            <p>
+              Essa transferência passa <strong>{avisoTransferencia.excedente.toFixed(2)} espaços</strong> do limite
+              da mochila de {avisoTransferencia.nomeDestino}.
+            </p>
+            {avisoTransferencia.montariaDestino ? (
+              <p className="detalhe-secundario">
+                Dá pra colocar na montaria de {avisoTransferencia.nomeDestino} em vez da mochila dele(a), ou cancelar.
+              </p>
+            ) : (
+              <p className="detalhe-secundario">
+                {avisoTransferencia.nomeDestino} não tem montaria cadastrada — a opção é cancelar e escolher menos
+                itens.
+              </p>
+            )}
+            <div className="popup-acoes">
+              {avisoTransferencia.montariaDestino && (
+                <button type="button" onClick={() => finalizarTransferenciaJogador(true)} disabled={processandoLote}>
+                  Colocar na montaria dele(a)
+                </button>
+              )}
+              <button type="button" className="botao-secundario" onClick={() => setAvisoTransferencia(null)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

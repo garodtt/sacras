@@ -3019,3 +3019,234 @@ p.badge-caido {
   color: var(--cor-couro);
   margin-bottom: 0.5rem;
 }
+
+/* ---------------------------------------------------------------
+   Aba Compras (13/07) — catálogo à esquerda, carrinho fixo à direita
+   em telas largas; empilha no celular.
+------------------------------------------------------------------ */
+.compras-layout {
+  display: flex;
+  gap: 1.2rem;
+  align-items: flex-start;
+}
+
+.compras-catalogo {
+  flex: 1;
+  min-width: 0;
+}
+
+.compras-carrinho {
+  flex: 0 0 280px;
+  position: sticky;
+  top: 0.5rem;
+  background: var(--cor-papel);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--radio-padrao);
+  padding: 0.8rem;
+}
+
+@media (max-width: 860px) {
+  .compras-layout {
+    flex-direction: column;
+  }
+  .compras-carrinho {
+    flex-basis: auto;
+    width: 100%;
+    position: static;
+  }
+}
+
+.compras-categoria {
+  margin-bottom: 0.8rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--radio-padrao);
+  padding: 0.6rem 0.8rem;
+}
+
+.compras-categoria summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.compras-categoria summary::-webkit-details-marker {
+  display: none;
+}
+
+.compras-categoria summary h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.compras-categoria summary h3::before {
+  content: '▾';
+  font-size: 0.75em;
+  color: var(--cor-couro);
+  transition: transform 0.15s ease;
+}
+
+.compras-categoria:not([open]) summary h3::before {
+  transform: rotate(-90deg);
+}
+
+.compras-lista-itens {
+  list-style: none;
+  padding: 0;
+  margin: 0.6rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.compras-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.5rem 0;
+  border-bottom: var(--divisor-sutil);
+}
+
+.compras-item:last-child {
+  border-bottom: none;
+}
+
+.compras-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.compras-item-info p {
+  margin: 0.15rem 0 0;
+}
+
+.compras-item button {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.7rem;
+}
+
+.compras-carrinho h3 {
+  margin-bottom: 0.6rem;
+}
+
+.compras-carrinho-lista {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.compras-carrinho-lista li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.compras-carrinho-lista li span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compras-carrinho-qtd {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+.compras-total {
+  border-top: var(--divisor-forte);
+  padding-top: 0.6rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.compras-total p {
+  margin: 0.2rem 0;
+}
+
+.compras-total-final {
+  font-size: 1.1rem;
+  color: var(--cor-couro);
+}
+
+.compras-desconto-ativo {
+  color: var(--cor-sangue);
+}
+
+.compras-form-desconto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--cor-fundo);
+  padding: 0.6rem;
+  border-radius: var(--radio-padrao);
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+}
+
+.compras-form-desconto label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.botao-comprar {
+  width: 100%;
+  background: var(--cor-sangue);
+  margin-top: 0.6rem;
+  padding: 0.7rem;
+  font-size: 0.95rem;
+}
+
+.botao-comprar:hover {
+  background: var(--cor-couro);
+}
+
+.compras-peso-indicador {
+  font-size: 0.8rem;
+  color: var(--cor-tinta-suave);
+  background: var(--cor-fundo);
+  border-radius: var(--radio-padrao);
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.compras-peso-indicador p {
+  margin: 0.15rem 0;
+}
+
+.compras-peso-indicador--estourado {
+  background: rgba(139, 26, 26, 0.12);
+  color: var(--cor-sangue);
+}
+
+/* Barra de ações em lote no inventário (13/07) */
+.barra-acoes-lote {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  background: rgba(124, 83, 48, 0.1);
+  border: 1px solid var(--cor-couro);
+  border-radius: var(--radio-padrao);
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.barra-acoes-lote button {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.7rem;
+}
