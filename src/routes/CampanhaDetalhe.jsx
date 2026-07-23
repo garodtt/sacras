@@ -10,6 +10,7 @@ import NotasMestre from '../components/NotasMestre.jsx';
 import NotaPersonagemCampanha from '../components/NotaPersonagemCampanha.jsx';
 import InventarioNpc from '../components/InventarioNpc.jsx';
 import UploadFoto from '../components/UploadFoto.jsx';
+import { mostrarToast } from '../lib/toastBus.js';
 import { calcularCapacidadeMunicaoDeArmas } from '../lib/regras.js';
 import { MODELOS_NPC } from '../lib/modelosNpc.js';
 import {
@@ -34,7 +35,13 @@ import {
   removerPastaNpc,
   listarNotasPersonagensCampanha,
   removerVinculosEmLote,
+  listarLojaCampanha,
+  criarItemLoja,
+  atualizarItemLoja,
+  removerItemLoja,
 } from '../lib/dados.js';
+import { CATEGORIAS_COMPRAS, CATALOGO_COMPRAS, precoMedio } from '../lib/catalogoCompras.js';
+import IconeCategoria from '../components/IconeCategoria.jsx';
 
 // Abas (13/07) — antes tudo ficava empilhado numa página só rolando
 // pra sempre (Personagens + Notas + Biblioteca de NPCs + Convidar,
@@ -48,6 +55,7 @@ const ABAS_CAMPANHA = [
   { id: 'personagens', label: 'Personagens' },
   { id: 'notas', label: 'Anotações' },
   { id: 'npcs', label: 'Biblioteca de NPCs' },
+  { id: 'loja', label: 'Loja' },
   { id: 'convites', label: 'Convidar Jogador' },
 ];
 
@@ -110,6 +118,12 @@ export default function CampanhaDetalhe() {
   const [criandoPasta, setCriandoPasta] = useState(false);
   const [buscaNpc, setBuscaNpc] = useState('');
 
+  const [lojaItens, setLojaItens] = useState([]);
+  const [lojaItemParaRemover, setLojaItemParaRemover] = useState(null);
+  const [novoItemLoja, setNovoItemLoja] = useState({ nome: '', preco: '', espaco: 0, descricao: '', categoria: 'outro' });
+  const [buscaCatalogoLoja, setBuscaCatalogoLoja] = useState('');
+  const [criandoItemLoja, setCriandoItemLoja] = useState(false);
+
   const [notasPersonagens, setNotasPersonagens] = useState({});
   const [selecionados, setSelecionados] = useState(() => new Set());
   const [confirmandoRemoverLote, setConfirmandoRemoverLote] = useState(false);
@@ -147,17 +161,19 @@ export default function CampanhaDetalhe() {
 
     if (souCriadorAgora || ehAdminAgora) {
       const idsVinculos = (resMembros.data ?? []).map((m) => m.id);
-      const [resConvites, resNotas, resNpcs, resNotasPersonagens, resPastas] = await Promise.all([
+      const [resConvites, resNotas, resNpcs, resNotasPersonagens, resPastas, resLoja] = await Promise.all([
         listarConvitesDaCampanha(id),
         buscarNotasMestre(id),
         listarNpcsCampanha(id),
         listarNotasPersonagensCampanha(idsVinculos),
         listarPastasNpc(id),
+        listarLojaCampanha(id),
       ]);
       setConvitesEnviados(resConvites.data ?? []);
       setNotasMestre(resNotas.data?.notas ?? '');
       setNpcs(resNpcs.data ?? []);
       setPastasNpc(resPastas.data ?? []);
+      setLojaItens(resLoja.data ?? []);
       const mapaNotas = {};
       (resNotasPersonagens.data ?? []).forEach((n) => {
         mapaNotas[n.campanha_personagem_id] = n.notas;
@@ -317,6 +333,73 @@ export default function CampanhaDetalhe() {
     const { error } = await removerNpcCampanha(npcId);
     if (error) setErro(error.message);
     else setNpcs((atual) => atual.filter((n) => n.id !== npcId));
+  }
+
+  // Loja da Campanha (13/07) — itens customizados do Mestre, além do
+  // Catálogo de Equipamento fixo do livro (que já existe na aba
+  // Compras do personagem). RLS garante que só quem tem personagem
+  // vinculado a ESTA campanha (ou o próprio Mestre/Admin) enxerga.
+  async function handleCriarItemLoja(e) {
+    e.preventDefault();
+    if (!novoItemLoja.nome.trim() || novoItemLoja.preco === '') return;
+    setErro('');
+    setCriandoItemLoja(true);
+    const { data, error } = await criarItemLoja(id, {
+      nome: novoItemLoja.nome.trim(),
+      preco: Number(novoItemLoja.preco) || 0,
+      espaco: Number(novoItemLoja.espaco) || 0,
+      descricao: novoItemLoja.descricao,
+      categoria: novoItemLoja.categoria,
+    });
+    setCriandoItemLoja(false);
+    if (error) setErro(error.message);
+    else {
+      setLojaItens((atual) => [...atual, data].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setNovoItemLoja({ nome: '', preco: '', espaco: 0, descricao: '', categoria: novoItemLoja.categoria });
+    }
+  }
+
+  // Personalizar um item do catálogo padrão (13/07) — "importa" ele
+  // pra dentro da loja desta campanha, já preenchido com os valores
+  // atuais (preço médio da faixa, peso, descrição...), com
+  // `catalogo_id` marcando de qual item do catálogo fixo veio. O
+  // resultado passa a SUBSTITUIR a versão padrão desse item
+  // especificamente NESTA campanha (ver merge em Compras.jsx) — as
+  // outras campanhas continuam vendo o catálogo original, sem mudar
+  // nada globalmente.
+  async function handlePersonalizarCatalogo(itemCatalogo) {
+    if (lojaItens.some((li) => li.catalogo_id === itemCatalogo.id)) return; // já personalizado
+    setErro('');
+    const { data, error } = await criarItemLoja(id, {
+      catalogo_id: itemCatalogo.id,
+      nome: itemCatalogo.nome,
+      preco: precoMedio(itemCatalogo) ?? 0,
+      espaco: itemCatalogo.espaco ?? 0,
+      descricao: itemCatalogo.descricao ?? '',
+      categoria: itemCatalogo.categoria,
+      balas: itemCatalogo.balas ?? null,
+      dano: itemCatalogo.dano ?? null,
+      meio_transporte: itemCatalogo.meioTransporte ?? null,
+    });
+    if (error) setErro(error.message);
+    else {
+      setLojaItens((atual) => [...atual, data].sort((a, b) => a.nome.localeCompare(b.nome)));
+      mostrarToast(`"${itemCatalogo.nome}" personalizado — edite os valores abaixo.`);
+    }
+  }
+
+  async function salvarCampoLoja(item, campo, valor) {
+    const { data, error } = await atualizarItemLoja(item.id, { [campo]: valor });
+    if (error) setErro(error.message);
+    else setLojaItens((atual) => atual.map((i) => (i.id === item.id ? data : i)));
+  }
+
+  async function handleRemoverItemLoja() {
+    const itemId = lojaItemParaRemover;
+    setLojaItemParaRemover(null);
+    const { error } = await removerItemLoja(itemId);
+    if (error) setErro(error.message);
+    else setLojaItens((atual) => atual.filter((i) => i.id !== itemId));
   }
 
   async function handleDesvincular() {
@@ -871,6 +954,189 @@ export default function CampanhaDetalhe() {
         </section>
       )}
 
+      {podeGerenciar && abaAtiva === 'loja' && (
+        <section className="secao-aba-campanha">
+          <h2>Loja da Campanha</h2>
+          <p className="detalhe-secundario">
+            Itens customizados desta campanha — além do Catálogo de Equipamento fixo do livro. Só quem tem
+            personagem vinculado aqui (ou você, Mestre) vê esses itens e preços na aba Compras da ficha.
+          </p>
+
+          <form onSubmit={handleCriarItemLoja} className="form-grade">
+            <label>
+              Nome
+              <input
+                value={novoItemLoja.nome}
+                onChange={(e) => setNovoItemLoja({ ...novoItemLoja, nome: e.target.value })}
+                required
+              />
+            </label>
+            <label>
+              Categoria
+              <select
+                value={novoItemLoja.categoria}
+                onChange={(e) => setNovoItemLoja({ ...novoItemLoja, categoria: e.target.value })}
+              >
+                {CATEGORIAS_COMPRAS.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Preço ($)
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={novoItemLoja.preco}
+                onChange={(e) => setNovoItemLoja({ ...novoItemLoja, preco: e.target.value })}
+                required
+              />
+            </label>
+            <label>
+              Peso
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={novoItemLoja.espaco}
+                onChange={(e) => setNovoItemLoja({ ...novoItemLoja, espaco: e.target.value })}
+              />
+            </label>
+            <label className="campo-largura-total">
+              Descrição (opcional)
+              <textarea
+                value={novoItemLoja.descricao}
+                onChange={(e) => setNovoItemLoja({ ...novoItemLoja, descricao: e.target.value })}
+                rows={2}
+              />
+            </label>
+            <button type="submit" disabled={criandoItemLoja}>
+              {criandoItemLoja ? 'Criando...' : '+ Adicionar item à loja'}
+            </button>
+          </form>
+
+          {lojaItens.length === 0 ? (
+            <EstadoVazio>Nenhum item na loja ainda.</EstadoVazio>
+          ) : (
+            <ul className="lista-cards lista-cards--vertical">
+              {lojaItens.map((item) => (
+                <li key={item.id} className="cartao-npc-biblioteca">
+                  <div className="cartao-npc-topo">
+                    <div className="cartao-personagem-corpo">
+                      <input
+                        defaultValue={item.nome}
+                        className="loja-item-nome"
+                        onBlur={(e) => e.target.value !== item.nome && salvarCampoLoja(item, 'nome', e.target.value)}
+                      />
+                      <p className="detalhe-secundario">
+                        <IconeCategoria categoria={item.categoria} />{' '}
+                        {CATEGORIAS_COMPRAS.find((c) => c.id === item.categoria)?.label ?? 'Outro'}
+                        {item.catalogo_id && (
+                          <span className="selo-personalizado"> · personalização do catálogo</span>
+                        )}
+                      </p>
+                    </div>
+                    <label className="detalhe-secundario">
+                      Preço $
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        defaultValue={item.preco}
+                        className="loja-item-preco"
+                        onBlur={(e) => salvarCampoLoja(item, 'preco', Number(e.target.value) || 0)}
+                      />
+                    </label>
+                    <label className="detalhe-secundario">
+                      Peso
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        defaultValue={item.espaco}
+                        className="loja-item-peso"
+                        onBlur={(e) => salvarCampoLoja(item, 'espaco', Number(e.target.value) || 0)}
+                      />
+                    </label>
+                    <button className="botao-remover" onClick={() => setLojaItemParaRemover(item.id)}>
+                      Remover
+                    </button>
+                  </div>
+                  <textarea
+                    defaultValue={item.descricao}
+                    rows={2}
+                    placeholder="Descrição (opcional)..."
+                    onBlur={(e) => e.target.value !== item.descricao && salvarCampoLoja(item, 'descricao', e.target.value)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <details className="secao-recolhivel" open>
+            <summary>
+              <h3>Personalizar item do Catálogo de Equipamento</h3>
+            </summary>
+            <p className="detalhe-secundario">
+              Importa um item do catálogo fixo do livro pra dentro da loja desta campanha, já preenchido — edite o
+              preço, peso ou descrição do jeito que quiser. Só afeta esta campanha; as outras continuam vendo o
+              catálogo original.
+            </p>
+            <input
+              type="search"
+              className="campo-busca-itens"
+              placeholder="Buscar no catálogo..."
+              value={buscaCatalogoLoja}
+              onChange={(e) => setBuscaCatalogoLoja(e.target.value)}
+            />
+            {(() => {
+              const termo = buscaCatalogoLoja.trim().toLowerCase();
+              const itensFiltrados = termo ? CATALOGO_COMPRAS.filter((i) => i.nome.toLowerCase().includes(termo)) : CATALOGO_COMPRAS;
+              const idsJaPersonalizados = new Set(lojaItens.map((li) => li.catalogo_id).filter(Boolean));
+
+              return CATEGORIAS_COMPRAS.map((cat) => {
+                const itensDaCategoria = itensFiltrados.filter((i) => i.categoria === cat.id);
+                if (itensDaCategoria.length === 0) return null;
+                return (
+                  <details key={cat.id} className="compras-categoria" open={Boolean(termo)}>
+                    <summary>
+                      <h4>{cat.label} ({itensDaCategoria.length})</h4>
+                    </summary>
+                    <ul className="compras-lista-itens">
+                      {itensDaCategoria.map((item) => {
+                        const jaPersonalizado = idsJaPersonalizados.has(item.id);
+                        return (
+                          <li key={item.id} className="compras-item">
+                            <div className="compras-item-info">
+                              <strong>{item.nome}</strong>
+                              <p className="detalhe-secundario">
+                                {item.precoMin != null ? `$${precoMedio(item).toFixed(2)} (média do livro)` : 'Não se vende'}
+                                {' · '}
+                                {item.espaco > 0 ? `${item.espaco} espaço` : 'Não ocupa espaço'}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="botao-secundario"
+                              onClick={() => handlePersonalizarCatalogo(item)}
+                              disabled={jaPersonalizado}
+                            >
+                              {jaPersonalizado ? 'Já personalizado' : 'Personalizar'}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </details>
+                );
+              });
+            })()}
+          </details>
+
+        </section>
+      )}
+
       {podeGerenciar && abaAtiva === 'convites' && (
         <section className="secao-aba-campanha">
           <h2>Convidar jogador</h2>
@@ -941,6 +1207,12 @@ export default function CampanhaDetalhe() {
         mensagem="Remover esta pasta? Os NPCs dentro dela não são apagados, só ficam sem pasta."
         onConfirmar={handleRemoverPasta}
         onCancelar={() => setPastaParaRemover(null)}
+      />
+      <PopupConfirmar
+        aberto={Boolean(lojaItemParaRemover)}
+        mensagem="Remover este item da loja?"
+        onConfirmar={handleRemoverItemLoja}
+        onCancelar={() => setLojaItemParaRemover(null)}
       />
     </main>
   );

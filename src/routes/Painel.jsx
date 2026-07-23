@@ -12,6 +12,7 @@ import {
 import PainelShell from '../components/layout/PainelShell.jsx';
 import UploadFoto from '../components/UploadFoto.jsx';
 import { mostrarToast } from '../lib/toastBus.js';
+import { useTema } from '../contexts/TemaContext.jsx';
 
 // Tela inicial — perfil (foto, nome editável, e-mail com copiar) e o
 // resumo (convites/personagens/campanhas) moram juntos aqui. "Sair"
@@ -28,6 +29,7 @@ export default function Painel() {
   const navigate = useNavigate();
 
   const [nome, setNome] = useState(profile?.display_name ?? '');
+  const { temaEscuro, alternarTemaEscuro } = useTema();
   const [salvandoNome, setSalvandoNome] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -140,6 +142,10 @@ export default function Painel() {
               Copiar
             </button>
           </div>
+          <button type="button" className="campo-tema-linha" onClick={alternarTemaEscuro}>
+            <span>Tema {temaEscuro ? 'escuro' : 'claro'}</span>
+            <span className="botao-tema-icone">{temaEscuro ? '☀' : '☾'}</span>
+          </button>
         </div>
       </div>
 

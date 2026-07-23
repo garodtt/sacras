@@ -688,3 +688,33 @@ export function criarItemNpc(npcId, { nome, quantidade = 1, descricao = '' }) {
 export function removerItemNpc(id) {
   return supabase.from('campanha_npc_itens').delete().eq('id', id);
 }
+
+// ---------------------------------------------------------------------
+// LOJA DA CAMPANHA (13/07) — itens customizados que o Mestre cadastra,
+// além do Catálogo de Equipamento fixo do livro. RLS (migration 0024)
+// só deixa ver quem gerencia a campanha OU tem personagem vinculado a
+// ela — ninguém de fora enxerga.
+// ---------------------------------------------------------------------
+export function listarLojaCampanha(campanhaId) {
+  return supabase.from('campanha_loja_itens').select('*').eq('campanha_id', campanhaId).order('nome', { ascending: true });
+}
+
+export function criarItemLoja(campanhaId, campos) {
+  return supabase.from('campanha_loja_itens').insert({ campanha_id: campanhaId, ...campos }).select().single();
+}
+
+export function atualizarItemLoja(id, campos) {
+  return supabase.from('campanha_loja_itens').update(campos).eq('id', id).select().single();
+}
+
+export function removerItemLoja(id) {
+  return supabase.from('campanha_loja_itens').delete().eq('id', id);
+}
+
+// Busca a loja de TODAS as campanhas que um personagem está vinculado
+// de uma vez (usado na aba Compras) — uma consulta com `.in(...)` em
+// vez de N.
+export function listarLojasDosPersonagemVinculado(campanhaIds) {
+  if (!campanhaIds || campanhaIds.length === 0) return Promise.resolve({ data: [], error: null });
+  return supabase.from('campanha_loja_itens').select('*, campanha:campanhas(nome)').in('campanha_id', campanhaIds).order('nome', { ascending: true });
+}

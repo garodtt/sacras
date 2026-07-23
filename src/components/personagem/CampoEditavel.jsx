@@ -28,8 +28,18 @@ export default function CampoEditavel({
   function commit() {
     if (!editavel) return;
 
+    // Bug real (13/07): quando `linhas` é passado (vira <textarea>,
+    // sempre texto — descrição/história, por exemplo), o `tipo`
+    // continuava com o valor padrão 'number' se ninguém passasse
+    // `tipo="text"` explicitamente. Isso fazia `Number(buffer)` rodar
+    // em cima de um texto digitado, virar NaN, cair no fallback e
+    // salvar 0 no lugar do texto — o texto digitado nunca era
+    // salvo de verdade. `linhas` agora força tratamento como texto,
+    // sem depender de quem chama lembrar de passar `tipo="text"`.
+    const ehNumero = tipo === 'number' && !linhas;
+
     let novo = buffer;
-    if (tipo === 'number') {
+    if (ehNumero) {
       novo = buffer === '' ? 0 : Number(buffer);
       if (Number.isNaN(novo)) novo = 0;
       if (min !== undefined) novo = Math.max(min, novo);

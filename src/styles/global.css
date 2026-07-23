@@ -28,6 +28,10 @@
   --radio-padrao: 6px;
   --divisor-forte: 2px dashed var(--cor-borda);
   --divisor-sutil: 1px solid var(--cor-borda);
+  /* Destaque sutil (hover, campo desabilitado) — 13/07. Antes era um
+     branco fixo (rgba(255,255,255,...)), que ficava cinza feio em
+     cima do fundo escuro do tema escuro; agora se adapta. */
+  --cor-destaque-sutil: rgba(34, 26, 16, 0.06);
 }
 
 /* Tema escuro (13/07) — só pras telas do Mestre (Campanha, Combate),
@@ -41,10 +45,41 @@
   --cor-papel: #2b2318;
   --cor-tinta: #e8dcc0;
   --cor-tinta-suave: #b8a888;
-  --cor-sangue: #d1493a;
+  /* Regra geral (13/07): no tema escuro, texto/destaque que usava
+     vermelho (números, badges, "Caído", e-mail no perfil etc.) passa
+     pra essa cor dourada — só REMOVER e LOGOUT continuam vermelhos de
+     verdade (são ações destrutivas, faz sentido continuarem se
+     destacando das outras cores) — ver override logo abaixo. */
+  --cor-sangue: #b58a5c;
   --cor-couro: #b58a5c;
   --cor-poeira: #c9974a;
   --cor-borda: #4a3f2f;
+  --cor-destaque-sutil: rgba(255, 255, 255, 0.08);
+}
+
+/* Remover/Logout continuam vermelhos de propósito, mesmo com
+   --cor-sangue redefinida acima pro dourado — são as duas exceções
+   citadas explicitamente ao pedido da regra geral. */
+.tema-escuro .botao-remover {
+  color: #e05c4a !important;
+  border-color: #e05c4a !important;
+}
+
+.tema-escuro .botao-remover:hover:not(:disabled) {
+  background: #e05c4a !important;
+  color: var(--cor-papel) !important;
+}
+
+.tema-escuro .campo-email-linha input {
+  color: #b58a5c;
+}
+
+.tema-escuro .botao-logout {
+  background: #a8362a;
+}
+
+.tema-escuro .botao-logout:hover {
+  background: #8a2c21;
 }
 
 * {
@@ -119,6 +154,11 @@ button:disabled {
 
 input, select, textarea {
   font-family: var(--fonte-ui);
+  background: var(--cor-papel);
+  color: var(--cor-tinta);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--radio-padrao);
+  padding: 0.45rem 0.6rem;
 }
 
 input:focus-visible,
@@ -181,7 +221,7 @@ button:focus-visible {
   border: 1px solid var(--cor-borda);
   border-radius: var(--radio-padrao);
   font-size: 1rem;
-  background: #fff;
+  background: var(--cor-papel);
 }
 
 .card-auth fieldset {
@@ -298,7 +338,7 @@ button:focus-visible {
   border: 1px solid var(--cor-borda);
   border-radius: var(--radio-padrao);
   font-size: 0.95rem;
-  background: #fff;
+  background: var(--cor-papel);
 }
 
 .form-inline button {
@@ -401,7 +441,7 @@ button:focus-visible {
 
 .ficha-nome input:not(:disabled):hover,
 .ficha-nome input:not(:disabled):focus {
-  background: rgba(255, 255, 255, 0.35);
+  background: var(--cor-destaque-sutil);
 }
 
 .aviso-somente-leitura {
@@ -512,6 +552,8 @@ button:focus-visible {
 .bloco-atributos-preto .campo-editavel input {
   background: var(--cor-papel);
   border-color: var(--cor-papel);
+  color: var(--cor-sangue);
+  font-weight: 700;
 }
 
 .campo-editavel {
@@ -534,7 +576,7 @@ button:focus-visible {
   font-family: var(--fonte-corpo);
   font-weight: 700;
   color: var(--cor-sangue);
-  background: #fff;
+  background: var(--cor-papel);
 }
 
 .campo-editavel textarea {
@@ -544,7 +586,7 @@ button:focus-visible {
 
 .campo-editavel input:disabled,
 .campo-editavel textarea:disabled {
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--cor-destaque-sutil);
   color: var(--cor-tinta-suave);
 }
 
@@ -722,7 +764,7 @@ button:focus-visible {
 .tabela-ficha select:hover,
 .tabela-ficha select:focus {
   border-color: var(--cor-borda);
-  background: #fff;
+  background: var(--cor-papel);
 }
 
 .tabela-ficha input:disabled {
@@ -1858,6 +1900,33 @@ p.badge-caido {
   padding: 0.35rem 0.6rem;
 }
 
+.campo-tema-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--cor-tinta-suave);
+  background: var(--cor-destaque-sutil);
+  border: 1px solid var(--cor-borda);
+}
+
+.campo-tema-linha:hover {
+  color: var(--cor-couro);
+  background: var(--cor-destaque-sutil);
+}
+
+.botao-tema-flutuante--inline {
+  position: static;
+  box-shadow: none;
+}
+
 .painel-contadores {
   list-style: none;
   padding: 0;
@@ -2728,12 +2797,22 @@ p.badge-caido {
   background: var(--cor-couro);
 }
 
+.botao-tema-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  line-height: 1;
+  font-size: 1.3rem;
+}
+
 .pasta-npcs {
   margin-bottom: 1rem;
   padding: 0.7rem 0.9rem;
   border: 1px solid var(--cor-borda);
   border-radius: var(--radio-padrao);
-  background: rgba(255, 255, 255, 0.35);
+  background: var(--cor-papel);
 }
 
 .pasta-npcs summary {
@@ -2813,20 +2892,23 @@ p.badge-caido {
   display: none;
 }
 
-.secao-recolhivel summary h2 {
+.secao-recolhivel summary h2,
+.secao-recolhivel summary h3 {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
 }
 
-.secao-recolhivel summary h2::before {
+.secao-recolhivel summary h2::before,
+.secao-recolhivel summary h3::before {
   content: '▾';
   font-size: 0.8em;
   color: var(--cor-couro);
   transition: transform 0.15s ease;
 }
 
-.secao-recolhivel:not([open]) summary h2::before {
+.secao-recolhivel:not([open]) summary h2::before,
+.secao-recolhivel:not([open]) summary h3::before {
   transform: rotate(-90deg);
 }
 
@@ -2927,6 +3009,19 @@ p.badge-caido {
   border-bottom: var(--divisor-forte);
   margin: 1rem 0 0;
   padding-bottom: 0;
+}
+
+/* Barra de abas na ficha do personagem (13/07) — "além do
+   hambúrguer": em celular, só o hambúrguer (essa barra ficaria
+   apertada com 6 itens numa tela estreita); em tela larga, os dois
+   convivem — quem preferir clicar direto na aba não precisa abrir o
+   menu lateral toda vez. */
+.abas-ficha {
+  /* Antes sumia completamente no celular (display:none abaixo de
+     860px) — ajustado (13/07): agora aparece sempre, rolando de lado
+     em telas estreitas (herda overflow-x:auto de .abas-campanha),
+     igual a barra de abas da campanha já fazia. */
+  flex-wrap: nowrap;
 }
 
 .aba-campanha-botao {
@@ -3072,7 +3167,8 @@ p.badge-caido {
   display: none;
 }
 
-.compras-categoria summary h3 {
+.compras-categoria summary h3,
+.compras-categoria summary h4 {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -3080,14 +3176,16 @@ p.badge-caido {
   font-size: 1rem;
 }
 
-.compras-categoria summary h3::before {
+.compras-categoria summary h3::before,
+.compras-categoria summary h4::before {
   content: '▾';
   font-size: 0.75em;
   color: var(--cor-couro);
   transition: transform 0.15s ease;
 }
 
-.compras-categoria:not([open]) summary h3::before {
+.compras-categoria:not([open]) summary h3::before,
+.compras-categoria:not([open]) summary h4::before {
   transform: rotate(-90deg);
 }
 
@@ -3249,4 +3347,28 @@ p.badge-caido {
 .barra-acoes-lote button {
   font-size: 0.8rem;
   padding: 0.35rem 0.7rem;
+}
+
+/* Loja da Campanha (13/07) */
+.loja-item-nome {
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.loja-item-preco,
+.loja-item-peso {
+  width: 5rem;
+}
+
+.compras-categoria--loja {
+  border-color: var(--cor-couro);
+  background: rgba(124, 83, 48, 0.06);
+}
+
+.selo-personalizado {
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--cor-couro);
 }

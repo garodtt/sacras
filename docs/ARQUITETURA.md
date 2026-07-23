@@ -1719,10 +1719,215 @@ própria descrição do livro de qual guarnição carrega qual tipo de arma;
    atomicidade — mesma do resto do app, que também não usa
    transações — é só se a REDE cair no meio das escritas sequenciais).
 
+**Correção (13/07, mesmo dia):** a primeira versão mandava um campo
+`descricao` no `criarItem` da compra — `items` nunca teve essa coluna
+(confirmado revendo as migrations 0001/0003/0007/0009/0017/0018), o
+que causava 400 do PostgREST ao concluir qualquer compra que gerasse
+um item comum. Removido; a descrição do catálogo continua só na TELA
+de compra (pra ajudar a escolher), não precisa ser salva no item em
+si.
+
+**Ajuste de regra (13/07, mesmo dia): peso do excedente de arma é
+FIXO por tipo de slot, não o peso de catálogo da arma** — comprou uma
+3ª arma de bandoleira (limite 2) e ela vai pro inventário comum? O
+peso dela lá NÃO é o espaço que a arma tem no catálogo (ex.: Fuzil = 3
+linhas) — é um peso fixo por tipo de guarnição: bandoleira = 1, coldre
+= 0,5, bainha = 0,5 (`PESO_ARMA_SEM_SLOT`). O que sobra quando não
+cabe numa guarnição própria é basicamente "carregar a arma solta na
+mochila", que pesa igual não importa o tipo de arma — só varia se ela
+era do tamanho de um coldre, bandoleira ou bainha. Arma sem
+`meioTransporte` natural (zarabatana, machado de lenha etc.) continua
+usando o próprio espaço de catálogo, já que nunca tentaria ser
+equipada de qualquer forma.
+
+**Indicador de peso ao vivo no carrinho** — mostra peso atual da
+mochila, quanto o carrinho adicionaria, e o total depois da compra
+(destacado em vermelho se estourar) — recalculado a cada mudança no
+carrinho, não só ao clicar "Concluir compra". Reaproveita a MESMA
+função (`calcularImpactoCompra`) usada na checagem final, garantindo
+que o indicador nunca diverge do que realmente vai acontecer ao
+concluir.
+
 Mapeamento pra `items.categoria` (ícone — migration 0018): arma que
 não coube no slot → `arma_branca`; comida/roupa/ferramenta mantêm a
 própria categoria; proteção e acessório (bainha/bandoleira/coldre
 avulsos) caem em `outro`, já que não têm ícone específico.
+
+### Correções na aba Compras + ações em lote no inventário (13/07)
+
+**Bug real encontrado: compra não somava numa linha já existente do
+inventário** — `finalizarCompra` sempre criava uma linha NOVA
+(`criarItem`), mesmo quando o personagem já tinha uma linha igual
+(mesmo nome + peso). Comprar mais de algo que já existia parecia "não
+fazer nada", porque a linha ORIGINAL continuava com o número antigo, e
+a linha nova ficava escondida lá embaixo da lista. Corrigido em dois
+níveis:
+1. `simularDestinos` agora CONSOLIDA por `nome|espaco` antes de
+   processar (um `Map`, não um array) — comprar 3 Revólver onde só 1
+   cabe no coldre gera UMA linha de item com quantidade 2, não duas
+   linhas de quantidade 1.
+2. `finalizarCompra` procura uma linha existente igual (mesmo nome e
+   peso) no inventário ANTES de criar — se achar, só soma na
+   quantidade (`atualizarItem`); só cria linha nova se não achar
+   nenhuma.
+
+**Bug real encontrado: "colocar excedente na montaria" não colocava
+na montaria de verdade** — a versão anterior chamava `criarItem`
+(que usa `personagem_id`) com uma tag `local_montaria` solta. Como
+`items_dono_unico` exige exatamente um entre `personagem_id`/`mount_id`,
+o item continuava pertencendo ao PERSONAGEM (contando contra a
+mochila dele) — só ganhava um campo de texto sem efeito nenhum, já que
+`listarItens(personagemId)` busca por `personagem_id`, não por esse
+campo. Corrigido usando `criarItemMontaria` de verdade (`mount_id`
+setado, `personagem_id` nulo) — `criarItemMontaria` também ganhou o
+mesmo `camposExtras` opcional que `criarArma`/`criarItem` já tinham.
+
+**Esclarecimento na descrição dos acessórios avulsos** — Bainha/
+Bandoleira/Coldre (os itens comprados separados, não uma arma)
+ganharam uma frase deixando claro que são só flavor/reposição: comprar
+não muda o limite de armas equipadas, que é fixo do personagem (ver
+"Detalhes" na tabela de Armas), não escala com quantos acessórios
+avulsos a pessoa possui.
+
+**Ações em lote no inventário** (`TabelaItens.jsx`) — checkbox por
+linha + "selecionar todos" no cabeçalho (só aparece quando editável).
+Barra de ações com:
+- **Excluir** — `removerItensEmLote` (`dados.js`), uma chamada com
+  `.in('id', ids)`, não N chamadas.
+- **Transferir pra montaria** — escolhe cavalo/bolsa/carro/carroça;
+  `moverItensParaMontaria` seta `mount_id` E limpa `personagem_id`
+  simultaneamente (não só marca um campo — vira dono de verdade,
+  respeitando `items_dono_unico`). Só aparece se o personagem tiver
+  montaria cadastrada.
+- **Transferir pra outro jogador** — só aparece quando a ficha foi
+  aberta a partir de uma campanha específica (`?campanha=` na URL,
+  mesmo mecanismo do Breadcrumb) — sem esse contexto não tem como
+  saber quais outros personagens existem. Confere o peso do
+  DESTINATÁRIO antes de mover (busca a ficha/itens/montaria dele sob
+  demanda): se estourar a mochila dele, oferece colocar na montaria
+  DELE em vez de bloquear, mesmo espírito do aviso de peso da aba
+  Compras. `transferirItensParaPersonagem` limpa `mount_id`/
+  `local_montaria` (chega na mochila do destinatário, não na montaria
+  dele, a não ser que o aviso de peso leve pra lá explicitamente).
+- RLS de `items_update` (migration 0008) já cobre isso sem precisar de
+  policy nova: só permite mudar `personagem_id` pra um personagem que
+  o usuário atual É DONO ou é MESTRE da campanha dele — um jogador
+  comum tentando mandar item pra outro jogador que não é seu (sem ser
+  o Mestre) esbarra na RLS normalmente, o que é o comportamento
+  correto (impede um jogador mexer no inventário alheio sem
+  autorização).
+
+**Barra de abas na ficha do personagem** (13/07) — reaproveita o
+mesmo estilo `.abas-campanha`/`.aba-campanha-botao` já usado em
+`CampanhaDetalhe.jsx`, com rótulos curtos (`ABAS[].labelCurto`,
+separado do rótulo longo usado no menu-hambúrguer/breadcrumb). Só
+aparece em telas largas (min-width 860px) — no celular, 5-6 abas lado
+a lado ficariam apertadas, então só o hambúrguer resolve lá; em tela
+larga, os dois convivem (o hambúrguer continua funcionando, é só mais
+uma forma de navegar, "além do" hambúrguer, não no lugar dele).
+
+### Loja da Campanha (13/07)
+
+Nova tabela `campanha_loja_itens` (migration `0024`) — itens
+customizados que o Mestre cadastra por campanha (nome, preço, peso,
+descrição, categoria — e opcionalmente balas/dano/meio_transporte,
+embora o formulário do Mestre não exponha esses 3 campos por ora,
+ficam prontos no schema pra uma extensão futura de "arma customizada
+da loja"), além do Catálogo de Equipamento fixo do livro.
+
+**Ponto central pedido pelo usuário — acesso restrito**: a política de
+SELECT só libera pra quem GERENCIA a campanha (Mestre/Admin) OU tem
+PELO MENOS UM personagem VINCULADO a ela (`campanha_personagens`) —
+ninguém de fora enxerga os itens/preços de uma loja que não é sua.
+Implementado com uma função helper nova, `e_membro_da_campanha`, no
+mesmo padrão de `e_dono_do_personagem`/`e_mestre_de_campanha_do_personagem`
+(migrations 0006/0008) — `security definer`, verifica se existe algum
+personagem do usuário atual vinculado à campanha em questão. Só quem
+gerencia pode INSERT/UPDATE/DELETE (cadastrar itens) — jogador só lê.
+
+**Lado do Mestre** (`CampanhaDetalhe.jsx`) — nova aba "Loja" (entre
+Biblioteca de NPCs e Convidar Jogador), lista simples com campos
+editáveis inline (nome/preço/peso/descrição, mesmo padrão de blur-pra-
+salvar do resto do app) + formulário de criar (reaproveitando
+`.form-grade` e `CATEGORIAS_COMPRAS` do catálogo de compras, pra
+manter os mesmos ícones/categorias).
+
+**Lado do jogador** (`Compras.jsx`, aba Compras da ficha) — os itens
+da loja aparecem numa seção própria, destacada visualmente (borda
+cor-couro), ACIMA do catálogo fixo do livro — organizados por
+campanha de origem (um personagem pode estar vinculado a mais de uma
+campanha, cada uma com sua própria loja). `Personagem.jsx` busca a
+loja de TODAS as campanhas vinculadas de uma vez
+(`listarLojasDosPersonagemVinculado`, uma consulta com `.in(...)`, não
+N). Os itens da loja são ADAPTADOS pro mesmo formato do catálogo fixo
+antes de entrar no carrinho (`precoMin = precoMax = preco`, já que é
+um preço fixo do Mestre, sem faixa de negociação como o catálogo do
+livro) — o carrinho/simulação/compra tratam os dois de forma idêntica,
+sem duplicar lógica nenhuma.
+
+### Personalizar catálogo por campanha, correções de tema escuro e bug de salvamento (13/07)
+
+**Personalizar item do catálogo padrão por campanha** (migration `0025`,
+`campanha_loja_itens.catalogo_id`) — antes a Loja da Campanha só
+permitia criar itens 100% novos. Agora, dentro da aba Loja, uma seção
+"Personalizar item do Catálogo de Equipamento" mostra o catálogo
+inteiro (busca + categorias, mesmo padrão da aba Compras) com um botão
+"Personalizar" por item — clicar cria uma linha em `campanha_loja_itens`
+já preenchida com os valores atuais (preço médio da faixa, peso,
+descrição, balas/dano se for arma) e `catalogo_id` apontando pro item
+de origem; o Mestre edita como quiser dali. Em `Compras.jsx`, o merge
+agora DISTINGUE dois casos: item com `catalogo_id` **substitui** a
+versão padrão no lugar dela na lista (não aparece duplicado — um selo
+"preço/detalhes desta campanha" avisa que é diferente do livro); item
+sem `catalogo_id` (criado do zero) continua aparecendo na seção
+separada "Loja: [nome da campanha]". Só afeta a campanha onde foi
+personalizado — outras campanhas continuam vendo o catálogo original.
+
+**Bug real corrigido: Descrição/História do personagem não salvava**
+— `CampoEditavel.jsx` tem um parâmetro `tipo` com padrão `'number'`;
+quando usado como textarea (`linhas={5}`, caso da Descrição/História),
+ninguém passava `tipo="text"` explicitamente, então o código de
+`commit()` rodava `Number(textoDigitado)`, virava `NaN`, caía num
+fallback e salvava **0** no lugar do texto. Corrigido na raiz: `linhas`
+agora força tratamento como texto, independente do `tipo` — qualquer
+textarea futura fica protegida do mesmo bug automaticamente, sem
+depender de quem chama lembrar do detalhe.
+
+**Correções no tema escuro:**
+- **Inputs brancos em qualquer tema** — o CSS base de
+  `input, select, textarea` nunca definia fundo/cor nenhuma (só o
+  branco padrão do navegador aparecia). Adicionado `background: var(--cor-papel)`
+  e `color: var(--cor-tinta)` na base — em contextos mais específicos
+  (`.tabela-ficha input`, etc.) a regra mais específica continua
+  vencendo, sem regressão.
+- **Regra geral: vermelho → `#b58a5c` no escuro, exceto Remover/Logout**
+  — `--cor-sangue` (usada em números/badges/texto de destaque em
+  dezenas de lugares) redefinida pra `#b58a5c` dentro de `.tema-escuro`
+  (coincide com o valor que `--cor-couro` já tinha lá). `.botao-remover`
+  e `.botao-logout` ganharam override escopado (`.tema-escuro .botao-remover`
+  etc.) pra continuarem vermelhos de verdade — as duas exceções citadas
+  explicitamente no pedido.
+- **E-mail do perfil** — `.tema-escuro .campo-email-linha input { color: #b58a5c; }`,
+  só no escuro (no claro continua com a cor normal de texto).
+- **Overlays brancos fixos viravam cinza feio no escuro** — 3 lugares
+  usavam `rgba(255,255,255,...)` fixo (pastas de NPC, hover do nome,
+  campo desabilitado): ficava bem em cima do fundo claro, virava cinza
+  lavado em cima do fundo escuro. Trocado por uma variável nova
+  `--cor-destaque-sutil`, com valor diferente por tema (tinta escura
+  translúcida no claro, branco translúcido no escuro).
+- **Atributos (Físico/Velocidade/Coragem)** — número dentro da caixa
+  preta ganhou `color: var(--cor-sangue)` explícito (antes não tinha
+  cor definida nenhuma ali) — vermelho no claro (como no PDF de
+  referência), `#b58a5c` no escuro.
+
+**Barra de abas da ficha não sumia mais no celular** — `.abas-ficha`
+tinha `display:none` abaixo de 860px; ajustado pra sempre aparecer,
+rolando de lado em telas estreitas (herda `overflow-x:auto` de
+`.abas-campanha`), igual a barra da campanha já fazia.
+
+**Botão de tema também dentro do Perfil** — linha própria com sol/lua
+(`.campo-tema-linha`) na tela de Perfil, além do botão flutuante global
+que já existia (não foi removido — mantém o acesso de qualquer tela).
 
 ## 7. Fluxo de autenticação
 

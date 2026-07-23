@@ -15,6 +15,7 @@ import {
   listarTrilhaPersonagem,
   listarCampanhasDoPersonagem,
   listarPersonagensDaCampanha,
+  listarLojasDosPersonagemVinculado,
 } from '../lib/dados.js';
 import CampoEditavel from '../components/personagem/CampoEditavel.jsx';
 import CampoStepper from '../components/personagem/CampoStepper.jsx';
@@ -69,11 +70,11 @@ const ANTECEDENTES = [
 //   montaria -> stats da Montaria (nome, potência/resistência, vida/dor
 //               dela, fidelidade, config de carga)
 const ABAS = [
-  { id: 'geral', label: 'Nome, Atributos e Antecedentes' },
-  { id: 'combate', label: 'Combate e Armas' },
-  { id: 'inventario', label: 'Inventário' },
-  { id: 'montaria', label: 'Montaria' },
-  { id: 'compras', label: 'Compras' },
+  { id: 'geral', label: 'Nome, Atributos e Antecedentes', labelCurto: 'Geral' },
+  { id: 'combate', label: 'Combate e Armas', labelCurto: 'Combate' },
+  { id: 'inventario', label: 'Inventário', labelCurto: 'Inventário' },
+  { id: 'montaria', label: 'Montaria', labelCurto: 'Montaria' },
+  { id: 'compras', label: 'Compras', labelCurto: 'Compras' },
 ];
 
 // Editor completo do personagem (Fases 5, 6 e regras de 13/07):
@@ -113,6 +114,7 @@ export default function Personagem() {
   const [trilhaPassos, setTrilhaPassos] = useState([]);
   const [campanhasVinculadas, setCampanhasVinculadas] = useState([]);
   const [outrosPersonagensDaCampanha, setOutrosPersonagensDaCampanha] = useState([]);
+  const [lojasCampanha, setLojasCampanha] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [mensagemDor, setMensagemDor] = useState('');
@@ -167,8 +169,20 @@ export default function Personagem() {
     setArmas(resArmas.data ?? []);
     setMontaria(resMontaria.data ?? null);
     setHabilidades(resHabilidades.data ?? []);
-    setCampanhasVinculadas((resCampanhas.data ?? []).map((row) => row.campanha).filter(Boolean));
+    const campanhasDoPersonagem = (resCampanhas.data ?? []).map((row) => row.campanha).filter(Boolean);
+    setCampanhasVinculadas(campanhasDoPersonagem);
     setTrilhaPassos(resTrilha.data ?? []);
+
+    // Loja da Campanha (13/07) — busca a loja de TODAS as campanhas em
+    // que este personagem está vinculado (não só a do contexto da URL),
+    // já que "acesso" aqui é sobre ESTAR VINCULADO, não sobre de onde
+    // a ficha foi aberta.
+    if (campanhasDoPersonagem.length > 0) {
+      const { data: itensLoja } = await listarLojasDosPersonagemVinculado(campanhasDoPersonagem.map((c) => c.id));
+      setLojasCampanha(itensLoja ?? []);
+    } else {
+      setLojasCampanha([]);
+    }
 
     // "Transferir pra outro jogador" (13/07) — só faz sentido quando
     // dá pra saber QUAIS outros personagens existem; só sabemos isso
@@ -419,6 +433,22 @@ export default function Personagem() {
       />
 
       <MenuLateral aberto={menuAberto} onFechar={() => setMenuAberto(false)} titulo="Seções da ficha" itens={itensMenuAbas} />
+
+      <nav className="abas-campanha abas-ficha" aria-label="Seções da ficha">
+        {ABAS.map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            className={`aba-campanha-botao ${abaAtiva === a.id ? 'aba-campanha-botao--ativa' : ''}`}
+            onClick={() => setAbaAtiva(a.id)}
+          >
+            {a.labelCurto}
+          </button>
+        ))}
+        <button type="button" className="aba-campanha-botao" onClick={() => setCatalogoAberto(true)}>
+          Catálogo
+        </button>
+      </nav>
 
       {erro && <p className="erro">{erro}</p>}
       {!canEdit && (
@@ -696,6 +726,7 @@ export default function Personagem() {
             montaria={montaria}
             editavel={canEdit}
             onCompraConcluida={carregar}
+            itensLoja={lojasCampanha}
           />
         </section>
       )}

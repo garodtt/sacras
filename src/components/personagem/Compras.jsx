@@ -129,7 +129,39 @@ function calcularImpactoCompra(carrinho, personagem, itens, armas) {
   };
 }
 
-export default function Compras({ personagem, itens, armas, montaria, editavel, onCompraConcluida }) {
+export default function Compras({ personagem, itens, armas, montaria, editavel, onCompraConcluida, itensLoja = [] }) {
+  // Adapta o formato da Loja da Campanha (preco único, campos de arma
+  // opcionais) pro mesmo formato do Catálogo de Equipamento — assim o
+  // carrinho/simulação/compra tratam os dois de forma idêntica, sem
+  // duplicar lógica. `precoMin = precoMax = preco` (preço fixo do
+  // Mestre, sem faixa de negociação como o catálogo do livro).
+  const itensLojaAdaptados = itensLoja.map((item) => ({
+    id: `loja-${item.id}`,
+    catalogoId: item.catalogo_id ?? null,
+    nome: item.nome,
+    categoria: item.categoria,
+    precoMin: Number(item.preco),
+    precoMax: Number(item.preco),
+    espaco: Number(item.espaco ?? 0),
+    descricao: item.descricao || '',
+    balas: item.balas ?? null,
+    recarga: null,
+    dano: item.dano ?? null,
+    tipoDano: null,
+    meioTransporte: item.meio_transporte ?? null,
+    origemLoja: item.campanha?.nome ?? 'Loja da Campanha',
+  }));
+
+  // Personalização (13/07) — item da loja com catalogoId SUBSTITUI o
+  // item padrão do catálogo especificamente nesta ficha (não aparece
+  // duplicado); só o que NÃO tem catalogoId (100% novo, exclusivo da
+  // campanha) aparece na seção separada "Loja: X".
+  const personalizacoesPorCatalogoId = new Map(
+    itensLojaAdaptados.filter((i) => i.catalogoId).map((i) => [i.catalogoId, i])
+  );
+  const itensLojaSoNovos = itensLojaAdaptados.filter((i) => !i.catalogoId);
+  const catalogoComPersonalizacoes = CATALOGO_COMPRAS.map((item) => personalizacoesPorCatalogoId.get(item.id) ?? item);
+
   const [busca, setBusca] = useState('');
   const [carrinho, setCarrinho] = useState([]);
   const [descontoAberto, setDescontoAberto] = useState(false);
@@ -145,7 +177,8 @@ export default function Compras({ personagem, itens, armas, montaria, editavel, 
   }
 
   const termo = busca.trim().toLowerCase();
-  const itensFiltrados = termo ? CATALOGO_COMPRAS.filter((i) => i.nome.toLowerCase().includes(termo)) : CATALOGO_COMPRAS;
+  const itensFiltrados = termo ? catalogoComPersonalizacoes.filter((i) => i.nome.toLowerCase().includes(termo)) : catalogoComPersonalizacoes;
+  const itensLojaFiltrados = termo ? itensLojaSoNovos.filter((i) => i.nome.toLowerCase().includes(termo)) : itensLojaSoNovos;
 
   function adicionarAoCarrinho(item) {
     setCarrinho((atual) => {
@@ -319,6 +352,40 @@ export default function Compras({ personagem, itens, armas, montaria, editavel, 
             onChange={(e) => setBusca(e.target.value)}
           />
 
+          {itensLojaFiltrados.length > 0 &&
+            Object.entries(
+              itensLojaFiltrados.reduce((porLoja, item) => {
+                (porLoja[item.origemLoja] ??= []).push(item);
+                return porLoja;
+              }, {})
+            ).map(([nomeLoja, itensDaLoja]) => (
+              <details key={nomeLoja} className="compras-categoria compras-categoria--loja" open>
+                <summary>
+                  <h3>Loja: {nomeLoja} ({itensDaLoja.length})</h3>
+                </summary>
+                <ul className="compras-lista-itens">
+                  {itensDaLoja.map((item) => (
+                    <li key={item.id} className="compras-item">
+                      <div className="compras-item-info">
+                        <strong>{item.nome}</strong>
+                        <p className="detalhe-secundario">
+                          ${precoMedio(item).toFixed(2)}
+                          {' · '}
+                          {item.espaco > 0 ? `${item.espaco} espaço` : 'Não ocupa espaço'}
+                          {item.balas != null && ` · ${item.balas} balas`}
+                          {item.dano && ` · Dano: ${item.dano}`}
+                        </p>
+                        {item.descricao && <p className="campo-dica">{item.descricao}</p>}
+                      </div>
+                      <button type="button" onClick={() => adicionarAoCarrinho(item)}>
+                        + Carrinho
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ))}
+
           {CATEGORIAS_COMPRAS.map((cat) => {
             const itensDaCategoria = itensFiltrados.filter((i) => i.categoria === cat.id);
             if (itensDaCategoria.length === 0) return null;
@@ -332,6 +399,7 @@ export default function Compras({ personagem, itens, armas, montaria, editavel, 
                     <li key={item.id} className="compras-item">
                       <div className="compras-item-info">
                         <strong>{item.nome}</strong>
+                        {item.catalogoId && <span className="selo-personalizado"> · preço/detalhes desta campanha</span>}
                         <p className="detalhe-secundario">
                           {item.precoMin != null ? `$${precoMedio(item).toFixed(2)} (média)` : 'Não se vende'}
                           {' · '}

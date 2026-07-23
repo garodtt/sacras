@@ -96,6 +96,8 @@ tinha um projeto da v1, é mais simples criar outro do zero):
    21. `supabase/migrations/0021_notas_personagem_campanha.sql` — **nova (13/07)**: nota privada do Mestre por personagem vinculado (tabela própria, RLS restrita)
    22. `supabase/migrations/0022_ficha_npc_detalhada.sql` — **nova (13/07)**: descrição e foto no NPC, inventário simples de NPC (tabela nova)
    23. `supabase/migrations/0023_pastas_npc_entidade.sql` — **nova (13/07)**: pasta de NPC vira entidade própria (nome + descrição), com backfill dos dados existentes
+   24. `supabase/migrations/0024_loja_campanha.sql` — **nova (13/07)**: Loja da Campanha (itens customizados do Mestre), acesso restrito a quem gerencia ou tem personagem vinculado
+   25. `supabase/migrations/0025_loja_catalogo_id.sql` — **nova (13/07)**: liga um item da loja a um item do catálogo padrão, pra permitir "personalizar" (preço/peso/etc.) um item já existente só nesta campanha
 
 **4. Configure as variáveis de ambiente:**
 ```bash
@@ -238,7 +240,9 @@ sacramento-rpg/
 │       ├── 0020_faccao_biblioteca_npcs.sql   # facção + biblioteca de NPCs por campanha
 │       ├── 0021_notas_personagem_campanha.sql   # nota privada do Mestre por personagem vinculado
 │       ├── 0022_ficha_npc_detalhada.sql   # descrição/foto no NPC + inventário simples de NPC
-│       └── 0023_pastas_npc_entidade.sql   # pasta de NPC vira entidade própria (nome + descrição)
+│       ├── 0023_pastas_npc_entidade.sql   # pasta de NPC vira entidade própria (nome + descrição)
+│       ├── 0024_loja_campanha.sql   # Loja da Campanha (itens customizados, acesso restrito)
+│       └── 0025_loja_catalogo_id.sql   # personalizar item do catálogo padrão por campanha
 └── src/
     ├── main.jsx
     ├── App.jsx                 # rotas (react-router-dom)
@@ -343,6 +347,9 @@ sacramento-rpg/
 - [x] **Layout do formulário, busca, pasta como entidade (13/07)** — formulário de Criar NPC em grade organizada (não quebra mais de forma imprevisível); busca por nome na Biblioteca de NPCs; pasta virou entidade própria com nome+descrição (migration com backfill dos dados existentes), formulário dedicado "Criar pasta", "Mover pra pasta" agora é seleção entre pastas existentes — ver `docs/ARQUITETURA.md`
 - [x] **Redesenho da tela de campanha — abas, NPC, notas (13/07)** — Modo Sessão/Preparação e seções recolhíveis substituídos por abas (Personagens/Anotações/Biblioteca de NPCs/Convidar Jogador); cartão de NPC reorganizado (foto e descrição lado a lado, inventário em seção própria); Notas do Mestre com visual de painel (acento de cor, selo "Só você vê") — ver `docs/ARQUITETURA.md`
 - [x] **Aba Compras (13/07)** — catálogo completo do livro (~150 itens) com busca e carrinho; desconto (valor customizado ou presente/grátis); ao concluir, arma equipável vira arma de verdade já equipada (coldre/bandoleira/bainha), munição entra direto no pool, resto vira item; avisa e trava se faltar dinheiro; avisa e oferece montaria se estourar o peso — ver `docs/ARQUITETURA.md`
+- [x] **Correções na aba Compras + ações em lote no inventário (13/07)** — corrigido: compra de item repetido agora soma na linha existente (não cria duplicata escondida); "colocar na montaria" agora move de verdade (mount_id, não só uma tag); peso de arma excedente usa peso fixo por tipo de slot. Novo: seleção múltipla no inventário com excluir/transferir pra montaria (escolhendo cavalo/bolsa/carro/carroça)/transferir pra outro jogador da campanha (com aviso de peso do destinatário) — ver `docs/ARQUITETURA.md`
+- [x] **Loja da Campanha (13/07)** — Mestre cadastra itens customizados por campanha (nome/preço/peso/descrição/categoria) numa aba própria; acesso restrito por RLS a quem gerencia a campanha ou tem personagem vinculado a ela; jogador vê os itens da(s) loja(s) das campanhas em que está vinculado direto na aba Compras da ficha, numa seção própria antes do catálogo fixo do livro — ver `docs/ARQUITETURA.md`
+- [x] **Personalizar catálogo por campanha, correções de tema escuro e bug de salvamento (13/07)** — Mestre agora personaliza (preço/peso/descrição) qualquer item do catálogo fixo do livro, só pra sua campanha, sem duplicar na lista do jogador; corrigido bug real de Descrição/História do personagem não salvando (CampoEditavel tratava texto como número); várias correções no tema escuro (inputs brancos, vermelho virando `#b58a5c` exceto Remover/Logout, overlays cinzas, barra de abas sumindo no celular, botão de tema também no Perfil) — ver `docs/ARQUITETURA.md`
 - [ ] **Fase 8** — Deploy no Netlify + variáveis de ambiente de produção
 - [ ] **Fase 9** *(opcional, sugerido)* — Histórico de alterações do personagem
 
