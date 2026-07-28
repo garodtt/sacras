@@ -550,9 +550,9 @@ button:focus-visible {
 }
 
 .bloco-atributos-preto .campo-editavel input {
-  background: var(--cor-papel);
-  border-color: var(--cor-papel);
-  color: var(--cor-sangue);
+  background: var(--cor-papel) !important;
+  border-color: var(--cor-papel) !important;
+  color: var(--cor-sangue) !important;
   font-weight: 700;
 }
 
@@ -645,16 +645,20 @@ button:focus-visible {
   opacity: 0.7;
 }
 
+.trilha-pips--vida .pip {
+  border-color: #c0392b;
+}
+
 .trilha-pips--vida .pip.pip--cheio {
-  background: var(--cor-tinta);
+  background: #c0392b;
 }
 
 .trilha-pips--dor .pip {
-  border-color: var(--cor-sangue);
+  border-color: #7a2020;
 }
 
 .trilha-pips--dor .pip.pip--cheio {
-  background: var(--cor-sangue);
+  background: #7a2020;
 }
 
 .trilha-pips--neutro .pip.pip--cheio {
@@ -807,14 +811,14 @@ button:focus-visible {
 
 /* Nível de Fidelidade — a segunda caixa preta sólida da ficha original. */
 .nivel-fidelidade {
-  background: var(--cor-tinta);
-  color: var(--cor-papel);
+  background: #2b2318;
+  color: #b58a5c;
   border-radius: var(--radio-padrao);
   padding: 1rem 1.2rem;
 }
 
 .nivel-fidelidade h4 {
-  color: var(--cor-papel);
+  color: #b58a5c;
   font-size: 1.3rem;
   margin-bottom: 0.7rem;
 }
@@ -834,20 +838,20 @@ button:focus-visible {
   gap: 0.7rem;
   font-family: var(--fonte-corpo);
   font-size: 0.88rem;
-  color: rgba(248, 241, 220, 0.55);
+  color: rgba(181, 138, 92, 0.55);
 }
 
 .nivel-fidelidade li.nivel-ativo {
-  color: var(--cor-papel);
+  color: #b58a5c;
 }
 
 .pip-numerado {
   width: 1.9rem;
   height: 1.9rem;
   border-radius: 50%;
-  border: 2px solid rgba(248, 241, 220, 0.4);
+  border: 2px solid rgba(181, 138, 92, 0.4);
   background: transparent;
-  color: var(--cor-papel);
+  color: #b58a5c;
   cursor: pointer;
   font-family: var(--fonte-corpo);
   font-weight: 700;
@@ -861,9 +865,9 @@ button:focus-visible {
 }
 
 .nivel-ativo .pip-numerado {
-  border-color: var(--cor-sangue);
-  background: var(--cor-sangue);
-  color: var(--cor-papel);
+  border-color: #b58a5c;
+  background: #b58a5c;
+  color: #2b2318;
 }
 
 /* ---------------------------------------------------------------
@@ -2580,11 +2584,11 @@ p.badge-caido {
 }
 
 .barra-vida-dor-preenchimento--vida {
-  background: var(--cor-sangue);
+  background: #c0392b;
 }
 
 .barra-vida-dor-preenchimento--dor {
-  background: var(--cor-couro);
+  background: #7a2020;
 }
 
 .barra-vida-dor-numero {
