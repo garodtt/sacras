@@ -82,6 +82,29 @@
   background: #8a2c21;
 }
 
+/* Reforço direto (13/07) — mesmo com --cor-sangue já redefinida acima,
+   garante o número do atributo com a cor certa sem depender de nenhum
+   encadeamento de variável.
+   Correção (13/07, mesmo dia): tinha ficado #2b2318 — exatamente a
+   mesma cor do FUNDO da caixinha escura por baixo do número
+   (.campo-editavel input já usa var(--cor-papel) como fundo, que é
+   #2b2318 no tema escuro) — número e fundo idênticos, por isso sumia.
+   Trocado pra e8dcc0, igual o texto de dica logo abaixo já usa, pra
+   ficar visível em cima do fundo escuro da caixinha. */
+.tema-escuro .bloco-atributos-preto .campo-editavel input {
+  color: #e8dcc0 !important;
+}
+
+.tema-escuro .bloco-atributos-preto {
+  background: #b58a5c;
+}
+
+.tema-escuro .bloco-atributos-preto .campo-dica {
+  color: #e8dcc0;
+  font-weight: 600;
+  opacity: 1;
+}
+
 * {
   box-sizing: border-box;
   /* Tira o destaque escuro translúcido que o navegador do celular
@@ -3375,4 +3398,97 @@ p.badge-caido {
   font-size: 0.7rem;
   font-style: italic;
   color: var(--cor-couro);
+}
+
+/* ---------------------------------------------------------------
+   Navegação da ficha — PC vs celular (13/07, 2ª rodada). No PC,
+   breadcrumb + barra de abas (.abas-ficha) ficam no topo, como antes.
+   No celular, os dois somem (iam ocupar espaço vertical demais e a
+   barra de abas não cabe bem com 6 itens numa tela estreita) — vira
+   uma bolinha flutuante no canto inferior esquerdo, que abre um popup
+   com a mesma lista. O menu-hambúrguer da ficha não existe mais
+   separado — a ficha usa o mesmo PainelShell/menu global de qualquer
+   outra tela do app (Perfil/Seus Personagens/Criar Personagem/Suas
+   Campanhas/Criar Campanha).
+------------------------------------------------------------------ */
+.ficha-nav-desktop {
+  display: none;
+}
+
+@media (min-width: 860px) {
+  .ficha-nav-desktop {
+    display: block;
+  }
+}
+
+.botao-abas-ficha-flutuante {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 90;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  background: var(--cor-tinta);
+  color: var(--cor-papel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.botao-abas-ficha-flutuante:hover {
+  background: var(--cor-couro);
+}
+
+@media (min-width: 860px) {
+  .botao-abas-ficha-flutuante {
+    display: none;
+  }
+}
+
+.botao-abas-ficha-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  line-height: 1;
+  font-size: 1.3rem;
+}
+
+.popup-abas-ficha {
+  max-width: 320px;
+}
+
+.lista-abas-ficha-popup {
+  list-style: none;
+  padding: 0;
+  margin: 0.8rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.lista-abas-ficha-popup button {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--cor-tinta);
+  border: 1px solid var(--cor-borda);
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: normal;
+}
+
+.lista-abas-ficha-popup button:hover {
+  background: var(--cor-destaque-sutil);
+}
+
+.lista-abas-ficha-popup button.aba-campanha-botao--ativa {
+  background: var(--cor-couro);
+  color: var(--cor-papel);
+  border-color: var(--cor-couro);
+  font-weight: 700;
 }

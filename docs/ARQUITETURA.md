@@ -1929,6 +1929,114 @@ rolando de lado em telas estreitas (herda `overflow-x:auto` de
 (`.campo-tema-linha`) na tela de Perfil, além do botão flutuante global
 que já existia (não foi removido — mantém o acesso de qualquer tela).
 
+### Bug real: tema escuro "voltava sozinho" ao sair do Perfil (13/07)
+
+Causa raiz: `useTemaEscuro()` estava sendo chamado DUAS VEZES —
+uma vez em `App.jsx` (nunca desmonta) e outra em `Painel.jsx` (desmonta
+toda vez que você navega pra outra tela). Cada chamada é uma instância
+INDEPENDENTE do hook, com o próprio estado e o próprio efeito de
+limpeza (`return () => document.body.classList.remove('tema-escuro')`).
+Ao sair da tela de Perfil, a limpeza da instância DELA rodava e
+apagava a classe `.tema-escuro` do body — mesmo a instância de
+`App.jsx` (que nunca desmonta) continuando com o estado interno dela
+dizendo "tema escuro ligado". Resultado: o tema só "funcionava de
+verdade" enquanto você estava literalmente na tela de Perfil.
+
+Corrigido com Context (`src/contexts/TemaContext.jsx`, novo) —
+`useTemaEscuro()` agora roda **uma única vez**, dentro de
+`<TemaProvider>` (montado em `App.jsx`, ao lado de `<AuthProvider>`,
+nunca desmonta). Qualquer tela que precisa ler ou alternar o tema usa
+`useTema()` (o consumidor do Context) em vez de chamar o hook direto —
+`useTema()` só LÊ o valor compartilhado, sem ter o próprio
+efeito/limpeza, então montar/desmontar uma tela normal nunca mexe na
+classe do body. `App.jsx` também passou a usar `useTema()` (via um
+componente interno `BotaoTemaGlobal`), garantindo que só existe UMA
+fonte de verdade pro estado do tema em todo o app.
+
+Botão dentro do Perfil também foi simplificado — reaproveita a mesma
+classe `.botao-tema-flutuante` do botão global (só ícone, sol/lua),
+com um modificador `--inline` que troca `position: fixed` por
+`position: static` (fica na linha, não flutuando por cima da tela) —
+sem texto do lado, igual pedido.
+
+### Fundos brancos fixos (13/07) e botão de tema só no Perfil
+
+**Causa real dos campos ainda brancos**: existiam 4 regras com
+`background: #fff` FIXO (não uma variável) — `.campo-editavel input/textarea`
+(usada por QUASE TODO campo da ficha via `CampoEditavel.jsx` — Nome,
+Atributos, Descrição/História, etc.), `.form-inline input/select/textarea`
+(usada em dezenas de formulários — Adicionar combatente, Criar NPC,
+Convidar jogador...), `.tabela-ficha input:hover/:focus`, e
+`.card-auth input` (login/cadastro). Cada uma tinha MAIS especificidade
+que a correção genérica de `input, select, textarea` feita antes, então
+sempre venciam e mantinham o branco em qualquer tema. Todas trocadas
+pra `var(--cor-papel)`. **Não mexido de propósito**:
+`.leitor-catalogo-pagina` (moldura do Catálogo de Equipamento) continua
+com fundo branco fixo — ali são imagens de páginas escaneadas do livro,
+que já têm fundo claro/papel embutido na própria imagem; escurecer só
+a moldura ia destoar da imagem em vez de ajudar.
+
+**Botão de tema só existe dentro do Perfil agora** — removido de
+`App.jsx` (não é mais renderizado fora do Perfil). O efeito (a classe
+`.tema-escuro` no body) continua 100% global — isso não muda, já que
+`TemaProvider` continua envolvendo o app inteiro em `App.jsx` e nunca
+desmonta; só o BOTÃO em si ficou exclusivo da tela de Perfil, como
+pedido.
+
+### Cores fixas em painéis de destaque e em Vida/Dor (13/07)
+
+**Atributos** — `.bloco-atributos-preto .campo-editavel input` reforçado
+com `!important` no `color: var(--cor-sangue)` (que já é `#b58a5c` no
+tema escuro) — elimina qualquer dúvida de especificidade que pudesse
+estar deixando o número mais parecido com `--cor-tinta` (creme claro)
+do que o esperado.
+
+**Montaria — "Nível de Fidelidade" tinha cor invertida no tema escuro**:
+usava `background: var(--cor-tinta); color: var(--cor-papel);` — um
+painel "invertido" pensado pra funcionar em CIMA do tema claro (fundo
+escuro com texto claro, já que lá `--cor-tinta` é escura). No tema
+escuro, `--cor-tinta` e `--cor-papel` trocam de valor — o painel virava
+CLARO com texto ESCURO, o oposto do efeito pretendido. Trocado por
+cores FIXAS (`#2b2318` fundo, `#b58a5c` texto/detalhes,
+independente do tema) — é um painel de destaque dramático, não devia
+inverter com o resto da página. Mesmo ajuste em `.pip-numerado` (os
+círculos numerados 0-5): vazio usa borda/texto `#b58a5c`; preenchido
+inverte (fundo `#b58a5c`, texto `#2b2318`) — mesma paleta, só
+distinguindo preenchido de vazio.
+
+**Vida/Dor ganharam cores próprias, fixas, independentes de tema** —
+antes usavam `var(--cor-sangue)`/`var(--cor-couro)`, que a regra geral
+do tema escuro redefine pra `#b58a5c` — as duas barras (e os círculos
+da Montaria) ficariam com a MESMA cor tan no escuro, perdendo a
+distinção visual entre "quanto de Vida" e "quanto de Dor". Agora:
+Vida = `#c0392b` (vermelho mais vivo), Dor = `#7a2020` (vermelho mais
+escuro) — fixas nos dois temas, tanto em `BarraVidaDor.jsx` (cartões de
+campanha, Rastreador de Combate) quanto em `TrilhaCirculos.jsx` (ficha
+do personagem e Montaria, que usa os mesmos círculos).
+
+### Navegação PC vs celular — confirmação e limpeza (13/07)
+
+Confirmado com o usuário (3 perguntas antes de mexer em qualquer
+coisa, por pedido explícito): menu hambúrguer global sempre com os
+mesmos 5 itens (Perfil/Seus Personagens/Criar Personagem/Suas
+Campanhas/Criar Campanha) em QUALQUER tela; a troca barra HUD (PC) /
+bolinha flutuante (celular) é só pra ficha do personagem (não a
+campanha, que mantém a própria barra de abas sempre visível); e
+"tirar as guias do cabeçalho" (breadcrumb + barra de abas) só no
+celular — no PC os dois continuam.
+
+Na hora de implementar, achei que isso **já estava construído**
+(`MenuGlobal.jsx`, `.ficha-nav-desktop`, `.botao-abas-ficha-flutuante`
+— tudo batendo exatamente com o combinado). Único ajuste feito:
+`PainelShell.jsx` ainda tinha uma CÓPIA duplicada de toda a lógica do
+menu (itens, popups de criar personagem/campanha, badge de convite)
+em vez de usar o `MenuGlobal.jsx` que já existia — funcionava, mas é
+risco de divergência (mudar um item no menu exigiria lembrar de mudar
+nos dois lugares). Trocado por `<MenuGlobal />`, sem mudar
+comportamento nenhum. Como bônus, `Combate.jsx` (que usa
+`<PainelShell>` como casca e não tinha hambúrguer próprio) ganhou o
+menu global de graça, sem precisar tocar nele.
+
 ## 7. Fluxo de autenticação
 
 - **Cadastro aberto, sem escolha de papel**: qualquer pessoa pode se

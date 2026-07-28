@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import MenuGlobal from '../components/layout/MenuGlobal.jsx';
 import PopupConfirmar from '../components/PopupConfirmar.jsx';
 import BarraVidaDor from '../components/BarraVidaDor.jsx';
 import EstadoVazio from '../components/EstadoVazio.jsx';
@@ -462,11 +463,14 @@ export default function CampanhaDetalhe() {
     }
   }
 
-  if (carregando) return <p style={{ padding: '2rem' }}>Carregando...</p>;
-  if (!campanha) return <p style={{ padding: '2rem' }}>Campanha não encontrada (ou você não tem acesso a ela).</p>;
+  if (carregando) return <main className="painel pagina-larga"><MenuGlobal /><p style={{ padding: '2rem' }}>Carregando...</p></main>;
+  if (!campanha) return <main className="painel pagina-larga"><MenuGlobal /><p style={{ padding: '2rem' }}>Campanha não encontrada (ou você não tem acesso a ela).</p></main>;
 
   return (
     <main className="painel pagina-larga">
+      <header className="ficha-topo">
+        <MenuGlobal />
+      </header>
       <Breadcrumb itens={[{ label: 'Início', to: '/painel' }, { label: 'Suas Campanhas', to: '/painel/campanhas' }, { label: campanha.nome }]} />
       <h1>{campanha.nome}</h1>
       {campanha.descricao && <p>{campanha.descricao}</p>}

@@ -29,8 +29,7 @@ import TrilhaPersonagem from '../components/personagem/TrilhaPersonagem.jsx';
 import Compras from '../components/personagem/Compras.jsx';
 import EfeitoDorPopup from '../components/personagem/EfeitoDorPopup.jsx';
 import Montaria from '../components/personagem/Montaria.jsx';
-import MenuLateral from '../components/layout/MenuLateral.jsx';
-import BotaoHamburguer from '../components/layout/BotaoHamburguer.jsx';
+import MenuGlobal from '../components/layout/MenuGlobal.jsx';
 import UploadFoto from '../components/UploadFoto.jsx';
 import LeitorCatalogo from '../components/LeitorCatalogo.jsx';
 import { EsqueletoFicha } from '../components/Esqueleto.jsx';
@@ -56,11 +55,16 @@ const ANTECEDENTES = [
   { campo: 'ant_violencia', label: 'Violência' },
 ];
 
-// Abas da ficha (13/07 — reestruturação pro celular). Antes era tudo
-// numa página só, rolando bastante — ruim de usar no celular. Agora só
-// uma aba renderiza por vez, trocada pelo menu de 3 barrinhas local
-// (reaproveita o mesmo MenuLateral do Painel, só que aqui os itens
-// trocam de aba em vez de navegar). Agrupamento pedido:
+// Abas da ficha (13/07 — reestruturação pro celular; 13/07 2ª rodada —
+// PC/celular separados). No PC, a navegação entre abas é pela barra
+// horizontal no topo (.abas-ficha, sempre visível ali). No celular,
+// essa barra some (space apertado pra 6 itens) e vira uma bolinha
+// flutuante no canto inferior esquerdo (.botao-abas-ficha-flutuante) —
+// clicar abre um popup com a mesma lista. O menu-hambúrguer da ficha
+// não existe mais separado — agora é o MESMO PainelShell usado em
+// qualquer outra tela (Perfil/Seus Personagens/Criar Personagem/Suas
+// Campanhas/Criar Campanha, idêntico em todo canto do app). Agrupamento
+// pedido:
 //   geral    -> Nome, Atributos, Antecedentes, Habilidades, Dinheiro
 //   combate  -> Combate, Círculos de Vida/Dor, Armas
 //               (Vida/Dor não foi citada explicitamente no pedido, mas
@@ -120,7 +124,7 @@ export default function Personagem() {
   const [mensagemDor, setMensagemDor] = useState('');
   const [abaAtiva, setAbaAtiva] = useState('geral');
   const [catalogoAberto, setCatalogoAberto] = useState(false);
-  const [menuAberto, setMenuAberto] = useState(false);
+  const [abasFichaAberto, setAbasFichaAberto] = useState(false);
 
   useEffect(() => {
     carregar();
@@ -382,8 +386,8 @@ export default function Personagem() {
     return { municaoAtual: resultado.municaoAtual };
   }
 
-  if (carregando) return <main className="ficha"><EsqueletoFicha /></main>;
-  if (!personagem) return <p style={{ padding: '2rem' }}>Personagem não encontrado (ou sem acesso).</p>;
+  if (carregando) return <main className="ficha"><MenuGlobal /><EsqueletoFicha /></main>;
+  if (!personagem) return <main className="ficha"><MenuGlobal /><p style={{ padding: '2rem' }}>Personagem não encontrado (ou sem acesso).</p></main>;
 
   const pontosAtributo =
     personagem.atributo_fisico + personagem.atributo_velocidade + personagem.atributo_intelecto + personagem.atributo_coragem;
@@ -400,55 +404,98 @@ export default function Personagem() {
   });
   const limiteRestanteParaMunicao = personagem.espaco_max - pesoItensAtual;
 
-  const itensMenuAbas = [
-    ...ABAS.map((a) => ({
-      label: a.label,
-      ativo: a.id === abaAtiva,
-      onClick: () => setAbaAtiva(a.id),
-    })),
-    { label: 'Catálogo de Equipamento', onClick: () => setCatalogoAberto(true) },
-  ];
-
   return (
     <main className="ficha">
       <header className="ficha-topo">
-        <BotaoHamburguer onClick={() => setMenuAberto(true)} label="Abrir seções da ficha" />
+        <MenuGlobal />
       </header>
 
-      <Breadcrumb
-        itens={(() => {
-          const campanhaContexto = campanhaContextoId
-            ? campanhasVinculadas.find((c) => c.id === campanhaContextoId)
-            : null;
-          const segundoItem = campanhaContexto
-            ? { label: campanhaContexto.nome, to: `/campanha/${campanhaContexto.id}` }
-            : { label: 'Seus Personagens', to: '/painel/personagens' };
-          return [
-            { label: 'Início', to: '/painel' },
-            segundoItem,
-            { label: personagem.nome || '(sem nome)' },
-            { label: ABAS.find((a) => a.id === abaAtiva)?.label ?? '' },
-          ];
-        })()}
-      />
+      <div className="ficha-nav-desktop">
+        <Breadcrumb
+          itens={(() => {
+            const campanhaContexto = campanhaContextoId
+              ? campanhasVinculadas.find((c) => c.id === campanhaContextoId)
+              : null;
+            const segundoItem = campanhaContexto
+              ? { label: campanhaContexto.nome, to: `/campanha/${campanhaContexto.id}` }
+              : { label: 'Seus Personagens', to: '/painel/personagens' };
+            return [
+              { label: 'Início', to: '/painel' },
+              segundoItem,
+              { label: personagem.nome || '(sem nome)' },
+              { label: ABAS.find((a) => a.id === abaAtiva)?.label ?? '' },
+            ];
+          })()}
+        />
 
-      <MenuLateral aberto={menuAberto} onFechar={() => setMenuAberto(false)} titulo="Seções da ficha" itens={itensMenuAbas} />
-
-      <nav className="abas-campanha abas-ficha" aria-label="Seções da ficha">
-        {ABAS.map((a) => (
-          <button
-            key={a.id}
-            type="button"
-            className={`aba-campanha-botao ${abaAtiva === a.id ? 'aba-campanha-botao--ativa' : ''}`}
-            onClick={() => setAbaAtiva(a.id)}
-          >
-            {a.labelCurto}
+        <nav className="abas-campanha abas-ficha" aria-label="Seções da ficha">
+          {ABAS.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              className={`aba-campanha-botao ${abaAtiva === a.id ? 'aba-campanha-botao--ativa' : ''}`}
+              onClick={() => setAbaAtiva(a.id)}
+            >
+              {a.labelCurto}
+            </button>
+          ))}
+          <button type="button" className="aba-campanha-botao" onClick={() => setCatalogoAberto(true)}>
+            Catálogo
           </button>
-        ))}
-        <button type="button" className="aba-campanha-botao" onClick={() => setCatalogoAberto(true)}>
-          Catálogo
-        </button>
-      </nav>
+        </nav>
+      </div>
+
+      {/* Bolinha flutuante — só celular (13/07, 2ª rodada). No PC a
+          navegação entre abas já é a barra .abas-ficha acima; no
+          celular essa barra some (apertado pra 6 itens numa tela
+          estreita) e vira esse botão + popup, sempre alcançável com o
+          polegar no canto inferior esquerdo, sem depender do menu
+          hambúrguer global (que agora só tem Perfil/Personagens/
+          Campanhas, igual em qualquer tela do app). */}
+      <button
+        type="button"
+        className="botao-abas-ficha-flutuante"
+        onClick={() => setAbasFichaAberto(true)}
+        title="Seções da ficha"
+        aria-label="Abrir seções da ficha"
+      >
+        <span className="botao-abas-ficha-icone">☰</span>
+      </button>
+
+      {abasFichaAberto && (
+        <div className="popup-fundo" onClick={() => setAbasFichaAberto(false)}>
+          <div className="popup-caixa popup-abas-ficha" onClick={(e) => e.stopPropagation()}>
+            <h3>Seções da ficha</h3>
+            <ul className="lista-abas-ficha-popup">
+              {ABAS.map((a) => (
+                <li key={a.id}>
+                  <button
+                    type="button"
+                    className={a.id === abaAtiva ? 'aba-campanha-botao--ativa' : ''}
+                    onClick={() => {
+                      setAbaAtiva(a.id);
+                      setAbasFichaAberto(false);
+                    }}
+                  >
+                    {a.label}
+                  </button>
+                </li>
+              ))}
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCatalogoAberto(true);
+                    setAbasFichaAberto(false);
+                  }}
+                >
+                  Catálogo de Equipamento
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      )}
 
       {erro && <p className="erro">{erro}</p>}
       {!canEdit && (
