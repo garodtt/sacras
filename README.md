@@ -364,12 +364,3 @@ sacramento-rpg/
 > admin) — o que mudou foi *quem* pode fazer *o quê* e como as coisas se
 > conectam. Ver `docs/ARQUITETURA.md`, seção 6, para o motivo e o antes/depois.
 
-## Sobre o projeto antigo (`garodtt/rpg`)
-
-Antes de propor o schema, li o código do seu protótipo anterior para entender
-as regras de vida/dor e inventário que já existiam. O resumo do que encontrei
-— e as perguntas que isso gerou — está em `docs/ARQUITETURA.md`, seção 5 e 7.
-Resumo rápido: o protótipo antigo usava 1 tabela só (`fichas`) com senha por
-ficha (sem conta de usuário de verdade); a base nova que estamos construindo
-substitui isso por autenticação e papéis reais, que é justamente o que você
-pediu agora.
