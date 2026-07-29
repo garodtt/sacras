@@ -2037,6 +2037,86 @@ comportamento nenhum. Como bônus, `Combate.jsx` (que usa
 `<PainelShell>` como casca e não tinha hambúrguer próprio) ganhou o
 menu global de graça, sem precisar tocar nele.
 
+### Edição de NPC e editor de texto rico nas Anotações (13/07)
+
+**Edição de NPC** — antes, depois de criado, um NPC na biblioteca só
+tinha foto/descrição/pasta/inventário editáveis; nome e os máximos de
+Vida/Dor/Balas ficavam travados no valor da criação (só apareciam como
+texto, `Vida {npc.vida_max} · Dor {npc.dor_max} · Balas
+{npc.balas_max}`, sem input nenhum por baixo). Adicionado: nome vira
+input editável no cabeçalho do cartão; um bloco novo
+(`.npc-stats-editaveis`) com 3 campos numéricos (Vida máx./Dor máx./
+Balas máx.) na visão expandida, salvando onBlur via `atualizarNpcCampanha`
+(já existia, só não tinha UI usando ela pra esses campos).
+
+**Editor de texto rico nas Anotações** — trocado `<textarea>` puro por
+Tiptap (`@tiptap/react` + extensões: StarterKit, TextAlign, TaskList/
+TaskItem, Table/TableRow/TableCell/TableHeader, TextStyle). Toolbar
+própria (`EditorToolbar.jsx`): negrito, itálico, taxado, título (h2),
+subtítulo (h3), alinhamento (esquerda/centro/direita/justificado),
+tamanho de fonte (dropdown — Pequeno/Normal/Grande/Enorme), checkbox
+(lista de tarefas), tabela (insere 3×3 com cabeçalho).
+
+- **Tamanho de fonte não vem pronto no Tiptap** — extensão customizada
+  (`src/lib/fontSizeExtension.js`, padrão documentado da comunidade):
+  estende a marca `textStyle` com um atributo `fontSize`, virando
+  `style="font-size: ..."` no HTML. Precisa de `TextStyle` como
+  extensão irmã.
+- **Sem migration nova** — o conteúdo é salvo como HTML na MESMA
+  coluna `text` que já existia (`campanha_notas_mestre.notas`), só que
+  agora com marcação em vez de texto puro. Nota antiga (texto puro, de
+  antes do editor rico) continua abrindo normal — o Tiptap trata uma
+  string sem tags como um parágrafo só.
+- **Salvamento automático de verdade** — antes só salvava `onBlur`
+  (sair do campo); agora tem debounce de 1.5s depois da última tecla
+  digitada (`agendarAutosave`), então salva sozinho enquanto a pessoa
+  ainda está com o editor aberto, sem precisar clicar fora.
+- **Código dividido (lazy loading)** — o Tiptap sozinho adiciona
+  ~360KB ao bundle (117 módulos novos). Como só é usado dentro da aba
+  Anotações (não em toda tela), `NotasMestre.jsx` virou
+  `lazy(() => import(...))` com `<Suspense>` em volta — o bundle
+  principal do app não cresce nada; esse pedaço só baixa quando
+  alguém abre a aba Anotações de verdade.
+
+**Correções no editor de texto rico (13/07, mesmo dia):**
+- **Bug real: toolbar sobreposta** — `.toolbar-botao` tinha largura
+  FIXA de 2rem, pensada pra botões de ícone único (N, I, setas). Os
+  botões de Título/Subtítulo (texto, não ícone) usavam a MESMA regra
+  — "Subtítulo" não cabia em 2rem, ficando espremido/sobreposto em
+  cima do botão vizinho. Separado em duas classes: `.toolbar-botao`
+  (largura automática, para texto) e `.toolbar-botao--icone`
+  (quadrado fixo, só pros ícones).
+- **Menu de tabela contextual** — controles de adicionar/remover linha,
+  adicionar/remover coluna, e excluir tabela inteira, usando os
+  comandos nativos do Tiptap (`addRowBefore`, `addRowAfter`,
+  `deleteRow`, `addColumnBefore`, `addColumnAfter`, `deleteColumn`,
+  `deleteTable`) — só aparece quando o cursor está DENTRO de uma
+  tabela existente (`editor.isActive('table')`), já que esses
+  controles não fazem sentido fora desse contexto.
+- **Título/Subtítulo mais distintos** — tamanho de h2 aumentado (1.7rem,
+  era 1.3rem) e h3 ganhou a cor couro, deixando a diferença bem mais
+  clara visualmente; os próprios BOTÕES da toolbar agora usam tamanhos
+  de fonte diferentes entre si (Título maior que Subtítulo no botão),
+  dando uma prévia do que cada um produz.
+- **Tab dentro de tabela/checklist** — a configuração de extensões
+  (Table+TableRow+TableHeader+TableCell juntas; TaskList+TaskItem
+  juntas) já segue o padrão recomendado do Tiptap, que inclui esse
+  comportamento de Tab automaticamente (célula seguinte numa tabela,
+  indentar um nível numa lista de tarefas) sem precisar de configuração
+  extra — não tem interação de teclado (contentEditable) pra testar
+  fora de um navegador de verdade, então isso ficou sem confirmação
+  ao vivo da minha parte.
+
+**Cor da fonte (13/07)** — `@tiptap/extension-color` (oficial,
+trabalha em cima da mesma marca `textStyle` que a extensão de tamanho
+de fonte já usa). Botão "A" na toolbar abre um popover com: 6 cores
+prontas da própria paleta do site (Tinta/Sangue/Couro/Poeira/Aliado/
+Dourado do tema escuro — mesmos hex de `:root` em `global.css`, fixos
+independente do tema atual, já que são uma escolha DELIBERADA de cor
+pro texto, não algo que devesse mudar sozinho se o tema mudar depois),
+um seletor de cor livre (`<input type="color">` nativo) pra qualquer
+tom fora da paleta, e "Sem cor" pra voltar ao padrão.
+
 ## 7. Fluxo de autenticação
 
 - **Cadastro aberto, sem escolha de papel**: qualquer pessoa pode se

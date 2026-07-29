@@ -3400,6 +3400,16 @@ p.badge-caido {
   color: var(--cor-couro);
 }
 
+.npc-stats-editaveis {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.npc-stats-editaveis input {
+  width: 5rem;
+}
+
 /* ---------------------------------------------------------------
    Navegação da ficha — PC vs celular (13/07, 2ª rodada). No PC,
    breadcrumb + barra de abas (.abas-ficha) ficam no topo, como antes.
@@ -3491,4 +3501,260 @@ p.badge-caido {
   color: var(--cor-papel);
   border-color: var(--cor-couro);
   font-weight: 700;
+}
+
+/* ---------------------------------------------------------------
+   Editor de texto rico das Anotações (13/07, Tiptap) — toolbar +
+   área de conteúdo. `.ProseMirror` é a classe que o próprio Tiptap
+   coloca na div contenteditable — precisa estilizar por ela, não por
+   uma classe nossa (a div em si é gerada pela biblioteca).
+------------------------------------------------------------------ */
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem;
+  margin-bottom: 0.6rem;
+  background: var(--cor-fundo);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--radio-padrao);
+}
+
+.toolbar-grupo {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.toolbar-separador {
+  width: 1px;
+  height: 1.4rem;
+  background: var(--cor-borda);
+  margin: 0 0.2rem;
+}
+
+.toolbar-botao {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  background: transparent;
+  color: var(--cor-tinta);
+  border: 1px solid transparent;
+  font-size: 0.85rem;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: normal;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Botões só-ícone (N, I, taxado, setas de alinhamento, checkbox,
+   tabela) — quadrados, sem folga extra. Os de texto (Título,
+   Subtítulo) usam .toolbar-botao sozinho, que já tem padding lateral
+   e largura automática (min-width, não width fixo) — antes os dois
+   tipos usavam a MESMA largura fixa de 2rem, e "Subtítulo" não cabia,
+   ficando espremido/sobreposto em cima do botão vizinho. */
+.toolbar-botao--icone {
+  width: 2rem;
+  padding: 0;
+}
+
+.toolbar-botao:hover:not(:disabled) {
+  background: var(--cor-papel);
+  border-color: var(--cor-borda);
+}
+
+.toolbar-botao--ativo {
+  background: var(--cor-couro) !important;
+  color: var(--cor-papel) !important;
+  border-color: var(--cor-couro) !important;
+}
+
+.toolbar-select {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.4rem;
+  height: 2rem;
+}
+
+/* Botões de Título/Subtítulo com o próprio tamanho de fonte já
+   dando uma prévia da diferença entre os dois — antes eram do mesmo
+   tamanho de texto no botão, o que também contribuía pra parecerem
+   "a mesma coisa" mesmo produzindo tamanhos diferentes no texto. */
+.toolbar-botao--titulo {
+  font-family: var(--fonte-titulo);
+  font-size: 1rem;
+}
+
+.toolbar-botao--subtitulo {
+  font-family: var(--fonte-titulo);
+  font-size: 0.8rem;
+}
+
+.toolbar-grupo-tabela {
+  flex-wrap: wrap;
+}
+
+.toolbar-grupo-tabela .toolbar-botao {
+  font-size: 0.75rem;
+}
+
+.toolbar-botao--excluir {
+  color: var(--cor-sangue);
+  border-color: var(--cor-sangue);
+}
+
+.toolbar-botao--excluir:hover {
+  background: var(--cor-sangue) !important;
+  color: var(--cor-papel) !important;
+}
+
+.toolbar-cor-container {
+  position: relative;
+}
+
+.popover-cor {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 20;
+  background: var(--cor-papel);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--radio-padrao);
+  padding: 0.7rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  width: 200px;
+}
+
+.popover-cor-paleta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.popover-cor-swatch {
+  width: 100%;
+  height: 1.8rem;
+  padding: 0;
+  border: 2px solid var(--cor-borda);
+  border-radius: 4px;
+}
+
+.popover-cor-swatch:hover {
+  border-color: var(--cor-tinta);
+  transform: scale(1.05);
+}
+
+.popover-cor-livre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--cor-tinta-suave);
+  margin-bottom: 0.6rem;
+}
+
+.popover-cor-livre input[type='color'] {
+  width: 2.4rem;
+  height: 1.8rem;
+  padding: 0.15rem;
+  cursor: pointer;
+}
+
+.popover-cor-remover {
+  width: 100%;
+  font-size: 0.75rem;
+  padding: 0.4rem !important;
+}
+
+.editor-conteudo-caixa {
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--radio-padrao);
+  background: var(--cor-papel);
+}
+
+.editor-conteudo .ProseMirror {
+  min-height: 240px;
+  padding: 0.9rem 1rem;
+  font-family: var(--fonte-ui);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--cor-tinta);
+  outline: none;
+}
+
+.editor-conteudo .ProseMirror p {
+  margin: 0 0 0.6rem;
+}
+
+.editor-conteudo .ProseMirror h2,
+.editor-conteudo .ProseMirror h3 {
+  font-family: var(--fonte-titulo);
+  color: var(--cor-tinta);
+  margin: 0.8rem 0 0.4rem;
+}
+
+.editor-conteudo .ProseMirror h2 {
+  font-size: 1.7rem;
+}
+
+.editor-conteudo .ProseMirror h3 {
+  font-size: 1.15rem;
+  color: var(--cor-couro);
+}
+
+.editor-conteudo .ProseMirror ul:not([data-type='taskList']),
+.editor-conteudo .ProseMirror ol {
+  padding-left: 1.4rem;
+  margin: 0 0 0.6rem;
+}
+
+/* Lista de tarefas (checkbox) — o Tiptap gera <li> com um <label> +
+   <input type=checkbox> dentro, sem marcador de lista nenhum (o
+   checkbox já cumpre esse papel). */
+.editor-conteudo .ProseMirror ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0;
+  margin: 0 0 0.6rem;
+}
+
+.editor-conteudo .ProseMirror ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.editor-conteudo .ProseMirror ul[data-type='taskList'] li > label {
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+}
+
+.editor-conteudo .ProseMirror ul[data-type='taskList'] li[data-checked='true'] > div {
+  text-decoration: line-through;
+  color: var(--cor-tinta-suave);
+}
+
+.editor-conteudo .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.6rem 0;
+}
+
+.editor-conteudo .ProseMirror th,
+.editor-conteudo .ProseMirror td {
+  border: 1px solid var(--cor-borda);
+  padding: 0.4rem 0.6rem;
+  vertical-align: top;
+  position: relative;
+}
+
+.editor-conteudo .ProseMirror th {
+  background: var(--cor-fundo);
+  font-weight: 700;
+  text-align: left;
 }

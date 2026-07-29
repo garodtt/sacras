@@ -7,10 +7,10 @@ import BarraVidaDor from '../components/BarraVidaDor.jsx';
 import EstadoVazio from '../components/EstadoVazio.jsx';
 import { Esqueleto } from '../components/Esqueleto.jsx';
 import Breadcrumb from '../components/Breadcrumb.jsx';
-import NotasMestre from '../components/NotasMestre.jsx';
 import NotaPersonagemCampanha from '../components/NotaPersonagemCampanha.jsx';
 import InventarioNpc from '../components/InventarioNpc.jsx';
 import UploadFoto from '../components/UploadFoto.jsx';
+import NotasMestre from '../components/NotasMestre.jsx';
 import { mostrarToast } from '../lib/toastBus.js';
 import { calcularCapacidadeMunicaoDeArmas } from '../lib/regras.js';
 import { MODELOS_NPC } from '../lib/modelosNpc.js';
@@ -287,6 +287,25 @@ export default function CampanhaDetalhe() {
   async function salvarDescricaoNpc(npc, descricao) {
     if (descricao === npc.descricao) return;
     const { data, error } = await atualizarNpcCampanha(npc.id, { descricao });
+    if (error) setErro(error.message);
+    else setNpcs((atual) => atual.map((n) => (n.id === npc.id ? data : n)));
+  }
+
+  // Edição de NPC (13/07) — antes, depois de criado, só dava pra
+  // editar foto/descrição/pasta/inventário; nome e os máximos de
+  // Vida/Dor/Balas ficavam travados no valor da criação, sem jeito de
+  // corrigir um erro de digitação ou ajustar o NPC depois.
+  async function salvarNomeNpc(npc, nome) {
+    if (!nome.trim() || nome === npc.nome) return;
+    const { data, error } = await atualizarNpcCampanha(npc.id, { nome: nome.trim() });
+    if (error) setErro(error.message);
+    else setNpcs((atual) => atual.map((n) => (n.id === npc.id ? data : n)).sort((a, b) => a.nome.localeCompare(b.nome)));
+  }
+
+  async function salvarStatNpc(npc, campo, valor) {
+    const novoValor = Math.max(0, Number(valor) || 0);
+    if (novoValor === npc[campo]) return;
+    const { data, error } = await atualizarNpcCampanha(npc.id, { [campo]: novoValor });
     if (error) setErro(error.message);
     else setNpcs((atual) => atual.map((n) => (n.id === npc.id ? data : n)));
   }
@@ -801,7 +820,12 @@ export default function CampanhaDetalhe() {
                               <div className="cartao-personagem-foto" style={{ backgroundImage: `url("${npc.foto_url}")` }} />
                             )}
                             <div className="cartao-personagem-corpo">
-                              <strong>{npc.nome}</strong>
+                              <input
+                                className="loja-item-nome"
+                                defaultValue={npc.nome}
+                                onBlur={(e) => salvarNomeNpc(npc, e.target.value)}
+                                aria-label="Nome do NPC"
+                              />
                               <p className="detalhe-secundario">
                                 Vida {npc.vida_max} · Dor {npc.dor_max} · Balas {npc.balas_max}
                               </p>
@@ -837,6 +861,36 @@ export default function CampanhaDetalhe() {
                                     rows={3}
                                     placeholder="Aparência, personalidade, segredos..."
                                     onBlur={(e) => salvarDescricaoNpc(npc, e.target.value)}
+                                  />
+                                </label>
+                              </div>
+
+                              <div className="npc-stats-editaveis">
+                                <label className="campo-editavel-rotulo">
+                                  Vida máx.
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    defaultValue={npc.vida_max}
+                                    onBlur={(e) => salvarStatNpc(npc, 'vida_max', e.target.value)}
+                                  />
+                                </label>
+                                <label className="campo-editavel-rotulo">
+                                  Dor máx.
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    defaultValue={npc.dor_max}
+                                    onBlur={(e) => salvarStatNpc(npc, 'dor_max', e.target.value)}
+                                  />
+                                </label>
+                                <label className="campo-editavel-rotulo">
+                                  Balas máx.
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    defaultValue={npc.balas_max}
+                                    onBlur={(e) => salvarStatNpc(npc, 'balas_max', e.target.value)}
                                   />
                                 </label>
                               </div>

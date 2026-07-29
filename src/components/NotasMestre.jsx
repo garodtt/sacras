@@ -1,25 +1,84 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import TextAlign from '@tiptap/extension-text-align';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
+import TextStyle from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
+import { FontSize } from '../lib/fontSizeExtension.js';
+import EditorToolbar from './EditorToolbar.jsx';
 import { salvarNotasMestre } from '../lib/dados.js';
 import { mostrarToast } from '../lib/toastBus.js';
 
-// Bloco de anotações do Mestre (13/07) — rascunho persistente, sempre
-// visível (não um popup) — ganchos de sessão, lembretes, o que quiser.
-// Privado por RLS de verdade (migration 0019, tabela própria), não só
-// escondido na tela. Salva ao sair do campo (onBlur), igual o resto do
-// app; sem confirmação nem popup, é só uma nota de rascunho.
+// Bloco de anotações do Mestre (13/07, editor rico) — antes era um
+// <textarea> puro, salvando só ao sair do campo. Agora é um editor de
+// texto de verdade (Tiptap — negrito/itálico/taxado/alinhamento/
+// tamanho de fonte/título/subtítulo/checkbox/tabela), com salvamento
+// automático enquanto digita (debounce de 1.5s depois da última
+// tecla, não só ao sair do campo).
+//
+// Guarda como HTML na MESMA coluna `text` que já existia
+// (campanha_notas_mestre.notas) — sem migration nova. Nota antiga
+// (texto puro, de antes do editor rico) continua abrindo normal: o
+// Tiptap trata uma string sem tags como um parágrafo só.
+const ATRASO_AUTOSAVE_MS = 1500;
+
 export default function NotasMestre({ campanhaId, notasIniciais }) {
-  const [notas, setNotas] = useState(notasIniciais ?? '');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+  const timeoutRef = useRef(null);
+  const ultimoSalvoRef = useRef(notasIniciais ?? '');
 
-  async function salvar(texto) {
-    if (texto === notasIniciais) return;
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      TextStyle,
+      FontSize,
+      Color.configure({ types: ['textStyle'] }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
+    ],
+    content: notasIniciais || '',
+    onUpdate: ({ editor }) => {
+      agendarAutosave(editor.getHTML());
+    },
+  });
+
+  // Limpa o timer pendente se o componente sair de tela antes de
+  // completar o atraso — evita salvar depois que o usuário já foi
+  // embora da campanha.
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  function agendarAutosave(html) {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => salvar(html), ATRASO_AUTOSAVE_MS);
+  }
+
+  async function salvar(html) {
+    if (html === ultimoSalvoRef.current) return;
     setSalvando(true);
     setErro('');
-    const { error } = await salvarNotasMestre(campanhaId, texto);
+    const { error } = await salvarNotasMestre(campanhaId, html);
     setSalvando(false);
     if (error) setErro(error.message);
-    else mostrarToast('Notas salvas.');
+    else {
+      ultimoSalvoRef.current = html;
+      mostrarToast('Notas salvas.');
+    }
   }
 
   return (
@@ -29,13 +88,10 @@ export default function NotasMestre({ campanhaId, notasIniciais }) {
         <span className="selo-privado">Só você vê</span>
       </div>
       {erro && <p className="erro">{erro}</p>}
-      <textarea
-        value={notas}
-        onChange={(e) => setNotas(e.target.value)}
-        onBlur={(e) => salvar(e.target.value)}
-        placeholder="Ganchos de sessão, NPCs recorrentes, lembretes..."
-        rows={10}
-      />
+      <EditorToolbar editor={editor} />
+      <div className="editor-conteudo-caixa">
+        <EditorContent editor={editor} className="editor-conteudo" />
+      </div>
       {salvando && <p className="detalhe-secundario">Salvando...</p>}
     </div>
   );

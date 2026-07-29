@@ -253,13 +253,15 @@ sacramento-rpg/
     │   ├── regras.test.js       # 44 testes cobrindo regras.js (`npm test`) — novo 13/07
     │   ├── modelosNpc.js        # modelos prontos de NPC (Capanga, Xerife, etc.)
     │   ├── catalogoCompras.js   # Grande Catálogo de Equipamento em dados (~150 itens) — novo 13/07
+    │   ├── fontSizeExtension.js # extensão customizada de tamanho de fonte pro Tiptap — novo 13/07
     │   └── toastBus.js           # barramento simples de toast (pub/sub) — novo 13/07
     ├── styles/
     │   └── global.css
     ├── contexts/
-    │   └── AuthContext.jsx      # sessão, profile, papel + ações de login/cadastro/senha
+    │   ├── AuthContext.jsx      # sessão, profile, papel + ações de login/cadastro/senha
+    │   └── TemaContext.jsx      # tema claro/escuro compartilhado (uma instância só) — novo 13/07
     ├── hooks/
-    │   └── useTemaEscuro.js     # tema escuro (só telas do Mestre), lembrado via localStorage
+    │   └── useTemaEscuro.js     # hook de tema — chamado só dentro de TemaProvider, ver TemaContext.jsx
     ├── components/
     │   ├── ProtectedRoute.jsx   # guarda de rota (exige login / exige papel)
     │   ├── UploadFoto.jsx       # upload de foto reutilizável (item/personagem/perfil) — novo 13/07
@@ -273,7 +275,8 @@ sacramento-rpg/
     │   ├── IconeCategoria.jsx   # ícone de categoria do item (SVG, não emoji) — novo 13/07
     │   ├── EstadoVazio.jsx      # estado vazio com selo de estrela — novo 13/07
     │   ├── Breadcrumb.jsx       # trilha de navegação (Início/Campanha → Personagem → Aba)
-    │   ├── NotasMestre.jsx      # anotações privadas do Mestre por campanha — novo 13/07
+    │   ├── NotasMestre.jsx      # anotações do Mestre, agora editor de texto rico (Tiptap) + autosave — atualizado 13/07
+    │   ├── EditorToolbar.jsx    # toolbar do editor de anotações (negrito/itálico/tabela/etc.) — novo 13/07
     │   ├── NotaPersonagemCampanha.jsx  # nota privada do Mestre por personagem vinculado — novo 13/07
     │   ├── InventarioNpc.jsx    # inventário simples de NPC (sem peso/espaço) — novo 13/07
     │   ├── layout/
@@ -350,6 +353,8 @@ sacramento-rpg/
 - [x] **Correções na aba Compras + ações em lote no inventário (13/07)** — corrigido: compra de item repetido agora soma na linha existente (não cria duplicata escondida); "colocar na montaria" agora move de verdade (mount_id, não só uma tag); peso de arma excedente usa peso fixo por tipo de slot. Novo: seleção múltipla no inventário com excluir/transferir pra montaria (escolhendo cavalo/bolsa/carro/carroça)/transferir pra outro jogador da campanha (com aviso de peso do destinatário) — ver `docs/ARQUITETURA.md`
 - [x] **Loja da Campanha (13/07)** — Mestre cadastra itens customizados por campanha (nome/preço/peso/descrição/categoria) numa aba própria; acesso restrito por RLS a quem gerencia a campanha ou tem personagem vinculado a ela; jogador vê os itens da(s) loja(s) das campanhas em que está vinculado direto na aba Compras da ficha, numa seção própria antes do catálogo fixo do livro — ver `docs/ARQUITETURA.md`
 - [x] **Personalizar catálogo por campanha, correções de tema escuro e bug de salvamento (13/07)** — Mestre agora personaliza (preço/peso/descrição) qualquer item do catálogo fixo do livro, só pra sua campanha, sem duplicar na lista do jogador; corrigido bug real de Descrição/História do personagem não salvando (CampoEditavel tratava texto como número); várias correções no tema escuro (inputs brancos, vermelho virando `#b58a5c` exceto Remover/Logout, overlays cinzas, barra de abas sumindo no celular, botão de tema também no Perfil) — ver `docs/ARQUITETURA.md`
+- [x] **Bug real: tema escuro revertia sozinho ao sair do Perfil (13/07)** — causa: `useTemaEscuro()` chamado duas vezes (App.jsx + Painel.jsx), duas instâncias independentes com limpezas conflitantes; corrigido com Context (`TemaContext.jsx`, novo) — uma única instância do hook, compartilhada via `useTema()` — ver `docs/ARQUITETURA.md`
+- [x] **Edição de NPC e editor de texto rico nas Anotações (13/07)** — nome e Vida/Dor/Balas máximos de um NPC da biblioteca agora são editáveis depois de criado (antes só na criação); Anotações do Mestre ganhou editor de texto completo (Tiptap) com negrito/itálico/taxado/título/subtítulo/alinhamento/tamanho de fonte/checkbox/tabela, salvamento automático (debounce 1.5s), sem migration nova (HTML na mesma coluna de texto), e code-splitting (lazy loading) pra não pesar o bundle principal — ver `docs/ARQUITETURA.md`
 - [ ] **Fase 8** — Deploy no Netlify + variáveis de ambiente de produção
 - [ ] **Fase 9** *(opcional, sugerido)* — Histórico de alterações do personagem
 
