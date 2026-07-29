@@ -28,7 +28,7 @@ import { mostrarToast } from '../lib/toastBus.js';
 // Tiptap trata uma string sem tags como um parágrafo só.
 const ATRASO_AUTOSAVE_MS = 1500;
 
-export default function NotasMestre({ campanhaId, notasIniciais }) {
+export default function NotasMestre({ campanhaId, notasIniciais, onSalvo }) {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
   const timeoutRef = useRef(null);
@@ -54,14 +54,28 @@ export default function NotasMestre({ campanhaId, notasIniciais }) {
     },
   });
 
-  // Limpa o timer pendente se o componente sair de tela antes de
-  // completar o atraso — evita salvar depois que o usuário já foi
-  // embora da campanha.
+  // Antes só cancelava um autosave pendente ao trocar de aba — se o
+  // usuário tivesse digitado algo e trocado de aba ANTES dos 1.5s de
+  // atraso completarem, essa última digitação nunca era salva (o
+  // timer era só descartado, não executado). Agora força o
+  // salvamento imediatamente nesse caso, em vez de simplesmente
+  // cancelar — sem isso, mesmo com o callback onSalvo, dava pra
+  // perder o texto mais recente numa troca de aba rápida.
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        if (editor) {
+          const htmlAtual = editor.getHTML();
+          if (htmlAtual !== ultimoSalvoRef.current) {
+            salvarNotasMestre(campanhaId, htmlAtual).then(({ error }) => {
+              if (!error) onSalvo?.(htmlAtual);
+            });
+          }
+        }
+      }
     };
-  }, []);
+  }, [editor]);
 
   function agendarAutosave(html) {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -77,6 +91,7 @@ export default function NotasMestre({ campanhaId, notasIniciais }) {
     if (error) setErro(error.message);
     else {
       ultimoSalvoRef.current = html;
+      onSalvo?.(html);
       mostrarToast('Notas salvas.');
     }
   }

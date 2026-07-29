@@ -735,7 +735,7 @@ export default function CampanhaDetalhe() {
 
       {podeGerenciar && abaAtiva === 'notas' && (
         <section className="secao-aba-campanha">
-          <NotasMestre campanhaId={id} notasIniciais={notasMestre ?? ''} />
+          <NotasMestre campanhaId={id} notasIniciais={notasMestre ?? ''} onSalvo={setNotasMestre} />
         </section>
       )}
 

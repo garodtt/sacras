@@ -2642,6 +2642,7 @@ p.badge-caido {
 
 .botao-like-link:hover {
   background: var(--cor-couro);
+  color: var(--cor-papel);
 }
 
 /* Ícone de categoria do item (13/07) */
