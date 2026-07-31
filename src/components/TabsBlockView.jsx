@@ -1,114 +1,81 @@
-import { useEffect, useRef, useState } from 'react';
-import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
+import { useRef, useState } from 'react';
+import { NodeViewWrapper, useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import TextAlign from '@tiptap/extension-text-align';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import TextStyle from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
+import { FontSize } from '../lib/fontSizeExtension.js';
 
-// Visual do bloco de Guias (13/07) — a parte React/interativa da
-// extensão definida em tabsExtension.js. Cada guia (`tabPane`) é um
-// nó de verdade do documento, com conteúdo editável próprio; esse
-// componente só decide QUAL delas mostrar (`node.attrs.abaAtiva`) e
-// oferece os controles (trocar, renomear, adicionar, excluir,
-// arrastar pra reordenar, recolher ao parar de digitar).
-//
-// `NodeViewContent` renderiza TODOS os filhos (o ProseMirror não tem
-// como "pular" um filho na renderização) — a troca de guia visível é
-// feita imperativamente aqui (useEffect + querySelector), escondendo
-// via `display:none` todo `tabPane` que não seja o índice ativo. Já
-// que os filhos ficam sempre no DOM (só escondidos), o conteúdo de
-// cada guia continua "vivo" — trocar de guia e voltar não perde nada.
 const ATRASO_RECOLHER_MS = 3000;
 
-export default function TabsBlockView({ node, updateAttributes, editor, getPos, selected }) {
-  const conteudoRef = useRef(null);
+// Mini-editor isolado de UMA guia (13/07, v2) — instância TOTALMENTE
+// separada do Tiptap, sem NENHUM estado compartilhado com o editor
+// principal nem com as outras guias. `key={abaAtiva}` no componente
+// pai (mais abaixo) força o React a desmontar esse editor e montar um
+// NOVO do zero toda vez que a guia ativa muda — garantia estrutural
+// de isolamento, não depende de nenhuma lógica de esconder/mostrar.
+function GuiaEditor({ conteudoInicial, onMudar }) {
+  const editor = useEditor({
+    extensions: [StarterKit, TextStyle, FontSize, Color.configure({ types: ['textStyle'] }), TextAlign.configure({ types: ['heading', 'paragraph'] }), TaskList, TaskItem.configure({ nested: true })],
+    content: conteudoInicial || '<p></p>',
+    onUpdate: ({ editor }) => onMudar(editor.getHTML()),
+  });
+
+  return <EditorContent editor={editor} className="tabs-block-mini-editor" />;
+}
+
+// Visual do bloco de Guias (13/07, v2) — a v1 guardava cada guia como
+// um nó FILHO de verdade do ProseMirror, todas vivendo no MESMO
+// documento/schema do editor principal; o conteúdo continuou
+// "vazando" entre guias mesmo depois de trocar a visibilidade pra CSS
+// puro, sinal de que o problema não era só de qual painel aparecia.
+//
+// v2: o `tabsBlock` é atômico (ver tabsExtension.js) — não tem
+// conteúdo ProseMirror aninhado nenhum, só um atributo `guias` (array
+// de `{ titulo, conteudo }`, puro dado). Cada guia vira um mini-editor
+// TIPTAP TOTALMENTE ISOLADO (GuiaEditor acima) — impossível vazar
+// conteúdo entre guias, já que não compartilham NENHUMA instância de
+// editor nem documento.
+export default function TabsBlockView({ node, updateAttributes, selected, getPos, editor }) {
   const [renomeando, setRenomeando] = useState(null);
   const [recolhido, setRecolhido] = useState(false);
   const [arrastando, setArrastando] = useState(null);
   const timeoutRecolherRef = useRef(null);
 
-  const guias = [];
-  for (let i = 0; i < node.childCount; i++) {
-    guias.push({ titulo: node.child(i).attrs.titulo || `Guia ${i + 1}` });
+  const guias = node.attrs.guias || [];
+  const abaAtiva = Math.max(0, Math.min(node.attrs.abaAtiva ?? 0, guias.length - 1));
+
+  function reagendarRecolhimento() {
+    setRecolhido(false);
+    if (timeoutRecolherRef.current) clearTimeout(timeoutRecolherRef.current);
+    timeoutRecolherRef.current = setTimeout(() => setRecolhido(true), ATRASO_RECOLHER_MS);
   }
-  const abaAtiva = Math.min(node.attrs.abaAtiva ?? 0, guias.length - 1);
-
-  // Mostra só o painel da guia ativa — os outros continuam no DOM
-  // (o ProseMirror precisa deles renderizados pra funcionar), só
-  // ficam com display:none.
-  useEffect(() => {
-    if (!conteudoRef.current) return;
-    const paineis = conteudoRef.current.querySelectorAll(':scope > [data-type="tab-pane"]');
-    paineis.forEach((painel, indice) => {
-      painel.style.display = indice === abaAtiva ? '' : 'none';
-    });
-  });
-
-  // Recolher automático (13/07) — "quando eu parar de digitar quero
-  // recolher a guia": reseta o timer a cada mudança no documento OU
-  // na seleção enquanto o cursor estiver dentro DESTE bloco
-  // especificamente (não de qualquer digitação no documento inteiro).
-  useEffect(() => {
-    function estaDentroDesteBloco() {
-      const pos = getPos();
-      if (typeof pos !== 'number') return false;
-      const { from } = editor.state.selection;
-      return from >= pos && from <= pos + node.nodeSize;
-    }
-
-    function reagendarRecolhimento() {
-      if (!estaDentroDesteBloco()) return;
-      setRecolhido(false);
-      if (timeoutRecolherRef.current) clearTimeout(timeoutRecolherRef.current);
-      timeoutRecolherRef.current = setTimeout(() => setRecolhido(true), ATRASO_RECOLHER_MS);
-    }
-
-    editor.on('update', reagendarRecolhimento);
-    editor.on('selectionUpdate', reagendarRecolhimento);
-    return () => {
-      editor.off('update', reagendarRecolhimento);
-      editor.off('selectionUpdate', reagendarRecolhimento);
-      if (timeoutRecolherRef.current) clearTimeout(timeoutRecolherRef.current);
-    };
-  }, [editor, getPos, node]);
 
   function trocarAba(indice) {
     updateAttributes({ abaAtiva: indice });
     setRecolhido(false);
   }
 
+  function atualizarConteudoDaAtiva(novoHtml) {
+    const novasGuias = guias.map((g, i) => (i === abaAtiva ? { ...g, conteudo: novoHtml } : g));
+    updateAttributes({ guias: novasGuias });
+    reagendarRecolhimento();
+  }
+
   function adicionarGuia() {
-    const pos = getPos();
-    if (typeof pos !== 'number') return;
-    const numGuias = node.childCount;
-    const posFimConteudo = pos + node.nodeSize - 1;
-    editor
-      .chain()
-      .focus()
-      .insertContentAt(posFimConteudo, {
-        type: 'tabPane',
-        attrs: { titulo: `Guia ${numGuias + 1}` },
-        content: [{ type: 'paragraph' }],
-      })
-      .run();
-    updateAttributes({ abaAtiva: numGuias });
+    const novasGuias = [...guias, { titulo: `Guia ${guias.length + 1}`, conteudo: '<p></p>' }];
+    updateAttributes({ guias: novasGuias, abaAtiva: novasGuias.length - 1 });
     setRecolhido(false);
   }
 
   function excluirGuia(indice, evento) {
     evento.stopPropagation();
-    if (node.childCount <= 1) return; // sempre precisa sobrar ao menos 1 guia
-    const pos = getPos();
-    if (typeof pos !== 'number') return;
-    let posFilho = pos + 1;
-    for (let i = 0; i < indice; i++) posFilho += node.child(i).nodeSize;
-    const tamanho = node.child(indice).nodeSize;
-
-    editor
-      .chain()
-      .focus()
-      .deleteRange({ from: posFilho, to: posFilho + tamanho })
-      .run();
-
-    const novoTotal = node.childCount - 1;
-    const novaAtiva = Math.max(0, Math.min(node.attrs.abaAtiva, novoTotal - 1));
-    updateAttributes({ abaAtiva: novaAtiva });
+    if (guias.length <= 1) return; // sempre precisa sobrar ao menos 1 guia
+    const novasGuias = guias.filter((_, i) => i !== indice);
+    const novaAtiva = Math.max(0, Math.min(abaAtiva, novasGuias.length - 1));
+    updateAttributes({ guias: novasGuias, abaAtiva: novaAtiva });
   }
 
   function iniciarRenomear(indice, evento) {
@@ -119,38 +86,36 @@ export default function TabsBlockView({ node, updateAttributes, editor, getPos, 
   function confirmarRenomear(indice, novoTitulo) {
     setRenomeando(null);
     if (!novoTitulo.trim()) return;
-    const pos = getPos();
-    if (typeof pos !== 'number') return;
-    let posFilho = pos + 1;
-    for (let i = 0; i < indice; i++) posFilho += node.child(i).nodeSize;
-    const filho = node.child(indice);
-    editor
-      .chain()
-      .command(({ tr }) => {
-        tr.setNodeMarkup(posFilho, undefined, { ...filho.attrs, titulo: novoTitulo.trim() });
-        return true;
-      })
-      .run();
+    const novasGuias = guias.map((g, i) => (i === indice ? { ...g, titulo: novoTitulo.trim() } : g));
+    updateAttributes({ guias: novasGuias });
   }
 
   function moverGuia(deIndice, paraIndice) {
     if (deIndice === paraIndice) return;
-    const pos = getPos();
-    if (typeof pos !== 'number') return;
-    const filhos = [];
-    for (let i = 0; i < node.childCount; i++) filhos.push(node.child(i).toJSON());
-    const [movido] = filhos.splice(deIndice, 1);
-    filhos.splice(paraIndice, 0, movido);
+    const novasGuias = [...guias];
+    const [movido] = novasGuias.splice(deIndice, 1);
+    novasGuias.splice(paraIndice, 0, movido);
 
-    const from = pos + 1;
-    const to = pos + node.nodeSize - 1;
-    editor.chain().focus().insertContentAt({ from, to }, filhos).run();
-
-    let novaAtiva = node.attrs.abaAtiva;
+    let novaAtiva = abaAtiva;
     if (novaAtiva === deIndice) novaAtiva = paraIndice;
     else if (deIndice < novaAtiva && paraIndice >= novaAtiva) novaAtiva -= 1;
     else if (deIndice > novaAtiva && paraIndice <= novaAtiva) novaAtiva += 1;
-    updateAttributes({ abaAtiva: novaAtiva });
+
+    updateAttributes({ guias: novasGuias, abaAtiva: novaAtiva });
+  }
+
+  // Excluir o BLOCO inteiro — diferente de excluir uma guia (que
+  // sempre deixa pelo menos 1 sobrando), isso remove a funcionalidade
+  // de guias inteira daquele ponto do documento, com o conteúdo de
+  // todas as guias junto. Confirmação nativa do navegador (ação
+  // destrutiva). Nó atômico tem `nodeSize` 1 — é só apagar essa
+  // posição única do documento principal.
+  function excluirBlocoInteiro() {
+    const confirmado = window.confirm('Excluir o bloco de guias inteiro? Isso apaga o conteúdo de TODAS as guias dentro dele.');
+    if (!confirmado) return;
+    const pos = getPos();
+    if (typeof pos !== 'number') return;
+    editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run();
   }
 
   return (
@@ -172,7 +137,7 @@ export default function TabsBlockView({ node, updateAttributes, editor, getPos, 
             }}
             onClick={() => trocarAba(indice)}
             onDoubleClick={(e) => iniciarRenomear(indice, e)}
-            title="Clique pra abrir · duplo clique pra renomear · arraste pra reordenar"
+            title="Clique pra abrir · arraste pra reordenar"
           >
             {renomeando === indice ? (
               <input
@@ -190,6 +155,9 @@ export default function TabsBlockView({ node, updateAttributes, editor, getPos, 
             ) : (
               <span>{guia.titulo}</span>
             )}
+            <span className="tabs-block-aba-renomear" onClick={(e) => iniciarRenomear(indice, e)} title="Renomear guia">
+              ✎
+            </span>
             {guias.length > 1 && (
               <span className="tabs-block-aba-excluir" onClick={(e) => excluirGuia(indice, e)} title="Excluir guia">
                 ✕
@@ -200,13 +168,18 @@ export default function TabsBlockView({ node, updateAttributes, editor, getPos, 
         <button type="button" className="tabs-block-adicionar" onClick={adicionarGuia} title="Adicionar guia">
           +
         </button>
+        <button
+          type="button"
+          className="tabs-block-excluir-bloco"
+          onClick={excluirBlocoInteiro}
+          title="Excluir o bloco de guias inteiro"
+        >
+          Excluir bloco
+        </button>
       </div>
 
-      <div
-        ref={conteudoRef}
-        className={`tabs-block-conteudo-caixa ${recolhido ? 'tabs-block-conteudo-caixa--recolhida' : ''}`}
-      >
-        <NodeViewContent className="tabs-block-conteudo" />
+      <div className={`tabs-block-conteudo-caixa ${recolhido ? 'tabs-block-conteudo-caixa--recolhida' : ''}`}>
+        <GuiaEditor key={abaAtiva} conteudoInicial={guias[abaAtiva]?.conteudo} onMudar={atualizarConteudoDaAtiva} />
       </div>
     </NodeViewWrapper>
   );

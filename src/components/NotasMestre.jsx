@@ -12,7 +12,7 @@ import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import { FontSize } from '../lib/fontSizeExtension.js';
 import { TitulosRecolhiveis } from '../lib/collapsibleHeadingExtension.js';
-import { TabsBlock, TabPane } from '../lib/tabsExtension.js';
+import { TabsBlock } from '../lib/tabsExtension.js';
 import EditorToolbar from './EditorToolbar.jsx';
 import SumarioDocumento from './SumarioDocumento.jsx';
 import { salvarNotasMestre } from '../lib/dados.js';
@@ -52,7 +52,6 @@ export default function NotasMestre({ campanhaId, notasIniciais, onSalvo }) {
       TableHeader,
       TableCell,
       TabsBlock,
-      TabPane,
     ],
     content: notasIniciais || '',
     onUpdate: ({ editor }) => {

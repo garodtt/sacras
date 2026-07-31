@@ -3964,12 +3964,13 @@ p.badge-caido {
 }
 
 /* ---------------------------------------------------------------
-   Bloco de Guias dentro do documento (13/07, estilo Notion) — a
-   funcionalidade mais complexa do editor. Cada "tab-pane" (filho do
-   nó) fica sempre no DOM (o ProseMirror precisa dele renderizado);
-   só a guia ativa mostra display:block, o resto fica display:none
-   via JS (ver TabsBlockView.jsx) — por isso não tem regra CSS pra
-   isso aqui, é feito imperativamente.
+   Bloco de Guias dentro do documento (13/07, v2, estilo Notion) — a
+   funcionalidade mais complexa do editor. Cada guia é um MINI-EDITOR
+   Tiptap totalmente isolado (ver TabsBlockView.jsx) — só o da guia
+   ativa é montado por vez (`key={abaAtiva}` força desmontar/remontar
+   ao trocar), sem nenhum "esconder via CSS/JS" no meio — visibilidade
+   e isolamento de conteúdo são a MESMA coisa aqui, resolvida
+   estruturalmente.
 ------------------------------------------------------------------ */
 .tabs-block {
   margin: 0.8rem 0;
@@ -4037,6 +4038,34 @@ p.badge-caido {
   background: rgba(156, 43, 26, 0.12);
 }
 
+.tabs-block-aba-renomear {
+  font-size: 0.7rem;
+  color: var(--cor-tinta-suave);
+  padding: 0.1rem 0.2rem;
+  border-radius: 3px;
+}
+
+.tabs-block-aba-renomear:hover {
+  color: var(--cor-couro);
+  background: rgba(124, 83, 48, 0.12);
+}
+
+.tabs-block-excluir-bloco {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: transparent;
+  color: var(--cor-sangue);
+  border: 1px solid var(--cor-sangue);
+  font-size: 0.7rem;
+  padding: 0.3rem 0.5rem !important;
+  align-self: center;
+}
+
+.tabs-block-excluir-bloco:hover:not(:disabled) {
+  background: var(--cor-sangue) !important;
+  color: var(--cor-papel) !important;
+}
+
 .tabs-block-renomear-input {
   font-size: 0.85rem;
   padding: 0.1rem 0.3rem;
@@ -4076,6 +4105,11 @@ p.badge-caido {
   opacity: 0;
 }
 
-.tabs-block-conteudo p:last-child {
+.tabs-block-mini-editor .ProseMirror {
+  min-height: 80px;
+  outline: none;
+}
+
+.tabs-block-mini-editor p:last-child {
   margin-bottom: 0;
 }

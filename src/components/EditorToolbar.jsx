@@ -222,7 +222,8 @@ export default function EditorToolbar({ editor }) {
           type="button"
           className="toolbar-botao"
           onClick={() => editor.chain().focus().inserirGuias().run()}
-          title="Inserir bloco de guias (abas) — como no Notion"
+          disabled={!editor.can().inserirGuias()}
+          title={editor.can().inserirGuias() ? 'Inserir bloco de guias (abas) — como no Notion' : 'Não é possível criar guias dentro de guias'}
         >
           Guias
         </button>
