@@ -1945,7 +1945,7 @@ p.badge-caido {
 }
 
 .campo-tema-linha:hover {
-  color: var(--cor-couro);
+  color: var(--cor-papel);
   background: var(--cor-destaque-sutil);
 }
 
