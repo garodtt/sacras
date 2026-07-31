@@ -218,6 +218,14 @@ export default function EditorToolbar({ editor }) {
         >
           ▦
         </button>
+        <button
+          type="button"
+          className="toolbar-botao"
+          onClick={() => editor.chain().focus().inserirGuias().run()}
+          title="Inserir bloco de guias (abas) — como no Notion"
+        >
+          Guias
+        </button>
       </div>
 
       {/* Menu de tabela (13/07) — só aparece com o cursor DENTRO de

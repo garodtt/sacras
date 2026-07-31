@@ -2174,25 +2174,39 @@ tem esse mesmo padrão (fundo próprio + hover não fixando a cor).
   jeito de recriar o estilo de cabeçalho depois — agora é só marcar a
   linha/coluna de novo com esse botão.
 
-- **Título/subtítulo recolhível** (`src/lib/collapsibleHeadingExtension.js`,
-  `src/components/HeadingNodeView.jsx`) — estende o `Heading` do
-  StarterKit (desativado via `StarterKit.configure({ heading: false })`,
-  substituído por `HeadingRecolhivel`) com um atributo `collapsed` e
-  um `NodeView` React (setinha ▾/▸ do lado do título). Um Plugin do
-  ProseMirror computa DECORAÇÕES (não apaga nada do documento — só
-  esconde visualmente via `display:none`) pra todo conteúdo entre um
-  título recolhido e o PRÓXIMO título de nível IGUAL OU MAIOR (recolher
-  um Subtítulo esconde até o próximo Subtítulo ou Título; recolher um
-  Título esconde até o próximo Título, atravessando Subtítulos no
-  meio). Expandir de novo mostra tudo, sem ter perdido nada.
+- **Bug real, revertido no mesmo dia: título/subtítulo recolhível
+  quebrava alinhamento e outras formatações** — a primeira versão
+  (`HeadingRecolhivel`/`HeadingNodeView.jsx`, ambos removidos) envolvia
+  o `<h2>`/`<h3>` de verdade num `<div>` wrapper (pro NodeView React
+  conseguir desenhar a setinha ▾/▸ do lado). Suspeita forte:
+  extensões como TextAlign aplicam o estilo (`text-align`) no elemento
+  que o Tiptap considera "a representação DOM do nó" — com o wrapper
+  no meio, esse estilo pode ter passado a cair no `<div>` (que é
+  `display:flex`, onde `text-align` não faz nada visível) em vez do
+  `<h2>`/`<h3>` de dentro, quebrando o realinhamento sem lançar erro
+  nenhum no console. Não deu pra confirmar 100% sem um navegador de
+  verdade pra inspecionar o DOM renderizado, mas o RISCO de manter uma
+  extensão que mexe na renderização de um tipo de nó tão central
+  (heading é usado o tempo todo) não valia a pena mantendo incerteza —
+  revertido pro `Heading` padrão do StarterKit, sem wrapper nenhum.
+  "Recolher o título de verdade no documento" saiu de escopo por
+  enquanto — o sumário (abaixo) cobre a parte de navegação/organização
+  sem precisar mexer na renderização do heading em si.
 
-- **Sumário automático** (`src/components/SumarioDocumento.jsx`) —
-  painel recolhível que lista todo Título/Subtítulo do documento,
-  atualizado a cada mudança (`editor.on('update', ...)`, sem precisar
-  de extensão nova nem mudança de schema). Clicar num item rola até
-  aquele ponto do texto via `editor.view.domAtPos()` — não precisa de
-  id/âncora em cada título, navega direto pela posição do nó no
-  documento.
+- **Sumário virou widget flutuante compacto, estilo Notion (13/07,
+  mesmo dia)** — trocado de barra lateral fixa (`position: sticky`,
+  sempre ocupando espaço) por um mini-resumo no canto superior direito
+  da área de edição (`position: absolute` dentro de
+  `.editor-conteudo-caixa`, que virou `position: relative` pra servir
+  de âncora). Por padrão fica pequeno/discreto (texto minúsculo,
+  `pointer-events: none` pra não capturar clique sem querer, `opacity:
+  0.7`); passar o mouse em cima (`:hover`) expande pra tamanho legível
+  e interativo (`pointer-events: auto`), com transição suave de
+  `max-width`. Mesma estrutura de dados por baixo (Título → Subtítulos
+  aninhados, `construirHierarquia`) e mesmo recolher independente por
+  grupo dentro do sumário (`recolhidos`) — só a apresentação mudou, de
+  "sempre visível ocupando espaço" pra "aparece quando você precisa".
+  Escondido em telas estreitas (celular).
 
 **Pendente (não entrado nesta rodada): guias/abas dentro do
 documento** (como o Notion) — pedido #1 do usuário. É de longe a peça
@@ -2201,6 +2215,99 @@ conteúdo editável ANINHADO por guia, reordenar arrastando, adicionar/
 excluir guias, e recolher automaticamente ao parar de digitar) —
 decidido tratar como uma rodada própria em vez de arriscar uma versão
 malfeita espremida junto com o resto.
+
+**Ajustes no sumário e retorno do título recolhível, v2 (13/07, mesmo
+dia):**
+
+- **Sumário saiu de cima do texto** — antes ancorava dentro de
+  `.editor-conteudo-caixa` (a caixa do TEXTO em si), sobrepondo o que
+  estava sendo digitado. Agora ancora em `.notas-mestre-editor-area`
+  (a área toda, incluindo o toolbar), ficando por cima do canto do
+  toolbar — fora de onde se digita, como pedido.
+
+- **Hover trocado por estado do React** — `:hover` puro corria o risco
+  de "soltar" o hover no meio da expansão (o conteúdo cresce, o mouse
+  pode ficar fora da área nova antes do CSS acompanhar), o que
+  explicaria o clique não funcionar direito. Trocado por
+  `onMouseEnter`/`onMouseLeave` no componente, controlando uma classe
+  `--expandido` — mais previsível, já que o listener fica no MESMO
+  elemento o tempo todo, sem depender de onde exatamente o CSS
+  desenha a borda expandida.
+
+- **Título/subtítulo recolhível, reconstruído (v2)** — a primeira
+  versão (removida na rodada anterior) usava um NodeView React que
+  envolvia o `<h2>`/`<h3>` num `<div>` wrapper, suspeito de quebrar o
+  alinhamento. Essa v2 usa só `Decoration.widget` do ProseMirror — a
+  setinha ▾/▸ é um elemento inserido AO LADO do texto do título (não
+  um wrapper por cima dele), então o `<h2>`/`<h3>` continua sendo
+  renderizado exatamente como o Tiptap/StarterKit espera, sem
+  interferir em NENHUMA outra extensão que mexa com heading
+  (TextAlign incluso). Estado de "recolhido" vive DENTRO do plugin do
+  ProseMirror (não no documento/HTML salvo), então não precisou de
+  nova coluna nem mudança de schema. `mousedown` + `preventDefault()`
+  no botão evita mover o cursor de texto ao clicar na seta.
+
+  Mesma ressalva de honestidade de antes: não dá pra confirmar 100%
+  sem um navegador de verdade rodando o editor — o `npm run build`
+  confirma que compila, mas a interação de clique dentro de um
+  contentEditable (a setinha recolhendo, o sumário navegando) não é
+  algo que eu consiga testar sem esse ambiente. Testado o quanto der
+  por análise do código; qualquer coisa que não funcionar como
+  esperado, avisa com detalhes que eu ajusto.
+
+**Três correções reais (13/07, mesmo dia):**
+
+1. **Sumário reposicionado com layout de linha, não mais absoluto** —
+   `position: absolute` com coordenadas chutadas (`top: -0.4rem`)
+   continuava ficando num lugar estranho. Trocado por
+   `.notas-mestre-barra-superior` (flex row): toolbar com `flex: 1`
+   (ocupa o espaço disponível) e o sumário como item flexível ao lado
+   (`flex-shrink: 0`) — mais previsível que tentar acertar coordenadas
+   absolutas sem conseguir ver o resultado ao vivo.
+
+2. **Bug real: clique no sumário não navegava direito** —
+   `editor.view.domAtPos(pos)` numa posição EXATAMENTE no início de um
+   nó (que é o que `grupo.pos` sempre é, capturado via
+   `doc.descendants`) costuma devolver o elemento PAI com um offset
+   ("antes do filho N"), não o próprio título — por isso o scroll ia
+   pro lugar errado (ou não ia pra lugar nenhum útil). Trocado por
+   `editor.view.nodeDOM(pos)`, que é a API certa do ProseMirror pra
+   "me dê o elemento DOM do nó que começa exatamente nesta posição"
+   (com fallback pro `domAtPos` antigo só por segurança, caso
+   `nodeDOM` retorne algo inesperado).
+
+3. **Bug real: recolher Título não recolhia o Subtítulo dentro dele**
+   — na função de decorações, todo nó do tipo `heading` fazia
+   `return` antes de chegar no trecho que decide se aquele nó deve
+   ficar escondido. Isso significava que um Subtítulo logo depois de
+   um Título recolhido NUNCA recebia a decoração de esconder — só o
+   conteúdo (parágrafos) dele sumia, a LINHA do subtítulo continuava
+   visível. Corrigido: agora, antes de decidir se é recolhível
+   (h2/h3) e inserir a setinha, o código primeiro checa se esse
+   título está DENTRO de uma faixa já sendo ocultada por um título
+   ANTERIOR — se estiver, ele também ganha a decoração de esconder.
+
+**Varredura completa do bug "texto invisível no hover" + sumário
+virou painel de verdade (13/07, mesmo dia):**
+
+Já tinha acontecido 3 vezes (botão de combate, botão de tema no
+Perfil, agora nos botões do sumário) — em vez de corrigir um de cada
+vez, revisei TODAS as regras `:hover` customizadas do CSS. Achei mais
+4 casos com o mesmo problema (cor do texto acabava igual à cor do
+fundo que a regra global `button:hover:not(:disabled)` realmente
+aplica, por ter mais especificidade): `.link-referencia`,
+`.sumario-seta`, `.sumario-titulo-botao`/`.sumario-subtitulo-botao`, e
+`.titulo-seta-recolher`. Todos corrigidos fixando cor E fundo
+explicitamente com especificidade suficiente pra vencer a regra
+global (`:not(:disabled)` ou `!important`).
+
+**Sumário virou painel de verdade (v3)** — a versão anterior (hover
+pra expandir) foi trocada por um botão explícito "▤ Sumário" que abre
+um painel fixo à esquerda, com um "✕" pra fechar — sem depender de
+passar o mouse em cima de nada, resolvendo a inconsistência de clique
+relatada. Painel fica FORA da área de edição (`.notas-mestre-linha`,
+sumário e área do editor lado a lado, não mais um widget flutuando
+por cima de nada).
 
 ## 7. Fluxo de autenticação
 

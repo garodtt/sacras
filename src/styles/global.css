@@ -3962,3 +3962,120 @@ p.badge-caido {
   color: var(--cor-couro) !important;
   background: transparent !important;
 }
+
+/* ---------------------------------------------------------------
+   Bloco de Guias dentro do documento (13/07, estilo Notion) — a
+   funcionalidade mais complexa do editor. Cada "tab-pane" (filho do
+   nó) fica sempre no DOM (o ProseMirror precisa dele renderizado);
+   só a guia ativa mostra display:block, o resto fica display:none
+   via JS (ver TabsBlockView.jsx) — por isso não tem regra CSS pra
+   isso aqui, é feito imperativamente.
+------------------------------------------------------------------ */
+.tabs-block {
+  margin: 0.8rem 0;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--radio-padrao);
+  background: var(--cor-fundo);
+  overflow: hidden;
+}
+
+.tabs-block--selecionado {
+  outline: 2px solid var(--cor-poeira);
+  outline-offset: 1px;
+}
+
+.tabs-block-cabecalho {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  padding: 0.4rem 0.4rem 0;
+  border-bottom: var(--divisor-sutil);
+}
+
+.tabs-block-aba {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  color: var(--cor-tinta-suave);
+  border: none;
+  border-radius: var(--radio-padrao) var(--radio-padrao) 0 0;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: grab;
+}
+
+.tabs-block-aba:hover:not(:disabled) {
+  background: var(--cor-destaque-sutil) !important;
+  color: var(--cor-tinta) !important;
+}
+
+.tabs-block-aba--ativa {
+  background: var(--cor-papel) !important;
+  color: var(--cor-tinta) !important;
+  font-weight: 600;
+}
+
+.tabs-block-aba--arrastando {
+  opacity: 0.4;
+}
+
+.tabs-block-aba-excluir {
+  font-size: 0.7rem;
+  color: var(--cor-tinta-suave);
+  padding: 0.1rem 0.2rem;
+  border-radius: 3px;
+}
+
+.tabs-block-aba-excluir:hover {
+  color: var(--cor-sangue);
+  background: rgba(156, 43, 26, 0.12);
+}
+
+.tabs-block-renomear-input {
+  font-size: 0.85rem;
+  padding: 0.1rem 0.3rem;
+  width: 6rem;
+}
+
+.tabs-block-adicionar {
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  margin: 0.2rem;
+  background: transparent;
+  color: var(--cor-tinta-suave);
+  border: 1px dashed var(--cor-borda);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.tabs-block-adicionar:hover:not(:disabled) {
+  background: transparent !important;
+  color: var(--cor-couro) !important;
+  border-color: var(--cor-couro);
+}
+
+.tabs-block-conteudo-caixa {
+  padding: 0.8rem 1rem;
+  background: var(--cor-papel);
+  transition: max-height 0.15s ease, opacity 0.15s ease;
+  max-height: 2000px;
+  overflow: hidden;
+}
+
+.tabs-block-conteudo-caixa--recolhida {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+}
+
+.tabs-block-conteudo p:last-child {
+  margin-bottom: 0;
+}
