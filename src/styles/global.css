@@ -1515,9 +1515,9 @@ p.badge-caido {
   font-size: inherit;
 }
 
-.link-referencia:hover {
-  background: transparent;
-  color: var(--cor-sangue);
+.link-referencia:hover:not(:disabled) {
+  background: transparent !important;
+  color: var(--cor-sangue) !important;
 }
 
 .status-linha .link-referencia {
@@ -3758,4 +3758,207 @@ p.badge-caido {
   background: var(--cor-fundo);
   font-weight: 700;
   text-align: left;
+}
+
+/* ---------------------------------------------------------------
+   Título/subtítulo recolhível + sumário automático (13/07).
+------------------------------------------------------------------ */
+.heading-recolhivel-wrapper {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.heading-recolhivel-toggle {
+  flex-shrink: 0;
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0;
+  background: transparent;
+  color: var(--cor-tinta-suave);
+  border: none;
+  font-size: 0.7rem;
+  align-self: center;
+}
+
+.heading-recolhivel-toggle:hover {
+  color: var(--cor-couro);
+  background: transparent;
+}
+
+.heading-recolhivel-texto {
+  flex: 1;
+  margin: 0 !important;
+}
+
+/* Conteúdo escondido por um título recolhido — continua existindo no
+   documento (salvo normalmente), só não aparece na tela. */
+.conteudo-oculto-por-titulo-recolhido {
+  display: none;
+}
+
+/* Painel de sumário à esquerda, v3 (13/07) — antes era um widget que
+   expandia no hover (deu inconsistência de clique); agora é um botão
+   explícito de abrir/fechar ("com a opção de recolher esse popup"),
+   sem depender de passar o mouse em cima de nada. Fica FORA da área
+   de edição (irmão de `.notas-mestre-editor-area`, não mais dentro
+   dela nem sobrepondo o toolbar). */
+.notas-mestre-linha {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.notas-mestre-editor-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.sumario-botao-abrir {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.7rem;
+  align-self: flex-start;
+}
+
+.sumario-painel {
+  flex: 0 0 200px;
+  padding: 0.6rem 0.7rem;
+  background: var(--cor-fundo);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--radio-padrao);
+}
+
+.sumario-painel-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.sumario-painel-cabecalho h4 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cor-couro);
+  margin: 0;
+}
+
+.sumario-botao-fechar {
+  width: 1.3rem;
+  height: 1.3rem;
+  padding: 0;
+  background: transparent;
+  color: var(--cor-tinta-suave);
+  border: none;
+  font-size: 0.7rem;
+}
+
+.sumario-botao-fechar:hover:not(:disabled) {
+  background: transparent !important;
+  color: var(--cor-sangue) !important;
+}
+
+.sumario-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.sumario-grupo-linha {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.sumario-seta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  background: transparent;
+  color: var(--cor-tinta-suave);
+  border: none;
+  font-size: 0.6rem;
+}
+
+.sumario-seta:hover:not(:disabled) {
+  background: transparent !important;
+  color: var(--cor-couro) !important;
+}
+
+.sumario-titulo-botao,
+.sumario-subtitulo-botao {
+  background: transparent;
+  color: var(--cor-tinta);
+  border: none;
+  padding: 0.2rem 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  text-align: left;
+  width: 100%;
+  line-height: 1.3;
+}
+
+.sumario-titulo-botao--sub {
+  font-weight: normal;
+}
+
+.sumario-titulo-botao:hover:not(:disabled),
+.sumario-subtitulo-botao:hover:not(:disabled) {
+  color: var(--cor-couro) !important;
+  background: transparent !important;
+  text-decoration: underline;
+}
+
+.sumario-sublista {
+  display: flex;
+  flex-direction: column;
+  margin: 0.1rem 0 0.3rem 1.25rem;
+}
+
+.sumario-subtitulo-botao {
+  font-weight: normal;
+  font-size: 0.75rem;
+  color: var(--cor-tinta-suave);
+}
+
+@media (max-width: 860px) {
+  .notas-mestre-linha {
+    flex-direction: column;
+  }
+  .sumario-painel {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
+
+/* Setinha inline de recolher título/subtítulo no TEXTO (13/07, v2 —
+   inserida via Decoration.widget do ProseMirror, não um wrapper por
+   cima do título; fica "na linha", ao lado do texto, como pedido). */
+.titulo-seta-recolher {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-right: 0.3rem;
+  padding: 0;
+  background: transparent;
+  color: var(--cor-tinta-suave);
+  border: none;
+  font-size: 0.7rem;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.titulo-seta-recolher:hover:not(:disabled) {
+  color: var(--cor-couro) !important;
+  background: transparent !important;
 }

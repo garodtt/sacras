@@ -246,6 +246,12 @@ export default function EditorToolbar({ editor }) {
             <button type="button" className="toolbar-botao" onClick={() => editor.chain().focus().deleteColumn().run()} title="Remover esta coluna">
               − Coluna
             </button>
+            <button type="button" className="toolbar-botao" onClick={() => editor.chain().focus().toggleHeaderRow().run()} title="Marcar/desmarcar esta linha como cabeçalho">
+              Cabeçalho linha
+            </button>
+            <button type="button" className="toolbar-botao" onClick={() => editor.chain().focus().toggleHeaderColumn().run()} title="Marcar/desmarcar esta coluna como cabeçalho">
+              Cabeçalho coluna
+            </button>
             <button type="button" className="toolbar-botao toolbar-botao--excluir" onClick={() => editor.chain().focus().deleteTable().run()} title="Excluir tabela inteira">
               Excluir tabela
             </button>

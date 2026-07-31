@@ -2117,6 +2117,91 @@ pro texto, não algo que devesse mudar sozinho se o tema mudar depois),
 um seletor de cor livre (`<input type="color">` nativo) pra qualquer
 tom fora da paleta, e "Sem cor" pra voltar ao padrão.
 
+**Bug real: lazy loading do editor quebrava os Hooks (13/07)** — a
+otimização de code-splitting (`lazy(() => import('../components/NotasMestre.jsx'))`
++ `<Suspense>`) causava `Uncaught TypeError: Cannot read properties
+of null (reading 'useState')` dentro de `NotasMestre` — sintoma
+clássico de duas cópias de React coexistindo (uma no bundle principal,
+outra no chunk carregado dinamicamente), quebrando o contexto interno
+dos Hooks. Revertido pra import direto/eager de `NotasMestre` — o
+bundle principal volta a incluir o Tiptap sempre (~360KB a mais,
+carregando em toda tela, não só na aba Anotações), mas sem esse risco
+de Hooks quebrarem. Confiabilidade > uma otimização de tamanho de
+bundle nesse caso.
+
+**Bug real: anotação "salva" sumia ao trocar de aba e voltar (13/07)**
+— causa: a aba Anotações só renderiza `<NotasMestre>` quando
+`abaAtiva === 'notas'`; trocar de aba DESMONTA o componente (o
+`<details>`/condicional para de renderizar ele), e voltar pra aba
+MONTA uma instância nova, que inicializa o editor Tiptap com a prop
+`notasIniciais` recebida do componente pai (`CampanhaDetalhe.jsx`).
+O problema: salvar só atualizava uma ref LOCAL (`ultimoSalvoRef`) e o
+banco — nunca avisava o componente pai, cujo estado `notasMestre`
+ficava PARADO no valor carregado quando a página abriu. Resultado: a
+instância nova do editor sempre recomeçava do valor antigo, mesmo o
+banco já tendo o texto novo salvo.
+
+Corrigido com um callback `onSalvo` — `NotasMestre` chama
+`onSalvo(html)` depois de cada salvamento bem-sucedido;
+`CampanhaDetalhe.jsx` passa `onSalvo={setNotasMestre}`, mantendo o
+estado do componente pai sempre sincronizado com o que está no banco,
+então uma remontagem futura sempre parte do valor mais recente.
+
+Reforço relacionado: se o usuário trocasse de aba ANTES dos 1.5s do
+debounce completarem, o timer pendente era só cancelado (não
+executado) — a última digitação nunca chegava a ser salva nem no
+banco nem no componente pai. A limpeza do efeito agora força esse
+salvamento pendente imediatamente ao desmontar, em vez de descartá-lo.
+
+**Bug real: "Abrir Rastreador de Combate" ficava invisível ao passar o
+mouse/tocar (13/07)** — `.botao-like-link:hover` só mudava o FUNDO
+(`background: var(--cor-couro)`), sem fixar a cor do texto. A regra
+GLOBAL `a:hover { color: var(--cor-couro); }` (specificidade 0,1,1) é
+mais específica que `.botao-like-link` sozinho no estado normal
+(0,1,0), então ela vencia no hover — fundo E texto ficavam com a
+MESMA cor (`var(--cor-couro)`, dourado no tema escuro), texto
+invisível. Corrigido fixando `color: var(--cor-papel)` também no
+`:hover` de `.botao-like-link` (0,2,0 — agora vence a regra global de
+verdade). Conferido: nenhum outro link estilizado como botão no app
+tem esse mesmo padrão (fundo próprio + hover não fixando a cor).
+
+**Cabeçalho de tabela, títulos recolhíveis, e sumário automático (13/07):**
+
+- **Cabeçalho de tabela** — dois botões novos no menu de tabela
+  ("Cabeçalho linha"/"Cabeçalho coluna"), usando os comandos nativos
+  do Tiptap `toggleHeaderRow()`/`toggleHeaderColumn()`. Resolve o
+  problema relatado: antes, deletar a linha de cabeçalho não deixava
+  jeito de recriar o estilo de cabeçalho depois — agora é só marcar a
+  linha/coluna de novo com esse botão.
+
+- **Título/subtítulo recolhível** (`src/lib/collapsibleHeadingExtension.js`,
+  `src/components/HeadingNodeView.jsx`) — estende o `Heading` do
+  StarterKit (desativado via `StarterKit.configure({ heading: false })`,
+  substituído por `HeadingRecolhivel`) com um atributo `collapsed` e
+  um `NodeView` React (setinha ▾/▸ do lado do título). Um Plugin do
+  ProseMirror computa DECORAÇÕES (não apaga nada do documento — só
+  esconde visualmente via `display:none`) pra todo conteúdo entre um
+  título recolhido e o PRÓXIMO título de nível IGUAL OU MAIOR (recolher
+  um Subtítulo esconde até o próximo Subtítulo ou Título; recolher um
+  Título esconde até o próximo Título, atravessando Subtítulos no
+  meio). Expandir de novo mostra tudo, sem ter perdido nada.
+
+- **Sumário automático** (`src/components/SumarioDocumento.jsx`) —
+  painel recolhível que lista todo Título/Subtítulo do documento,
+  atualizado a cada mudança (`editor.on('update', ...)`, sem precisar
+  de extensão nova nem mudança de schema). Clicar num item rola até
+  aquele ponto do texto via `editor.view.domAtPos()` — não precisa de
+  id/âncora em cada título, navega direto pela posição do nó no
+  documento.
+
+**Pendente (não entrado nesta rodada): guias/abas dentro do
+documento** (como o Notion) — pedido #1 do usuário. É de longe a peça
+mais complexa dos três pedidos (um NODE customizado do Tiptap com
+conteúdo editável ANINHADO por guia, reordenar arrastando, adicionar/
+excluir guias, e recolher automaticamente ao parar de digitar) —
+decidido tratar como uma rodada própria em vez de arriscar uma versão
+malfeita espremida junto com o resto.
+
 ## 7. Fluxo de autenticação
 
 - **Cadastro aberto, sem escolha de papel**: qualquer pessoa pode se

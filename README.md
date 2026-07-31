@@ -254,6 +254,7 @@ sacramento-rpg/
     │   ├── modelosNpc.js        # modelos prontos de NPC (Capanga, Xerife, etc.)
     │   ├── catalogoCompras.js   # Grande Catálogo de Equipamento em dados (~150 itens) — novo 13/07
     │   ├── fontSizeExtension.js # extensão customizada de tamanho de fonte pro Tiptap — novo 13/07
+    │   ├── collapsibleHeadingExtension.js # título/subtítulo recolhível (Tiptap) — novo 13/07
     │   └── toastBus.js           # barramento simples de toast (pub/sub) — novo 13/07
     ├── styles/
     │   └── global.css
@@ -277,6 +278,8 @@ sacramento-rpg/
     │   ├── Breadcrumb.jsx       # trilha de navegação (Início/Campanha → Personagem → Aba)
     │   ├── NotasMestre.jsx      # anotações do Mestre, agora editor de texto rico (Tiptap) + autosave — atualizado 13/07
     │   ├── EditorToolbar.jsx    # toolbar do editor de anotações (negrito/itálico/tabela/etc.) — novo 13/07
+    │   ├── SumarioDocumento.jsx # sumário automático (Título/Subtítulo, clica pra navegar) — novo 13/07
+    │   ├── HeadingNodeView.jsx  # node view do título/subtítulo recolhível — novo 13/07
     │   ├── NotaPersonagemCampanha.jsx  # nota privada do Mestre por personagem vinculado — novo 13/07
     │   ├── InventarioNpc.jsx    # inventário simples de NPC (sem peso/espaço) — novo 13/07
     │   ├── layout/
@@ -355,6 +358,7 @@ sacramento-rpg/
 - [x] **Personalizar catálogo por campanha, correções de tema escuro e bug de salvamento (13/07)** — Mestre agora personaliza (preço/peso/descrição) qualquer item do catálogo fixo do livro, só pra sua campanha, sem duplicar na lista do jogador; corrigido bug real de Descrição/História do personagem não salvando (CampoEditavel tratava texto como número); várias correções no tema escuro (inputs brancos, vermelho virando `#b58a5c` exceto Remover/Logout, overlays cinzas, barra de abas sumindo no celular, botão de tema também no Perfil) — ver `docs/ARQUITETURA.md`
 - [x] **Bug real: tema escuro revertia sozinho ao sair do Perfil (13/07)** — causa: `useTemaEscuro()` chamado duas vezes (App.jsx + Painel.jsx), duas instâncias independentes com limpezas conflitantes; corrigido com Context (`TemaContext.jsx`, novo) — uma única instância do hook, compartilhada via `useTema()` — ver `docs/ARQUITETURA.md`
 - [x] **Edição de NPC e editor de texto rico nas Anotações (13/07)** — nome e Vida/Dor/Balas máximos de um NPC da biblioteca agora são editáveis depois de criado (antes só na criação); Anotações do Mestre ganhou editor de texto completo (Tiptap) com negrito/itálico/taxado/título/subtítulo/alinhamento/tamanho de fonte/checkbox/tabela, salvamento automático (debounce 1.5s), sem migration nova (HTML na mesma coluna de texto), e code-splitting (lazy loading) pra não pesar o bundle principal — ver `docs/ARQUITETURA.md`
+- [x] **Cabeçalho de tabela, títulos recolhíveis, sumário automático (13/07)** — botões de alternar cabeçalho de linha/coluna (resolve tabela "estranha" depois de excluir cabeçalho); título/subtítulo ganharam seta de recolher (esconde o conteúdo até o próximo título de nível igual ou maior, sem apagar nada); sumário automático navegável, atualizado a cada mudança no texto — ver `docs/ARQUITETURA.md`. Pendente: guias/abas dentro do documento (estilo Notion), a peça mais complexa dos três pedidos, fica pra uma rodada própria.
 - [ ] **Fase 8** — Deploy no Netlify + variáveis de ambiente de produção
 - [ ] **Fase 9** *(opcional, sugerido)* — Histórico de alterações do personagem
 
@@ -364,3 +368,12 @@ sacramento-rpg/
 > admin) — o que mudou foi *quem* pode fazer *o quê* e como as coisas se
 > conectam. Ver `docs/ARQUITETURA.md`, seção 6, para o motivo e o antes/depois.
 
+## Sobre o projeto antigo (`garodtt/rpg`)
+
+Antes de propor o schema, li o código do seu protótipo anterior para entender
+as regras de vida/dor e inventário que já existiam. O resumo do que encontrei
+— e as perguntas que isso gerou — está em `docs/ARQUITETURA.md`, seção 5 e 7.
+Resumo rápido: o protótipo antigo usava 1 tabela só (`fichas`) com senha por
+ficha (sem conta de usuário de verdade); a base nova que estamos construindo
+substitui isso por autenticação e papéis reais, que é justamente o que você
+pediu agora.

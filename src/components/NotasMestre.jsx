@@ -11,7 +11,9 @@ import TableHeader from '@tiptap/extension-table-header';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import { FontSize } from '../lib/fontSizeExtension.js';
+import { TitulosRecolhiveis } from '../lib/collapsibleHeadingExtension.js';
 import EditorToolbar from './EditorToolbar.jsx';
+import SumarioDocumento from './SumarioDocumento.jsx';
 import { salvarNotasMestre } from '../lib/dados.js';
 import { mostrarToast } from '../lib/toastBus.js';
 
@@ -37,6 +39,7 @@ export default function NotasMestre({ campanhaId, notasIniciais, onSalvo }) {
   const editor = useEditor({
     extensions: [
       StarterKit,
+      TitulosRecolhiveis,
       TextStyle,
       FontSize,
       Color.configure({ types: ['textStyle'] }),
@@ -103,9 +106,14 @@ export default function NotasMestre({ campanhaId, notasIniciais, onSalvo }) {
         <span className="selo-privado">Só você vê</span>
       </div>
       {erro && <p className="erro">{erro}</p>}
-      <EditorToolbar editor={editor} />
-      <div className="editor-conteudo-caixa">
-        <EditorContent editor={editor} className="editor-conteudo" />
+      <div className="notas-mestre-linha">
+        <SumarioDocumento editor={editor} />
+        <div className="notas-mestre-editor-area">
+          <EditorToolbar editor={editor} />
+          <div className="editor-conteudo-caixa">
+            <EditorContent editor={editor} className="editor-conteudo" />
+          </div>
+        </div>
       </div>
       {salvando && <p className="detalhe-secundario">Salvando...</p>}
     </div>
