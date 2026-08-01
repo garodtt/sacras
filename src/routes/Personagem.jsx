@@ -510,7 +510,7 @@ export default function Personagem() {
       )}
 
       {abaAtiva === 'geral' && (
-        <>
+        <div className="secao-aba-campanha">
           <header className="ficha-header">
             <UploadFoto
               caminho={`personagem/${personagem.id}/retrato`}
@@ -626,11 +626,11 @@ export default function Personagem() {
                 onSalvar={(v) => salvarCampo('valor_recompensa', v)} />
             </div>
           </section>
-        </>
+        </div>
       )}
 
       {abaAtiva === 'combate' && (
-        <>
+        <div className="secao-aba-campanha">
           <section>
             <h2 className="ficha-acento-combate">Combate</h2>
             <p className="detalhe-secundario">Movimentos e Ações de Combate são derivados dos Atributos.</p>
@@ -706,11 +706,11 @@ export default function Personagem() {
               poolPesada={personagem.municao_pesada_atual}
             />
           </section>
-        </>
+        </div>
       )}
 
       {abaAtiva === 'inventario' && (
-        <>
+        <div className="secao-aba-campanha">
           <section>
             <h2 className="ficha-acento-inventario">Itens</h2>
             {canEdit && (
@@ -748,11 +748,11 @@ export default function Personagem() {
               secao="inventario"
             />
           </section>
-        </>
+        </div>
       )}
 
       {abaAtiva === 'montaria' && (
-        <section>
+        <section className="secao-aba-campanha">
           <h2 className="ficha-acento-montaria">Montaria</h2>
           <Montaria
             personagemId={personagem.id}
@@ -764,7 +764,7 @@ export default function Personagem() {
         </section>
       )}
       {abaAtiva === 'compras' && (
-        <section>
+        <section className="secao-aba-campanha">
           <h2 className="ficha-acento-geral">Compras</h2>
           <Compras
             personagem={personagem}

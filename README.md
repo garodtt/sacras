@@ -254,7 +254,8 @@ sacramento-rpg/
     │   ├── modelosNpc.js        # modelos prontos de NPC (Capanga, Xerife, etc.)
     │   ├── catalogoCompras.js   # Grande Catálogo de Equipamento em dados (~150 itens) — novo 13/07
     │   ├── fontSizeExtension.js # extensão customizada de tamanho de fonte pro Tiptap — novo 13/07
-    │   ├── collapsibleHeadingExtension.js # título/subtítulo recolhível (Tiptap) — novo 13/07
+    │   ├── collapsibleHeadingExtension.js # título/subtítulo recolhível v2 (Decoration.widget) — novo 13/07
+    │   ├── tabsExtension.js     # guias dentro do documento, estilo Notion (nó atômico + mini-editores isolados) — atualizado 13/07
     │   └── toastBus.js           # barramento simples de toast (pub/sub) — novo 13/07
     ├── styles/
     │   └── global.css
@@ -265,6 +266,7 @@ sacramento-rpg/
     │   └── useTemaEscuro.js     # hook de tema — chamado só dentro de TemaProvider, ver TemaContext.jsx
     ├── components/
     │   ├── ProtectedRoute.jsx   # guarda de rota (exige login / exige papel)
+    │   ├── RotasAnimadas.jsx    # definição das rotas + transição estilo cortina (Motion) — novo 13/07
     │   ├── UploadFoto.jsx       # upload de foto reutilizável (item/personagem/perfil) — novo 13/07
     │   ├── RecortarFoto.jsx     # recorte estilo Instagram (arrastar + zoom) — novo 13/07
     │   ├── EstrelaXerife.jsx    # selo de estrela em SVG (não emoji) — novo 13/07
@@ -278,8 +280,8 @@ sacramento-rpg/
     │   ├── Breadcrumb.jsx       # trilha de navegação (Início/Campanha → Personagem → Aba)
     │   ├── NotasMestre.jsx      # anotações do Mestre, agora editor de texto rico (Tiptap) + autosave — atualizado 13/07
     │   ├── EditorToolbar.jsx    # toolbar do editor de anotações (negrito/itálico/tabela/etc.) — novo 13/07
-    │   ├── SumarioDocumento.jsx # sumário automático (Título/Subtítulo, clica pra navegar) — novo 13/07
-    │   ├── HeadingNodeView.jsx  # node view do título/subtítulo recolhível — novo 13/07
+    │   ├── SumarioDocumento.jsx # sumário automático — painel de verdade com botão abrir/fechar (v3) — atualizado 13/07
+    │   ├── TabsBlockView.jsx    # visual do bloco de Guias dentro do documento — novo 13/07
     │   ├── NotaPersonagemCampanha.jsx  # nota privada do Mestre por personagem vinculado — novo 13/07
     │   ├── InventarioNpc.jsx    # inventário simples de NPC (sem peso/espaço) — novo 13/07
     │   ├── layout/
@@ -358,7 +360,10 @@ sacramento-rpg/
 - [x] **Personalizar catálogo por campanha, correções de tema escuro e bug de salvamento (13/07)** — Mestre agora personaliza (preço/peso/descrição) qualquer item do catálogo fixo do livro, só pra sua campanha, sem duplicar na lista do jogador; corrigido bug real de Descrição/História do personagem não salvando (CampoEditavel tratava texto como número); várias correções no tema escuro (inputs brancos, vermelho virando `#b58a5c` exceto Remover/Logout, overlays cinzas, barra de abas sumindo no celular, botão de tema também no Perfil) — ver `docs/ARQUITETURA.md`
 - [x] **Bug real: tema escuro revertia sozinho ao sair do Perfil (13/07)** — causa: `useTemaEscuro()` chamado duas vezes (App.jsx + Painel.jsx), duas instâncias independentes com limpezas conflitantes; corrigido com Context (`TemaContext.jsx`, novo) — uma única instância do hook, compartilhada via `useTema()` — ver `docs/ARQUITETURA.md`
 - [x] **Edição de NPC e editor de texto rico nas Anotações (13/07)** — nome e Vida/Dor/Balas máximos de um NPC da biblioteca agora são editáveis depois de criado (antes só na criação); Anotações do Mestre ganhou editor de texto completo (Tiptap) com negrito/itálico/taxado/título/subtítulo/alinhamento/tamanho de fonte/checkbox/tabela, salvamento automático (debounce 1.5s), sem migration nova (HTML na mesma coluna de texto), e code-splitting (lazy loading) pra não pesar o bundle principal — ver `docs/ARQUITETURA.md`
-- [x] **Cabeçalho de tabela, títulos recolhíveis, sumário automático (13/07)** — botões de alternar cabeçalho de linha/coluna (resolve tabela "estranha" depois de excluir cabeçalho); título/subtítulo ganharam seta de recolher (esconde o conteúdo até o próximo título de nível igual ou maior, sem apagar nada); sumário automático navegável, atualizado a cada mudança no texto — ver `docs/ARQUITETURA.md`. Pendente: guias/abas dentro do documento (estilo Notion), a peça mais complexa dos três pedidos, fica pra uma rodada própria.
+- [x] **Cabeçalho de tabela, sumário automático (13/07)** — botões de alternar cabeçalho de linha/coluna (resolve tabela "estranha" depois de excluir cabeçalho); sumário automático hierárquico (Título → Subtítulos aninhados) virou widget flutuante compacto, estilo Notion, que expande ao passar o mouse — ver `docs/ARQUITETURA.md`. Revertido no mesmo dia: título/subtítulo recolhível causava bug real (quebrava alinhamento de texto) — removido, escopo reduzido só pro sumário de navegação.
+- [x] **Título/subtítulo recolhível reconstruído (v2), sumário fora da área de texto (13/07)** — reconstruído com `Decoration.widget` do ProseMirror (setinha inserida ao lado do título, sem wrapper em volta dele — a causa suspeita do bug anterior); sumário movido pra fora da caixa de texto (ancora no toolbar, não sobrepõe o que está sendo digitado); hover trocado de CSS puro pra estado do React (mais confiável) — ver `docs/ARQUITETURA.md`. Pendente: guias/abas dentro do documento (estilo Notion), a peça mais complexa dos pedidos, fica pra uma rodada própria.
+- [x] **Guias dentro do documento, estilo Notion (13/07)** — bloco novo no editor de Anotações com múltiplas guias, cada uma com conteúdo editável independente; adicionar/excluir/renomear (duplo clique)/arrastar pra reordenar; recolhe sozinho depois de alguns segundos sem digitar dentro dela. Dois nós customizados do Tiptap (`tabsBlock`/`tabPane`) com NodeView React — a peça mais complexa/arriscada do editor inteiro; ver aviso de honestidade em `docs/ARQUITETURA.md` sobre os limites do que dá pra confirmar sem um navegador de verdade.
+- [x] **Transição de tela estilo cortina (13/07)** — biblioteca `motion` (gratuita, sucessora do Framer Motion) integrada; ao trocar de tela (Painel → Personagem → Campanha, etc.), uma cortina sólida cobre e "sobe" revelando a tela nova, tema faroeste/saloon; inspirado num exemplo pago do site oficial (Motion+), reconstruído só com a API livre já que aquele código fonte específico é fechado — ver `docs/ARQUITETURA.md`.
 - [ ] **Fase 8** — Deploy no Netlify + variáveis de ambiente de produção
 - [ ] **Fase 9** *(opcional, sugerido)* — Histórico de alterações do personagem
 

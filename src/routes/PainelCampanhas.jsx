@@ -10,6 +10,7 @@ import {
 import PainelShell from '../components/layout/PainelShell.jsx';
 import { Esqueleto } from '../components/Esqueleto.jsx';
 import EstadoVazio from '../components/EstadoVazio.jsx';
+import AparecerAoRolar from '../components/AparecerAoRolar.jsx';
 
 // "Minhas Campanhas" (13/07) — antes era 2-3 seções soltas dentro do
 // Painel único (criadas, que participo, convites); agora é uma tela só,
@@ -79,8 +80,8 @@ export default function PainelCampanhas() {
         <section>
           <h3>Convites pendentes</h3>
           <ul className="lista-cards">
-            {convites.map((c) => (
-              <li key={c.id}>
+            {convites.map((c, indice) => (
+              <AparecerAoRolar key={c.id} tag="li" atraso={indice * 0.04}>
                 <div>
                   <strong>{c.campanha?.nome}</strong>
                   <p>Convite de {c.campanha?.dono?.display_name}</p>
@@ -94,7 +95,7 @@ export default function PainelCampanhas() {
                     Recusar
                   </button>
                 </span>
-              </li>
+              </AparecerAoRolar>
             ))}
           </ul>
         </section>
@@ -113,14 +114,14 @@ export default function PainelCampanhas() {
           </EstadoVazio>
         ) : (
           <ul className="lista-cards">
-            {campanhasCriadas.map((c) => (
-              <li key={c.id}>
+            {campanhasCriadas.map((c, indice) => (
+              <AparecerAoRolar key={c.id} tag="li" atraso={indice * 0.04}>
                 <div>
                   <strong>{c.nome}</strong>
                   {c.descricao && <p>{c.descricao}</p>}
                 </div>
                 <Link to={`/campanha/${c.id}`}>Gerenciar</Link>
-              </li>
+              </AparecerAoRolar>
             ))}
           </ul>
         )}
@@ -130,14 +131,14 @@ export default function PainelCampanhas() {
         <section>
           <h3>Que você participa</h3>
           <ul className="lista-cards">
-            {campanhasParticipo.map((c) => (
-              <li key={c.id}>
+            {campanhasParticipo.map((c, indice) => (
+              <AparecerAoRolar key={c.id} tag="li" atraso={indice * 0.04}>
                 <div>
                   <strong>{c.nome}</strong>
                   {c.descricao && <p>{c.descricao}</p>}
                 </div>
                 <Link to={`/campanha/${c.id}`}>Ver</Link>
-              </li>
+              </AparecerAoRolar>
             ))}
           </ul>
         </section>

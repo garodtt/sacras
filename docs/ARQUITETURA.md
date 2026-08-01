@@ -2309,6 +2309,194 @@ relatada. Painel fica FORA da área de edição (`.notas-mestre-linha`,
 sumário e área do editor lado a lado, não mais um widget flutuando
 por cima de nada).
 
+### Guias dentro do documento, estilo Notion (13/07)
+
+A funcionalidade mais complexa de todo o editor. Dois arquivos novos
+principais:
+
+- **`src/lib/tabsExtension.js`** — define dois tipos de nó do Tiptap:
+  - `tabsBlock`: o CONTAINER, guarda qual guia está ativa
+    (`abaAtiva`, um índice) e contém uma ou mais `tabPane` como
+    filhos diretos (`content: 'tabPane+'`).
+  - `tabPane`: uma guia individual, guarda o próprio nome
+    (`titulo`) e pode conter qualquer bloco normal dentro
+    (`content: 'block+'` — parágrafo, lista, tabela, título...).
+  - Comando `inserirGuias()` no toolbar cria um bloco novo com 2
+    guias de partida.
+
+- **`src/components/TabsBlockView.jsx`** — o `NodeView` React do
+  `tabsBlock` (a parte visual/interativa). Pontos centrais:
+  - **Mostrar só a guia ativa**: `NodeViewContent` renderiza TODOS
+    os filhos (o ProseMirror não tem como "pular" um filho na
+    renderização) — a troca visível é feita imperativamente
+    (`useEffect` sem array de dependências, roda a cada render,
+    consultando `:scope > [data-type="tab-pane"]` e ajustando
+    `style.display`). Os painéis inativos continuam no DOM (só
+    escondidos) — trocar de guia e voltar não perde nada.
+  - **Adicionar/excluir/mover/renomear**: cada operação usa
+    `getPos()` (posição ATUAL do nó `tabsBlock` — chamado toda vez,
+    nunca guardado em variável, já que pode mudar com qualquer edição
+    em outro lugar do documento) pra calcular a posição exata do
+    filho afetado, e manipula o documento via comandos do Tiptap
+    (`insertContentAt`, `deleteRange`) ou uma transação direta
+    (`tr.setNodeMarkup` pra renomear). Mover usa a abordagem mais
+    simples e robusta: reconstrói a ordem inteira dos filhos e
+    substitui todo o conteúdo do bloco de uma vez, em vez de tentar
+    calcular um "move" parcial.
+  - **Recolher ao parar de digitar**: um temporizador (3s) que só
+    reinicia quando a SELEÇÃO ATUAL está dentro do range deste
+    `tabsBlock` especificamente (não qualquer digitação no documento
+    inteiro) — clicar em qualquer guia reabre na hora.
+  - Arrastar pra reordenar usa Drag and Drop nativo do HTML5
+    (`draggable`, `onDragStart`/`onDragOver`/`onDrop`), não uma
+    biblioteca externa.
+
+**Aviso de honestidade, mais forte que o de costume**: essa é, de
+longe, a peça mais arriscada de todo o editor — envolve nós
+aninhados com conteúdo editável independente, cálculo de posição do
+ProseMirror, Drag and Drop nativo, e um temporizador de inatividade
+tudo interagindo entre si. O `npm run build` confirma que compila e
+que a estrutura das extensões segue os padrões corretos do Tiptap/
+ProseMirror (mesmo formato usado nos exemplos oficiais pra nós com
+NodeView customizado), mas a validação de VERDADE — clicar, digitar,
+arrastar, ver se a guia certa aparece na hora certa — exige um
+navegador de verdade rodando o editor, que não tenho aqui. Teste com
+calma, um recurso de cada vez (primeiro criar/trocar de guia, depois
+adicionar, depois excluir, depois arrastar, depois deixar recolher
+sozinho), e me avise com o máximo de detalhe possível qualquer coisa
+que não se comportar como esperado — quanto mais específico
+("cliquei em X, esperava Y, aconteceu Z"), mais rápido consigo
+localizar e corrigir.
+
+**Quatro correções nas Guias (13/07, mesmo dia):**
+
+1. **Bug real, provavelmente sério: conteúdo "vazando" entre guias**
+   — `trocarAba()` só atualizava `abaAtiva`, sem mover a seleção do
+   ProseMirror. Isso deixava o cursor "preso" dentro do painel que
+   acabava de virar `display:none` — o navegador, vendo a seleção
+   ficar num elemento invisível, podia jogá-la pra qualquer lugar
+   (inclusive pra dentro de outra guia), fazendo o texto digitado
+   parecer ir parar na guia errada. Corrigido: trocar de guia agora
+   move o cursor explicitamente (`editor.commands.focus(...)`) pro
+   início do conteúdo da guia recém-ativada.
+
+2. **Guias dentro de guias, bloqueado** — `inserirGuias()` agora
+   verifica a árvore de ancestrais a partir da posição atual do
+   cursor; se encontrar um `tabPane` no caminho, o comando é
+   recusado (retorna `false`). O botão "Guias" do toolbar também
+   fica desabilitado nesse caso (`editor.can().inserirGuias()`), com
+   uma dica explicando o motivo.
+
+3. **Renomear virou botão explícito** — antes só dava pra renomear
+   com duplo clique (não óbvio); agora tem um ✎ sempre visível ao
+   lado de cada guia (o duplo clique continua funcionando como
+   atalho extra).
+
+4. **Excluir o bloco de guias inteiro** — antes só dava pra excluir
+   guia por guia (sempre sobrando pelo menos 1); agora tem um botão
+   "Excluir bloco" que remove a funcionalidade de guias inteira
+   daquele ponto do documento, com confirmação nativa do navegador
+   (ação destrutiva, apaga o conteúdo de todas as guias de uma vez).
+
+**Bug real persistente: conteúdo "vazando"/replicando entre guias
+(13/07, mesmo dia)** — mesmo depois de mover o cursor ao trocar de
+guia (correção da rodada anterior), o problema continuou. Causa mais
+provável: o mecanismo de esconder guias inativas era um `useEffect`
+com `querySelector` aplicando `style.display` manualmente DEPOIS da
+tela desenhar — um passo IMPERATIVO, fora do ciclo normal de
+atualização do React/ProseMirror, com risco real de não disparar na
+hora certa ou de mais de uma guia ficar visível ao mesmo tempo
+(explicaria o "vazamento": não era o TEXTO indo parar no lugar
+errado, era DUAS guias aparecendo sobrepostas/visíveis juntas).
+
+Substituído por CSS puro: `data-aba-ativa={abaAtiva}` escrito direto
+no JSX (sem passo imperativo depois), e ~20 regras CSS
+(`[data-aba-ativa="N"] ... :nth-of-type(N+1) { display: block; }`,
+uma pra cada índice possível, até 20 guias por bloco) decidindo qual
+painel mostrar. A troca de atributo JÁ é a atualização visual — não
+tem mais nenhum JavaScript rodando "depois" que possa falhar ou
+atrasar.
+
+**Guias reescritas do zero (v2) — bug de vazamento persistente
+(13/07, mesmo dia):** o bug de conteúdo "vazando"/replicando entre
+guias continuou MESMO depois de trocar a visibilidade pra CSS puro
+(correção da rodada anterior). Isso foi um sinal importante: o
+problema não era ONDE o conteúdo aparecia (visibilidade), era como
+ele estava ESTRUTURADO por baixo — a v1 fazia cada guia (`tabPane`)
+ser um FILHO de verdade do ProseMirror, todas vivendo no MESMO
+documento/schema do editor principal.
+
+**Redesenho estrutural**, não mais um ajuste incremental:
+- `tabsBlock` (agora só ele, `tabPane` não existe mais) virou um nó
+  **atômico** (`atom: true`) — pro editor PRINCIPAL, ele não tem
+  conteúdo navegável nenhum, é uma caixa preta. Tudo que ele guarda é
+  DADO puro: um atributo `guias` (array de `{ titulo, conteudo }`,
+  `conteudo` sendo uma string HTML), serializado como JSON dentro de
+  um atributo `data-guias` no HTML salvo — ainda cabe na mesma coluna
+  `text` de sempre, sem migration nova.
+- Cada guia agora é um **mini-editor Tiptap totalmente separado**
+  (`GuiaEditor`, dentro de `TabsBlockView.jsx`) — sua PRÓPRIA
+  instância de `useEditor()`, com o PRÓPRIO documento ProseMirror,
+  sem NENHUM estado compartilhado com o editor principal nem com as
+  outras guias.
+- `key={abaAtiva}` no `<GuiaEditor>` força o React a **desmontar e
+  remontar um editor novo** toda vez que a guia ativa muda — troca de
+  guia deixa de ser "esconder/mostrar" e vira "destruir uma instância,
+  criar outra". Isolamento total por construção, não por lógica de
+  visibilidade — impossível vazar conteúdo entre guias, porque
+  literalmente não existe UM documento compartilhado onde isso
+  poderia acontecer.
+- Bônus: "guias dentro de guias" deixa de precisar de qualquer
+  verificação em tempo de execução — o mini-editor de cada guia nem
+  inclui a extensão de Guias na própria lista de extensões, então
+  inserir uma dentro de outra é estruturalmente impossível, não só
+  bloqueado por uma regra.
+- Mini-editor de cada guia inclui formatação rica própria (negrito/
+  itálico/cor/tamanho de fonte/alinhamento/checklist) — não inclui
+  Tabela nem Título recolhível, pra manter o schema de cada guia mais
+  simples (evita replicar TODA a complexidade do editor principal
+  dentro de cada guia).
+- "Excluir bloco inteiro" agora usa `getPos()`/`editor` de verdade
+  (a versão anterior desse botão, escrita às pressas, só mudava um
+  atributo que não fazia nada — bug corrigido antes mesmo de chegar
+  até você, pego na revisão).
+
+Essa é uma mudança estrutural bem maior que um ajuste pontual, mas o
+objetivo é resolver a CATEGORIA do bug de uma vez, não só o sintoma
+mais recente relatado.
+
+### Transição de tela estilo cortina (13/07)
+
+Instalada a biblioteca `motion` (gratuita, código aberto — sucessora
+do Framer Motion; a versão paga "Motion+" é um produto separado que
+só desbloqueia exemplos/APIs extras). Inspirado no exemplo pago
+"Curtains: Scope" do site oficial, mas reconstruído do zero só com a
+API livre, já que o código fonte daquele exemplo específico fica
+atrás de assinatura.
+
+- **`src/components/RotasAnimadas.jsx`** (novo) — a definição de
+  rotas saiu de `App.jsx` pra cá, já que precisa estar DENTRO do
+  `BrowserRouter` pra usar `useLocation()`. Padrão oficial de
+  integração Motion + React Router: `<AnimatePresence mode="wait">`
+  envolvendo `<Routes location={location}>` (localização passada
+  explicitamente, não a automática) — espera a tela antiga terminar
+  de sumir antes de montar a nova.
+- **A cortina em si** (`.cortina-transicao`) — um retângulo sólido
+  (cor da tinta do tema) com `key={location.pathname + '-cortina'}`:
+  toda vez que a rota muda, é uma peça NOVA aos olhos do React (força
+  remontar), entrando com `scaleY: 1` (cobre a tela) e animando pra
+  `scaleY: 0` com `transform-origin: top` (soma pra cima, como uma
+  cortina de teatro ou porta de saloon abrindo — encaixa no tema
+  faroeste do site). Roda de forma independente da troca de conteúdo
+  (não trava a navegação esperando ela terminar).
+- **`App.jsx`** simplificado — só monta `<BrowserRouter>` +
+  `<RotasAnimadas />` agora; toda a lista de `<Route>` mudou de
+  arquivo, comportamento idêntico.
+
+**Escopo desta rodada**: só transição de TELA (Painel → Personagem →
+Campanha, etc.), não troca de aba dentro de uma tela — combinado como
+primeiro passo antes de decidir se estende pra abas também.
+
 ## 7. Fluxo de autenticação
 
 - **Cadastro aberto, sem escolha de papel**: qualquer pessoa pode se

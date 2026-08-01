@@ -11,6 +11,7 @@ import NotaPersonagemCampanha from '../components/NotaPersonagemCampanha.jsx';
 import InventarioNpc from '../components/InventarioNpc.jsx';
 import UploadFoto from '../components/UploadFoto.jsx';
 import NotasMestre from '../components/NotasMestre.jsx';
+import AparecerAoRolar from '../components/AparecerAoRolar.jsx';
 import { mostrarToast } from '../lib/toastBus.js';
 import { calcularCapacidadeMunicaoDeArmas } from '../lib/regras.js';
 import { MODELOS_NPC } from '../lib/modelosNpc.js';
@@ -555,13 +556,18 @@ export default function CampanhaDetalhe() {
 
         {membros.length > 0 && modoVisualizacao === 'cartoes' && (
           <div className="grade-personagens-campanha">
-            {membros.map((m) => {
+            {membros.map((m, indice) => {
               const expandido = expandidos.has(m.personagem.id);
               const armas = armasPorPersonagem[m.personagem.id];
               const capacidade = armas ? calcularCapacidadeMunicaoDeArmas(armas) : null;
               const podeRemoverEste = podeGerenciar || m.personagem.user_id === profile.id;
               return (
-                <div className={`cartao-personagem-campanha ${expandido ? 'cartao-expandido' : ''}`} key={m.id}>
+                <AparecerAoRolar
+                  key={m.id}
+                  tag="div"
+                  atraso={indice * 0.04}
+                  className={`cartao-personagem-campanha ${expandido ? 'cartao-expandido' : ''}`}
+                >
                   <div className="cartao-personagem-topo">
                     {podeGerenciar && (
                       <input
@@ -640,7 +646,7 @@ export default function CampanhaDetalhe() {
                       Remover
                     </button>
                   )}
-                </div>
+                </AparecerAoRolar>
               );
             })}
           </div>

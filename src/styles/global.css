@@ -114,6 +114,20 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Scroll suave (13/07) — em toda rolagem controlada por código
+   (scrollIntoView do Sumário, âncoras) e também na rolagem manual do
+   usuário. `@media (prefers-reduced-motion)` respeita quem prefere
+   sem animação (configuração de acessibilidade do sistema). */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -164,6 +178,15 @@ button {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+/* Feedback de toque (13/07) — encolhe levemente ao clicar/tocar, em
+   TODO botão do app de uma vez (uma regra global, sem precisar mexer
+   em cada botão individualmente). `:active` cobre tanto clique de
+   mouse quanto toque em celular. */
+button:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 button:hover:not(:disabled) {
@@ -982,6 +1005,13 @@ p.badge-caido {
   justify-content: center;
   padding: 1rem;
   z-index: 100;
+  animation: popup-fundo-entra 0.15s ease-out;
+}
+
+@keyframes popup-fundo-entra {
+  from {
+    background: rgba(34, 26, 16, 0);
+  }
 }
 
 .popup-caixa {
@@ -993,6 +1023,14 @@ p.badge-caido {
   width: 100%;
   max-height: 85vh;
   overflow-y: auto;
+  animation: popup-caixa-entra 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+@keyframes popup-caixa-entra {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
 }
 
 .popup-caixa h3 {
@@ -3078,6 +3116,14 @@ p.badge-caido {
 
 .secao-aba-campanha {
   margin-top: 1.2rem;
+  animation: aba-conteudo-entra 0.18s ease-out;
+}
+
+@keyframes aba-conteudo-entra {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 
 .oculto-visualmente {
@@ -4112,4 +4158,19 @@ p.badge-caido {
 
 .tabs-block-mini-editor p:last-child {
   margin-bottom: 0;
+}
+
+/* ---------------------------------------------------------------
+   Transição de tela estilo cortina (13/07) — ver RotasAnimadas.jsx.
+   transform-origin: top faz a cortina "subir" (encolher de baixo pra
+   cima) ao revelar a tela nova, como uma cortina de teatro/porta de
+   saloon abrindo — batendo com o tema faroeste do site.
+------------------------------------------------------------------ */
+.cortina-transicao {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--cor-tinta);
+  transform-origin: top;
+  pointer-events: none;
 }

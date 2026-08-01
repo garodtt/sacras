@@ -5,6 +5,7 @@ import { listarMeusPersonagens } from '../lib/dados.js';
 import PainelShell from '../components/layout/PainelShell.jsx';
 import { Esqueleto } from '../components/Esqueleto.jsx';
 import EstadoVazio from '../components/EstadoVazio.jsx';
+import AparecerAoRolar from '../components/AparecerAoRolar.jsx';
 
 // "Seus Personagens" (13/07) — antes era uma seção dentro do Painel
 // único; agora é a própria tela, acessada pelo menu lateral. Criar um
@@ -40,10 +41,10 @@ export default function PainelPersonagens() {
         </EstadoVazio>
       ) : (
         <ul className="lista-cards">
-          {personagens.map((p) => (
-            <li key={p.id}>
+          {personagens.map((p, indice) => (
+            <AparecerAoRolar key={p.id} tag="li" atraso={indice * 0.04}>
               <Link to={`/personagem/${p.id}`}>{p.nome || '(sem nome)'}</Link>
-            </li>
+            </AparecerAoRolar>
           ))}
         </ul>
       )}
